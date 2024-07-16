@@ -558,6 +558,7 @@ subroutine read_infile(infile,logfile,evfile,dumpfile)
        if (.not.imatch .and. mhd_nonideal) call read_options_nicil(name,valstring,imatch,igotallnonideal,ierr)
        if (.not.imatch) call read_options_eos(name,valstring,imatch,igotalleos,ierr)
        if (.not.imatch .and. maxvxyzu >= 4) call read_options_cooling(name,valstring,imatch,igotallcooling,ierr)
+WRITE(*,*) 'igotallcooling =',igotallcooling,', name =',TRIM(name)
        if (.not.imatch) call read_options_damping(name,valstring,imatch,igotalldamping,ierr)
        if (maxptmass > 0) then
           if (.not.imatch) call read_options_ptmass(name,valstring,imatch,igotallptmass,ierr)

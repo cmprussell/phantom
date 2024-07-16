@@ -73,6 +73,9 @@ subroutine evol(infile,logfile,evfile,dumpfile,flag)
  use part,             only:ideadhead,shuffle_part
 #ifdef INJECT_PARTICLES
  use inject,           only:inject_particles
+#ifdef CWB
+ use inject,           only:dtinject_cwb
+#endif
  use part,             only:npartoftype
  use partinject,       only:update_injected_particles
 #endif
@@ -144,6 +147,10 @@ subroutine evol(infile,logfile,evfile,dumpfile,flag)
  tzero     = time
  dtlast    = 0.
  dtinject  = huge(dtinject)
+#ifdef CWB
+ dtinject = dtinject_cwb
+WRITE(*,*) 'CWB-specific code: dtinject set to dtinject_cwb; dtinject, dtinject_cwb =',dtinject,dtinject_cwb
+#endif
  dtrad     = huge(dtrad)
  np_cs_eq_0 = 0
  np_e_eq_0  = 0

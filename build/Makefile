@@ -278,6 +278,10 @@ ifeq ($(DUST_NUCLEATION), yes)
     FPPFLAGS += -DDUST_NUCLEATION
 endif
 
+ifeq ($(CWB), yes)
+    FPPFLAGS += -DCWB
+endif
+
 ifdef SRCTURB
     FPPFLAGS += -DDRIVING
 endif

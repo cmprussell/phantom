@@ -273,6 +273,10 @@ subroutine cons2prim_everything(npart,xyzh,vxyzu,dvdx,rad,eos_vars,radprop,&
        if (maxvxyzu >= 4) then
           uui = vxyzu(4,i)
           if (uui < 0.) call warning('cons2prim','Internal energy < 0',i,'u',uui)
+if (uui < 0.) THEN
+WRITE(*,'(A,I0,A,G)') 'NEGATIVE ENERGY: u(',i,') = ',uui,', vxyzu(4,',i,') = ',vxyzu(4,i)
+!uui=-uui  !a hack fix
+ENDIF
           call equationofstate(ieos,p_on_rhogas,spsound,rhogas,xi,yi,zi,temperaturei,eni=uui,&
                                gamma_local=gammai,mu_local=mui,Xlocal=X_i,Zlocal=Z_i)
        else

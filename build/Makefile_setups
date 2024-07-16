@@ -349,6 +349,16 @@ ifeq ($(SETUP), starcluster)
     KNOWN_SETUP=yes
 endif
 
+ifeq ($(SETUP), cwb)
+#   colliding wind binary
+    FPPFLAGS=
+    SETUPFILE= setup_cwb_winds.f90
+    SRCINJECT= inject_cwb_winds.f90
+    KNOWN_SETUP=yes
+    IND_TIMESTEPS=yes
+    CWB=yes
+endif
+
 #--- Bondi accretion/wind ---------------------------
 ifeq ($(SETUP), bondi)
 #   Bondi accretion flow

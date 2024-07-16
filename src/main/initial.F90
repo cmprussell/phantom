@@ -188,6 +188,9 @@ subroutine startrun(infile,logfile,evfile,dumpfile,noread)
  use inject,           only:init_inject,inject_particles
  use partinject,       only:update_injected_particles
  use timestep_ind,     only:nbinmax
+#ifdef CWB
+ use inject,           only:dtinject_cwb
+#endif
 #endif
 #ifdef KROME
  use krome_interface,  only:initialise_krome
@@ -211,8 +214,12 @@ subroutine startrun(infile,logfile,evfile,dumpfile,noread)
  use energies,         only:etot,angtot,totmom,mdust,xyzcom,mtot
  use checkconserved,   only:get_conserv,etot_in,angtot_in,totmom_in,mdust_in
  use fileutils,        only:make_tags_unique
+<<<<<<< Updated upstream
  use damping,          only:idamp
  use subgroup,       only:group_identify
+=======
+ USE timestep_ind,    ONLY:nbinmax
+>>>>>>> Stashed changes
  character(len=*), intent(in)  :: infile
  character(len=*), intent(out) :: logfile,evfile,dumpfile
  logical,          intent(in), optional :: noread
@@ -568,6 +575,9 @@ subroutine startrun(infile,logfile,evfile,dumpfile,noread)
 !
 #ifdef INJECT_PARTICLES
  call init_inject(ierr)
+#ifdef CWB
+ dtinject = dtinject_cwb
+#endif
  if (ierr /= 0) call fatal('initial','error initialising particle injection')
  !rename wind profile filename
  inquire(file='wind_profile1D.dat',exist=iexist)
@@ -624,6 +634,9 @@ subroutine startrun(infile,logfile,evfile,dumpfile,noread)
     if (do_radiation) call set_radiation_and_gas_temperature_equal(npart,xyzh,vxyzu,massoftype,rad)
 #endif
  enddo
+#ifdef CWB
+ nbinmax=MAX(nbinmax,CEILING(LOG(dtmax/dtinject)/LOG(2.))) !from dtinject=dtmax/2^nbinmax
+#endif
 
  if (nalpha >= 2) then
     ialphaloc = 2
