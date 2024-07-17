@@ -28,7 +28,7 @@ module inject
  implicit none
  character(len=*), parameter, public :: inject_type = 'cwb_winds'
 
- public :: init_inject,inject_particles,write_options_inject,read_options_inject
+ public :: init_inject,inject_particles,write_options_inject,read_options_inject,update_injected_par
 
  real :: outer_boundary = 20.
  character(len=120) :: datafile = 'winddata.txt'
@@ -80,7 +80,7 @@ end subroutine init_inject
 !+
 !-----------------------------------------------------------------------
 subroutine inject_particles(time,dtlast,xyzh,vxyzu,xyzmh_ptmass,vxyz_ptmass,&
-                            npart,npartoftype,dtinject)
+                            npart,npart_old,npartoftype,dtinject)
  use io,        only:fatal,iverbose
  use part,      only:massoftype,igas,ihacc,i_tlast
  use partinject,only:add_or_update_particle
@@ -90,7 +90,7 @@ subroutine inject_particles(time,dtlast,xyzh,vxyzu,xyzmh_ptmass,vxyz_ptmass,&
  use eos,       only:gmw,gamma
  real,    intent(in)    :: time, dtlast
  real,    intent(inout) :: xyzh(:,:), vxyzu(:,:), xyzmh_ptmass(:,:), vxyz_ptmass(:,:)
- integer, intent(inout) :: npart
+ integer, intent(inout) :: npart,npart_old
  integer, intent(inout) :: npartoftype(:)
  !real,    intent(out)   :: dtinject !for CWB, dtinject is not set here
  real,    intent(in)    :: dtinject
@@ -254,6 +254,11 @@ subroutine inject_particles(time,dtlast,xyzh,vxyzu,xyzmh_ptmass,vxyz_ptmass,&
 !WRITE(*,*) 'CWB-specific code: Did not write dtinject here; dtinject = ',dtinject
 
 end subroutine inject_particles
+
+subroutine update_injected_par
+ ! -- placeholder function
+ ! -- does not do anything and will never be used
+end subroutine
 
 !-----------------------------------------------------------------------
 !+

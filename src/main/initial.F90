@@ -214,12 +214,9 @@ subroutine startrun(infile,logfile,evfile,dumpfile,noread)
  use energies,         only:etot,angtot,totmom,mdust,xyzcom,mtot
  use checkconserved,   only:get_conserv,etot_in,angtot_in,totmom_in,mdust_in
  use fileutils,        only:make_tags_unique
-<<<<<<< Updated upstream
  use damping,          only:idamp
  use subgroup,       only:group_identify
-=======
  USE timestep_ind,    ONLY:nbinmax
->>>>>>> Stashed changes
  character(len=*), intent(in)  :: infile
  character(len=*), intent(out) :: logfile,evfile,dumpfile
  logical,          intent(in), optional :: noread
