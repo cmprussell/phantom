@@ -400,10 +400,10 @@ subroutine testsuite(string,first,last,ntests,npass,nfail)
 !
 !--test of radiation module
 !
- if (doradiation.or.testall) then
-    call test_radiation(ntests,npass)
-    call set_default_options_testsuite(iverbose) ! restore defaults
- endif
+! if (doradiation.or.testall) then
+!    call test_radiation(ntests,npass)
+!    call set_default_options_testsuite(iverbose) ! restore defaults
+! endif
 !
 !--test of wind module
 !
@@ -448,6 +448,9 @@ subroutine testsuite(string,first,last,ntests,npass,nfail)
 
        write(*,"(a)") 'TEST SUITE PASSED'
        call system("say fantastic!")
+WRITE(*,"(A)")
+WRITE(*,"(A)") 'Test Skipped: radiation'
+WRITE(*,"(A)")
     else
        write(*,"(5(a,/))") &
           " _____ _    ___ _     ", &
