@@ -639,8 +639,6 @@ subroutine calc_cooling_rate(Q, dlnQ_dlnT, rho, T, Teq, mu, gamma, K2, kappa)
 
  !call testfunc()
  !call exit
-dlnQ_dlnT = 0.
-Q = -100.
 
 end subroutine calc_cooling_rate
 
