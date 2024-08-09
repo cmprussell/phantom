@@ -49,6 +49,10 @@ subroutine setpart(id,npart,npartoftype,xyzh,massoftype,vxyzu,polyk,gamma,hfact,
  use timestep,  only:dtmax
  use spherical, only:set_sphere
  use datafiles, only:find_phantom_datafile
+ !use options,      only:icooling,alpha,alphau
+ use options,        only:icooling
+ use cooling_solver, only:icool_method
+ use cooling,        only:Tfloor
  integer,           intent(in)    :: id
  integer,           intent(inout) :: npart
  integer,           intent(out)   :: npartoftype(:)
@@ -62,6 +66,7 @@ subroutine setpart(id,npart,npartoftype,xyzh,massoftype,vxyzu,polyk,gamma,hfact,
  character(len=len(datafile)) :: filename
  integer :: ierr,i
  real    :: scale,psep
+INTEGER :: ierr_Tinit
 !
 ! units (mass = mass of black hole, length = 1 arcsec at 8kpc)
 !
@@ -118,8 +123,27 @@ subroutine setpart(id,npart,npartoftype,xyzh,massoftype,vxyzu,polyk,gamma,hfact,
 !
  psep = 1.0
  call set_sphere('cubic',id,master,0.,20.,psep,hfact,npart,xyzh)
- vxyzu(4,:) = 5.317e-4
+OPEN(UNIT=61,FILE='Tinit.dat',FORM='FORMATTED',IOSTAT=ierr_Tinit)
+IF(ierr_Tinit==0) THEN
+ READ(61,*) vxyzu(4,1)
+ vxyzu(4,1)=5.356136065348470d-4 * vxyzu(4,1)/1.d4
+ vxyzu(4,:)=vxyzu(4,1)
+ELSE
+ !vxyzu(4,:) = 5.317e-4 ! T_init=1e4
+ !vxyzu(4,:) = 5.317e-4 * 1.e2 ! T_init=1e6
+ !vxyzu(4,:) = 5.356136065348470d-4 ! T_init=1e4K to more accuracy
+ !vxyzu(4,:) = 5.356136065348470d-4 * 1.d1 ! T_init=1e5K to more accuracy
+ vxyzu(4,:) = 5.356136065348470d-4 * 1.d2 ! T_init=1e6K to more accuracy
+ !vxyzu(4,:) = 5.356136065348470d-4 * 1.d3 ! T_init=1e7K to more accuracy
+ !vxyzu(4,:) = 5.356136065348470d-4 * 1.d4 ! T_init=1e8K to more accuracy
+ENDIF
+CLOSE(61)
+
  npartoftype(igas) = npart
+
+icooling = 1
+icool_method = 2
+Tfloor = 1.d4
 
  if (nptmass == 0) call fatal('setup','no particles setup')
  if (ierr /= 0) call fatal('setup','ERROR during setup')
