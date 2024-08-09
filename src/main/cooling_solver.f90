@@ -258,14 +258,11 @@ subroutine exact_cooling(ui, dudt, rho, dt, mu, gamma, Tdust, K2, kappa)
  T      = T_on_u*ui
 
  if (T < T_floor) then
-WRITE(*,*) 'T < T_floor'
     Temp = T_floor
  elseif (T > Tref) then
-WRITE(*,*) 'T > Tref'
     call calc_cooling_rate(Q, dlnQ_dlnT, rho, T, Tdust, mu, gamma, K2, kappa)
     Temp = T+T_on_u*Q*dt
  else
-WRITE(*,*) 'else -- y=', y
     call calc_cooling_rate(Qref,dlnQref_dlnT, rho, Tref, Tdust, mu, gamma, K2, kappa)
     Qi = Qref
     Y         = 0.
