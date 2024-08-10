@@ -335,7 +335,7 @@ subroutine exact_cooling_Chris(ui, dudt, rho, dt, mu, gamma, Tdust, K2, kappa)
  REAL :: rhocgsDivmueDivmuH
  REAL :: tcool,tcoolfac
  REAL :: Tref_Chris2
- LOGICAL :: opt0,opt1,withCorrection
+ LOGICAL :: opt0,opt1,opt2,withCorrection
  
  !Option 0: default calculation where ref=N
  !opt0=.TRUE.
@@ -344,8 +344,13 @@ subroutine exact_cooling_Chris(ui, dudt, rho, dt, mu, gamma, Tdust, K2, kappa)
  !opt0=.FALSE.
  !opt1=.TRUE.
  !Option 2: new calcualiton where ref=k
+ !opt0=.FALSE.
+ !opt1=.FALSE.
+ !opt2=.TRUE.
+ !Option 3: new calcualiton where ref=k,Y_k=0
  opt0=.FALSE.
  opt1=.FALSE.
+ opt2=.FALSE.
  
  !compute k' or not -- "withCorrection=.TRUE." means to copmpute k'
  !withCorrection=.FALSE.
@@ -379,7 +384,7 @@ subroutine exact_cooling_Chris(ui, dudt, rho, dt, mu, gamma, Tdust, K2, kappa)
     !WRITE(*,*) 'else -- mu=', mu
     !WRITE(*,*) 'else -- habund, mu_e, mu_h=', habund,mu_e, mu_h
     !WRITE(*,*) 'else -- rho, rho*unit_density, rhocgsDivmueDivmuH=',rho,rho*unit_density,rhocgsDivmueDivmuH,LambdaTable(nTg)
-    WRITE(*,*) 'else -- opt0 =',opt0,', opt1 =',opt1,', withCorrection =',withCorrection
+    WRITE(*,*) 'else -- opt0 =',opt0,', opt1 =',opt1,', opt2 =',opt2,', withCorrection =',withCorrection
     IF(opt0) THEN
        !call calc_cooling_rate(Qref,dlnQref_dlnT, rho, Tref_Chris, Tdust, mu, gamma, K2, kappa)
        !Qref=LambdaTable(nTg)*-2.e23
@@ -423,7 +428,7 @@ subroutine exact_cooling_Chris(ui, dudt, rho, dt, mu, gamma, Tdust, K2, kappa)
        else
           y = - Qref*Tgrid(k)/(Q*Tgrid(k+1)*(1.-dlnQ_dlnT))*(1.-(Tgrid(k)/Tgrid(k+1))**(dlnQ_dlnT-1.))
        endif
-    ELSE !Y_{k+1}=0, T_N=T_k, Lambda_N=Lambda_k
+    ELSEIF(opt2) THEN !Y_{k+1}=0, T_N=T_k, Lambda_N=Lambda_k
        k         = nTg
        do while (Tgrid(k) > T)
           k = k-1
@@ -439,6 +444,23 @@ subroutine exact_cooling_Chris(ui, dudt, rho, dt, mu, gamma, Tdust, K2, kappa)
        else
           y = - 1./(1.-dlnQ_dlnT)*(1.-(Tgrid(k)/Tgrid(k+1))**(dlnQ_dlnT-1.))
        endif
+    ELSE !Y_{k+1}=0, T_N=T_k, Lambda_N=Lambda_k
+       k         = nTg
+       do while (Tgrid(k) > T)
+          k = k-1
+       enddo
+       Qref=-rhocgsDivmueDivmuH*LambdaTable(k) * utime/unit_ergg
+       dlnQref_dlnT=alphaTable(k)
+       Tref_Chris2=Tgrid(k) !need to save since k might be changed later for Eq. A7
+       !Y         = 0.
+       Q=Qref
+       dlnQ_dlnT=dlnQref_dlnT
+       !if (abs(dlnQ_dlnT-1.) < tol) then
+       !   y = - log(Tgrid(k)/Tgrid(k+1))
+       !else
+       !   y = - 1./(1.-dlnQ_dlnT)*(1.-(Tgrid(k)/Tgrid(k+1))**(dlnQ_dlnT-1.))
+       !endif
+       y=0.
     ENDIF
     tcool=tcoolfac*T/LambdaTable(k)
     !WRITE(*,*) 'tcool =',tcool,tcool/utime
