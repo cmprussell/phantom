@@ -40,6 +40,7 @@ module cooling_solver
  !integer, parameter :: nTg  = 64
  integer, parameter :: nTg  = 1000
  !integer, parameter :: nTg  = 667
+ !integer, parameter :: nTg  = 201
  real,    parameter :: Tref = 1.d7 !higher value of the temperature grid (for exact cooling)
  real :: Tgrid(nTg)
  REAL :: LambdaTable(nTg),alphaTable(nTg),YkTable(nTg)
@@ -322,7 +323,7 @@ subroutine exact_cooling_Chris(ui, dudt, rho, dt, mu, gamma, Tdust, K2, kappa)
  use physcon, only:Rg,kboltz
  !use units,   only:unit_ergg
  use units,   only:unit_ergg,unit_density,utime
- use cooling, only:Tfloor
+ !use cooling, only:Tfloor
 
  real, intent(in)  :: ui, rho, dt, Tdust, mu, gamma
  real, intent(in)  :: K2, kappa
@@ -336,6 +337,7 @@ subroutine exact_cooling_Chris(ui, dudt, rho, dt, mu, gamma, Tdust, K2, kappa)
  REAL :: tcool,tcoolfac
  REAL :: Tref_Chris2
  LOGICAL :: opt0,opt1,opt2,withCorrection
+ REAL, PARAMETER :: Tfloor=1.d4
  
  !Option 0: default calculation where ref=N
  !opt0=.TRUE.
