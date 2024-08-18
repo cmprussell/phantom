@@ -38,14 +38,18 @@ module cooling_solver
  integer, public :: cooltable_Chris = 0
  integer, public :: icool_method  = 0
  !integer, parameter :: nTg  = 64
- integer, parameter :: nTg  = 1000
- !integer, parameter :: nTg  = 667
- !integer, parameter :: nTg  = 201
+ integer, parameter :: nTg  = 1000 ! cloudy
+ !integer, parameter :: nTg  = 667 ! cloudy where first T bin spans T_floor=1e4K
+ !integer, parameter :: nTg  = 201 ! GS07
+ INTEGER :: nTg_Chris
  real,    parameter :: Tref = 1.d7 !higher value of the temperature grid (for exact cooling)
  real :: Tgrid(nTg)
  REAL :: LambdaTable(nTg),alphaTable(nTg),YkTable(nTg)
  REAL :: Tref_Chris
-
+ REAL, DIMENSION(:), ALLOCATABLE :: Tgrid_Chris,LambdaTable_Chris,alphaTable_Chris,YkTable_Chris
+ REAL, DIMENSION(:), ALLOCATABLE :: YTsegAlpha1_Chris,YTsegAlphaNot1_Chris
+ REAL :: TNdivLN
+ 
  public :: init_cooling_solver,read_options_cooling_solver,write_options_cooling_solver
  public :: energ_cooling_solver,calc_cooling_rate, calc_Q
  public :: testfunc,print_cooling_rates
@@ -58,6 +62,8 @@ module cooling_solver
  REAL, PARAMETER :: habund=0.7
  REAL, PARAMETER :: mu_e=2.0*atomic_mass_unit/(1.0+habund)
  REAL, PARAMETER :: mu_h=atomic_mass_unit/habund
+ !LOGICAL, PARAMETER :: methodLong=.TRUE. !Q-based method, native to Phantom
+ LOGICAL, PARAMETER :: methodLong=.FALSE. !Lambda-based method, native to EIS algorithm
 
 
 contains
@@ -84,15 +90,23 @@ subroutine init_cooling_solver(ierr)
  !call set_Tgrid()
  cooltable_Chris=1
  IF(cooltable_Chris==1) THEN
-WRITE(*,*) 
-WRITE(*,*) 'CALL set_Tgrid_cooltable_Chris()'
-    CALL set_Tgrid_cooltable_Chris()
-WRITE(*,*) 'END CALL set_Tgrid_cooltable_Chris()'
-WRITE(*,*) 
-WRITE(*,*) 'mu_e, mu_H =',mu_e,mu_H
-WRITE(*,*) 
+    WRITE(*,*) 'methodLong = ',methodLong
+    IF(methodLong) THEN
+       WRITE(*,*) 
+       WRITE(*,*) 'CALL set_Tgrid_cooltable_Chris()'
+       CALL set_Tgrid_cooltable_Chris()
+       WRITE(*,*) 'END CALL set_Tgrid_cooltable_Chris()'
+    ELSE
+       WRITE(*,*) 
+       WRITE(*,*) 'CALL set_Tgrid_cooltable_Chris2()'
+       CALL set_Tgrid_cooltable_Chris2()
+       WRITE(*,*) 'END CALL set_Tgrid_cooltable_Chris2()'
+    ENDIF
+    WRITE(*,*) 
+    WRITE(*,*) 'mu_e, mu_H =',mu_e,mu_H
+    WRITE(*,*) 
  ELSE
-WRITE(*,*) 'call set_Tgrid()'
+    WRITE(*,*) 'call set_Tgrid()'
     call set_Tgrid()
  ENDIF
 
@@ -111,7 +125,11 @@ subroutine energ_cooling_solver(ui,dudt,rho,dt,mu,gamma,Tdust,K2,kappa)
 
  if (icool_method == 2) then
     !call exact_cooling   (ui,dudt,rho,dt,mu,gamma,Tdust,K2,kappa)
-    call exact_cooling_Chris   (ui,dudt,rho,dt,mu,gamma,Tdust,K2,kappa)
+    IF(methodLong) THEN
+       call exact_cooling_Chris(ui,dudt,rho,dt,mu,gamma,Tdust,K2,kappa)
+    ELSE
+       call exact_cooling_Chris2(ui,dudt,rho,dt,mu,gamma,Tdust,K2,kappa)
+    ENDIF
  elseif (icool_method == 0) then
     call implicit_cooling(ui,dudt,rho,dt,mu,gamma,Tdust,K2,kappa)
  else
@@ -338,10 +356,12 @@ subroutine exact_cooling_Chris(ui, dudt, rho, dt, mu, gamma, Tdust, K2, kappa)
  REAL :: Tref_Chris2
  LOGICAL :: opt0,opt1,opt2,withCorrection
  REAL, PARAMETER :: Tfloor=1.d4
+ INTEGER :: ksave
+ REAL :: yksave,ysave
  
  !Option 0: default calculation where ref=N
- !opt0=.TRUE.
- !opt1=.FALSE.
+ opt0=.TRUE.
+ opt1=.FALSE.
  !Option 1: new calcualiton where ref=k+1
  !opt0=.FALSE.
  !opt1=.TRUE.
@@ -350,16 +370,18 @@ subroutine exact_cooling_Chris(ui, dudt, rho, dt, mu, gamma, Tdust, K2, kappa)
  !opt1=.FALSE.
  !opt2=.TRUE.
  !Option 3: new calcualiton where ref=k,Y_k=0
- opt0=.FALSE.
- opt1=.FALSE.
- opt2=.FALSE.
+ !opt0=.FALSE.
+ !opt1=.FALSE.
+ !opt2=.FALSE.
  
  !compute k' or not -- "withCorrection=.TRUE." means to copmpute k'
  !withCorrection=.FALSE.
  withCorrection=.TRUE.
  
+ !WRITE(*,*) 'Rg, kB/amu, kB, amu =',Rg,kboltz/atomic_mass_unit,kboltz,atomic_mass_unit
  rhocgsDivmueDivmuH = rho*unit_density/mu_e/mu_H
- tcoolfac = kboltz*mu_e*mu_H / ((gamma-1)*rho*unit_density*mu*atomic_mass_unit)
+ !tcoolfac = kboltz*mu_e*mu_H / ((gamma-1.)*rho*unit_density*mu*atomic_mass_unit)
+ tcoolfac = Rg*mu_e*mu_H / ((gamma-1.)*rho*unit_density*mu)
  !WRITE(*,*) 'asdf: ',kboltz,mu_e,mu_H,gamma,rho,unit_density,mu,atomic_mass_unit,tcoolfac
  !WRITE(*,*) 'asdf2:',ui, dudt, rho, dt, mu, gamma, Tdust, K2, kappa
 
@@ -500,6 +522,9 @@ subroutine exact_cooling_Chris(ui, dudt, rho, dt, mu, gamma, Tdust, K2, kappa)
        !argument of Y^(-1) in eq 26
        dy = -Qref*dt*T_on_u/Tref_Chris2
     ENDIF
+    ksave = k
+    yksave = yk
+    ysave = y
     y  = y + dy
 
     !New Part -- Start
@@ -597,7 +622,199 @@ subroutine exact_cooling_Chris(ui, dudt, rho, dt, mu, gamma, Tdust, K2, kappa)
  !note that u = Temp/T_on_u
 
  !WRITE(*,'(A,6(1PE14.6))') 'C',ui,T,Temp,dudt,Q,Tref_Chris
+ !WRITE(*,*) 'stuff: ',ksave,k,yksave,ysave,tcoolfac,dy,y,tcoolfac*T/(LambdaTable(ksave)*(T/Tgrid(ksave))**alphaTable(ksave)),tcoolfac*T/LambdaTable(ksave)
+ !WRITE(*,*) 'ffuts: ',dy,dt,utime,tcoolfac,T_on_u,Tref_Chris,-Qref
 end subroutine exact_cooling_Chris
+
+!-----------------------------------------------------------------------
+!+
+!   cooling using Townsend (2009), ApJS 181, 391-397 method with
+!   analytical cooling rate prescriptions
+!+
+!-----------------------------------------------------------------------
+subroutine exact_cooling_Chris2(ui, dudt, rho, dt, mu, gamma, Tdust, K2, kappa)
+
+ !use physcon, only:Rg
+ use physcon, only:Rg,kboltz
+ !use units,   only:unit_ergg
+ use units,   only:unit_ergg,unit_density,utime
+ !use cooling, only:Tfloor
+
+ real, intent(in)  :: ui, rho, dt, Tdust, mu, gamma
+ real, intent(in)  :: K2, kappa
+ real, intent(out) :: dudt
+
+ real, parameter :: tol = 1.d-12
+ real            :: Qref,dlnQref_dlnT,Q,dlnQ_dlnT,Y,Yk,Yinv,Temp,dy,T,T_on_u,T_floor,Qi
+ integer         :: k
+
+ !REAL :: rhocgsDivmueDivmuH
+ REAL :: tcool,tcoolfac
+ !REAL :: Tref_Chris2
+ !LOGICAL :: opt0,opt1,opt2,withCorrection
+ REAL, PARAMETER :: Tfloor=1.d4
+
+ INTEGER :: kl,km,ku,kk
+ REAL :: YT
+ !REAL :: YTsave
+ 
+ !NOTE: When this cooling subroutine was written and tested,
+ !      kboltz was not updated to enough sig figs, so computations using kboltz
+ !      vs. computations using Rg*amu yielded different results.
+ !At the time of testing, from src/main/physcon.f90:
+ !   real(kind=8), parameter :: Rg = 8.31446261815324d7             !Gas constant              erg/K/g
+ !   real(kind=8), parameter :: atomic_mass_unit = 1.660538921d-24  !Atomic mass unit          g
+ !   real(kind=8), parameter :: kboltz = 1.38066d-16                !Boltzmann constant        erg/K
+ !The following result should be 1.000000000, but it isn't:
+ !   Rg*atomic_mass_unit/kboltz = 0.999991944768663
+ !Though the difference is small, performing "diff" on files generated from kboltz 
+ !   vs. files gerenated from Rg*amu will certainly generate differences.
+ !
+ !From the 2019 SI definitions, it should be
+ !   kB = 1.380649d-16
+ !   NA = 6.02214076d23
+ !which therefore means that
+ !   atomic_mass_unit = 1.66053906717385d-24 = 1/NA = amu
+ !   Rg = 8.31446261815324d+07 = kB/amu
+ !
+ !Therefore, instead of using "kboltz" in calculations, use "Rg*atomic_mass_unit".
+ !This is why tcoolfac below is currently written the way it is:
+ !tcoolfac = kB mu_e mu_H / ((gamma-1) rho_cgs mu_cgs) = tcool*Lambda(T)/T, eq. 13
+ !         = Rg*amu mu_e mu_H / ((gamma-1) rho_cgs mu_1*amu)
+ !         = Rg mu_e mu_H / ((gamma-1) rho_cgs mu_1)
+
+ !WRITE(*,*) 'Rg, kB/amu, kB, amu =',Rg,kboltz/atomic_mass_unit,kboltz,atomic_mass_unit
+ !rhocgsDivmueDivmuH = rho*unit_density/mu_e/mu_H
+ !tcoolfac = kboltz*mu_e*mu_H / ((gamma-1.)*rho*unit_density*mu*atomic_mass_unit) ! = tcool*Lambda(T)/T
+ tcoolfac = Rg*mu_e*mu_H / ((gamma-1.)*rho*unit_density*mu) ! = tcool*Lambda(T)/T
+ !WRITE(*,*) 'asdf: ',kboltz,mu_e,mu_H,gamma,rho,unit_density,mu,atomic_mass_unit,tcoolfac
+ !WRITE(*,*) 'asdf2:',ui, dudt, rho, dt, mu, gamma, Tdust, K2, kappa
+
+ if (Townsend_test) then
+    T_floor = Tcap
+ else
+    !T_floor = 10.
+    T_floor = Tfloor
+ endif
+ T_on_u = (gamma-1.)*mu*unit_ergg/Rg ! = (gamma-1.)*mu*atomic_mass_unit/kB * unit_ergg = (gamma-1.)*mu_cgs/kB * unit_ergg
+ T      = T_on_u*ui
+ !WRITE(*,*) 'asdf3:',T_on_u,gamma,mu,unit_ergg,Rg
+
+ if (T < T_floor) then
+    WRITE(*,*) 'T < T_floor'
+    Temp = T_floor
+ elseif (T > Tref_Chris) then
+    WRITE(*,*) 'T > Tref_Chris'
+    call calc_cooling_rate(Q, dlnQ_dlnT, rho, T, Tdust, mu, gamma, K2, kappa)
+    Temp = T+T_on_u*Q*dt
+ else
+    WRITE(*,*) 'else'
+
+    !bisector to find k in Eq. A5
+    !c----    Locate the interval in which temp is found.
+    !c        This part is taken from locate.f in Numerical Recipes.
+    !c
+    !ignoring the initial conditionals, the results will be kl_init <= k <= ku_init-1
+    !   therefore, choose kl_init = 1 and ku_init = nTg_Chris
+    IF(T.LE.Tgrid_Chris(1)) THEN
+       k=1
+    ELSEIF(T.GE.Tgrid_Chris(nTg_Chris-1)) THEN
+       k=nTg_Chris-1
+    ELSE
+       !kl=0
+       !ku=nTg_Chris+1
+       kl=1
+       ku=nTg_Chris
+       DO WHILE (ku-kl.GT.1)
+          km=(ku+kl)/2
+          IF(T.GE.Tgrid_Chris(km)) THEN
+             kl=km
+          ELSE
+             ku=km
+          ENDIF
+       ENDDO
+       k=kl
+    ENDIF
+
+    !find Y(T), Eq. A5
+    IF(ABS(alphaTable_Chris(k)-1.) < tol) THEN
+       YT = YkTable_Chris(k) + YTsegAlpha1_Chris(k)*LOG(Tgrid_Chris(k)/T)
+    ELSE
+       YT = YkTable_Chris(k) + YTsegAlphaNot1_Chris(k)*(1.-(Tgrid_Chris(k)/T)**(alphaTable_Chris(k)-1.))
+    ENDIF
+    !YTsave = YT
+    
+    !argument of Eq. 26
+    !cCool_v2b   delta_Y = (gamma-1)*rho*mu / (mu_e*mu_H*kB) * LambdaN/TempN * delta_t
+    !         dyfunx_v2b = gamma1*DBLE(rho(ipart)*udens)
+    !     &                *DBLE(amunit*gmw/(amue*amuh*boltz))
+    !     &                /TNdivLN_v2b
+    !     &                *DBLE(deltat*utime)
+    !yfunx_v2b = yfunx_v2b + dyfunx_v2b
+    !dYT = 1./(tcoolfac*TNdivLN) * dt*utime
+    !yT = yT + dyT
+    YT = YT + 1./(tcoolfac*TNdivLN) * dt*utime
+
+    !bisector to find kk in Eq. A7
+    !cCool_v2b Bisection Method to find kk
+    !cCool_v2b Note: 'k' is not used again, so 'k' could be used again for bisecting Y,
+    !cCool_v2b        but for clarity, a new variable 'kk' is used here.
+    !c----    Locate the interval in which temp is found.
+    !c        This part is taken from locate.f in Numerical Recipes.
+    !c
+    !ignoring the initial conditionals, the results will be kl_init <= kk <= ku_init-1
+    !   therefore, choose kl_init = 1 and ku_init = nTg_Chris
+    !IF (yfunx_v2b.EQ.yfunc_v2b(1)) THEN
+    IF(YT.GT.YkTable_Chris(1)) THEN
+       kk=0
+    ELSEIF(YT.EQ.YkTable_Chris(1)) THEN
+       kk=1
+    ELSEIF(YT.LE.YkTable_Chris(nTg_Chris-1)) THEN
+       kk=nTg_Chris-1
+    ELSE
+       !kl=0
+       !ku=nTg_Chris+1
+       kl=1
+       ku=nTg_Chris
+       DO WHILE(ku-kl.GT.1)
+          km=(ku+kl)/2
+          IF(YT.LE.YkTable_Chris(km)) THEN
+             kl=km
+          ELSE
+             ku=km
+          ENDIF
+       ENDDO
+       kk=kl
+    ENDIF
+
+    ! find Yinv, Eq. A7
+    IF(kk==0) THEN
+       Temp = T_floor
+    ELSE
+       IF(ABS(alphaTable_Chris(kk)-1.) < tol) THEN
+          Temp = MAX(Tgrid_Chris(kk)*EXP(-(YT-YkTable_Chris(kk))/YTsegAlpha1_Chris(kk)) &
+                     ,T_floor)
+       ELSE
+          Yinv = 1.-(YT-YkTable_Chris(kk))/YTsegAlphaNot1_Chris(kk)
+          IF(Yinv.GT.0.0) THEN
+             Temp = MAX(Tgrid_Chris(kk)*Yinv**(1./(1.-alphaTable_Chris(kk))) &
+                        ,T_floor)
+          ELSE
+             Temp = T_floor
+          ENDIF
+       ENDIF
+    ENDIF
+ endif
+
+ IF(Temp<T_floor) WRITE(*,*) 'UH-HOH ',Temp,T_floor
+ WRITE(*,*) 'T, Temp =',T,Temp
+ dudt = (Temp-T)/T_on_u/dt
+ !note that u = Temp/T_on_u
+
+ !WRITE(*,'(A,6(1PE14.6))') 'C',ui,T,Temp,dudt,Q,Tref_Chris
+ !WRITE(*,*) 'stuff: ',k,kk,YkTable_Chris(k),YTsave,tcoolfac,1./(tcoolfac*TNdivLN)*dt*utime,YT,tcoolfac*T/(LambdaTable_Chris(k)*(T/Tgrid_Chris(k))**alphaTable_Chris(k))
+ !WRITE(*,*) 'ffuts: ',1./(tcoolfac*TNdivLN)*dt*utime,dt,utime,tcoolfac,T_on_u,Tref_Chris,TNdivLN
+end subroutine exact_cooling_Chris2
 
 !-----------------------------------------------------------------------
 !+
@@ -783,9 +1000,11 @@ SUBROUTINE set_Tgrid_cooltable_Chris
     READ(15,*,IOSTAT=ierr) Tgrid(i), LambdaTable(i)
     IF(ierr==0) WRITE(*,*) i, Tgrid(i), LambdaTable(i)
  ENDDO
+ CLOSE(15)
  IF(ierr.NE.0) i=i-1
  Tref_Chris = Tgrid(i)
  WRITE(*,*) 'set_Tgrid_cooltable_Chris: read in ',i,' temperatures and cooling values'
+WRITE(*,*) 'query: ',nTg,Tref_Chris,LambdaTable(nTg),Tref_Chris/LambdaTable(nTg),i
 
  DO k=1,i-1
     alphaTable(k) = LOG10(LambdaTable(k+1)/LambdaTable(k)) / LOG10(Tgrid(k+1)/Tgrid(k))
@@ -809,6 +1028,90 @@ SUBROUTINE set_Tgrid_cooltable_Chris
     WRITE(*,*) k,alphaTable(k),YkTable(k)
  ENDDO
 END SUBROUTINE set_Tgrid_cooltable_Chris
+
+SUBROUTINE set_Tgrid_cooltable_Chris2
+ INTEGER :: k,ierr
+ REAL :: tol=1.d-12,dummy1(10000),dummy2(10000)
+
+ WRITE(*,*) 'k, T(k), Lambda(k) in cgs'
+ k=1
+ OPEN(UNIT=15,FILE='cooltable.dat',FORM='FORMATTED')
+ READ(15,*,IOSTAT=ierr) dummy1(k), dummy2(k)
+ WRITE(*,*) k, dummy1(k), dummy2(k)
+ DO WHILE(ierr==0) ! .AND. k<nTg)
+    k=k+1
+    IF(k>10000) WRITE(*,*) 'ERROR -- increase size of dummy1 and dummy2 in set_Tgrid_cooltable_Chris2'
+    READ(15,*,IOSTAT=ierr) dummy1(k), dummy2(k)
+    IF(ierr==0) WRITE(*,*) k, dummy1(k), dummy2(k)
+ ENDDO
+ CLOSE(15)
+ IF(ierr.NE.0) k=k-1
+ nTg_Chris = k
+ 
+ IF(ALLOCATED(Tgrid_Chris         )) DEALLOCATE(Tgrid_Chris         )
+ ALLOCATE(    Tgrid_Chris(        nTg_Chris))
+ IF(ALLOCATED(LambdaTable_Chris   )) DEALLOCATE(LambdaTable_Chris   )
+ ALLOCATE(    LambdaTable_Chris(  nTg_Chris))
+ IF(ALLOCATED(alphaTable_Chris    )) DEALLOCATE(alphaTable_Chris    )
+ ALLOCATE(    alphaTable_Chris(   nTg_Chris))
+ IF(ALLOCATED(YkTable_Chris       )) DEALLOCATE(YkTable_Chris       )
+ ALLOCATE(    YkTable_Chris(      nTg_Chris))
+ IF(ALLOCATED(YTsegAlpha1_Chris   )) DEALLOCATE(YTsegAlpha1_Chris   )
+ ALLOCATE(    YTsegAlpha1_Chris(  nTg_Chris))
+ IF(ALLOCATED(YTsegAlphaNot1_Chris)) DEALLOCATE(YTsegAlphaNot1_Chris)
+ ALLOCATE(    YTsegAlphaNot1_Chris(nTg_Chris))
+ 
+ !cooling table -- put dummy variables into allocated arrays
+ DO k=1,nTg_Chris
+    Tgrid_Chris(k)=dummy1(k)
+    LambdaTable_Chris(k)=dummy2(k)
+ ENDDO
+ 
+ !reference temperature T_ref=T_N, which is the final entry in the cooling table
+ Tref_Chris = Tgrid_Chris(nTg_Chris)
+ WRITE(*,*) 'set_Tgrid_cooltable_Chris: read in ',nTg_Chris,' temperatures and cooling values'
+ 
+ !frequently needed quantity -- precompute for optimization
+ TNdivLN = Tgrid_Chris(nTg_Chris) / LambdaTable_Chris(nTg_Chris)
+WRITE(*,*) 'query: ',nTg_Chris,Tref_Chris,LambdaTable_Chris(nTg_Chris),TNdivLN
+
+ !Eq. A4, piecewise power law
+ DO k=1,nTg_Chris-1
+    alphaTable_Chris(k) = LOG10(LambdaTable_Chris(k+1)/LambdaTable_Chris(k)) / LOG10(Tgrid_Chris(k+1)/Tgrid_Chris(k))
+ ENDDO
+ alphaTable_Chris(nTg_Chris)=alphaTable_Chris(nTg_Chris-1)
+
+ !Eq. A6
+ YkTable_Chris(nTg_Chris)=0.
+ DO k=nTg_Chris-1,1,-1
+    IF(ABS(alphaTable_Chris(k)-1.) < tol) THEN
+       !YkTable_Chris(k) = YkTable_Chris(k+1) - LambdaTable_Chris(nTg_Chris)/Tgrid_Chris(nTg_Chris) &
+       !                          * Tgrid_Chris(k)/LambdaTable_Chris(k) * LOG(Tgrid_Chris(k)/Tgrid_Chris(k+1))
+       YkTable_Chris(k) = YkTable_Chris(k+1) - 1./TNdivLN &
+                                 * Tgrid_Chris(k)/LambdaTable_Chris(k) * LOG(Tgrid_Chris(k)/Tgrid_Chris(k+1))
+    ELSE
+       !YkTable_Chris(k) = YkTable_Chris(k+1) - LambdaTable_Chris(nTg_Chris)/Tgrid_Chris(nTg_Chris) &
+       !                          * Tgrid_Chris(k)/LambdaTable_Chris(k) / (1.-alphaTable_Chris(k)) &
+       !                          * (1. - (Tgrid_Chris(k)/Tgrid_Chris(k+1))**(alphaTable_Chris(k)-1.))
+       YkTable_Chris(k) = YkTable_Chris(k+1) - 1./TNdivLN &
+                                 * Tgrid_Chris(k)/LambdaTable_Chris(k) / (1.-alphaTable_Chris(k)) &
+                                 * (1. - (Tgrid_Chris(k)/Tgrid_Chris(k+1))**(alphaTable_Chris(k)-1.))
+    ENDIF
+ ENDDO
+
+ !Precomputed combination of Y-related constants for optimization (from Eq. A5 in Townsend+09)        
+ !YTsegAlpha1_Chris: for alpha=1
+ !YTsegAlphaNot1_Chris: for alpha/=1
+ DO k=1,nTg_Chris
+    YTsegAlpha1_Chris(k) = Tgrid_Chris(k)/LambdaTable_Chris(k) / TNdivLN
+    YTsegAlphaNot1_Chris(k) = YTsegAlpha1_Chris(k)/(1.-alphaTable_Chris(k))
+ ENDDO
+
+ WRITE(*,*) 'k, alpha(k), Y_k(k)'
+ DO k=1,nTg_Chris
+    WRITE(*,*) k,alphaTable_Chris(k),YkTable_Chris(k)
+ ENDDO
+END SUBROUTINE set_Tgrid_cooltable_Chris2
 
 !-----------------------------------------------------------------------
 !+
