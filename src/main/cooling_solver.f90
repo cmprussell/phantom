@@ -645,7 +645,8 @@ subroutine exact_cooling_Chris2(ui, dudt, rho, dt, mu, gamma, Tdust, K2, kappa)
  real, intent(out) :: dudt
 
  real, parameter :: tol = 1.d-12
- real            :: Qref,dlnQref_dlnT,Q,dlnQ_dlnT,Y,Yk,Yinv,Temp,dy,T,T_on_u,T_floor,Qi
+ !real            :: Qref,dlnQref_dlnT,Q,dlnQ_dlnT,Y,Yk,Yinv,Temp,dy,T,T_on_u,T_floor,Qi
+ real            :: Yinv,Temp,T,T_on_u,T_floor
  integer         :: k
 
  !REAL :: rhocgsDivmueDivmuH
@@ -703,10 +704,10 @@ subroutine exact_cooling_Chris2(ui, dudt, rho, dt, mu, gamma, Tdust, K2, kappa)
  if (T < T_floor) then
     WRITE(*,*) 'T < T_floor'
     Temp = T_floor
- elseif (T > Tref_Chris) then
-    WRITE(*,*) 'T > Tref_Chris'
-    call calc_cooling_rate(Q, dlnQ_dlnT, rho, T, Tdust, mu, gamma, K2, kappa)
-    Temp = T+T_on_u*Q*dt
+ !elseif (T > Tref_Chris) then
+ !   WRITE(*,*) 'T > Tref_Chris'
+ !   call calc_cooling_rate(Q, dlnQ_dlnT, rho, T, Tdust, mu, gamma, K2, kappa)
+ !   Temp = T+T_on_u*Q*dt
  else
     WRITE(*,*) 'else'
 
@@ -715,26 +716,30 @@ subroutine exact_cooling_Chris2(ui, dudt, rho, dt, mu, gamma, Tdust, K2, kappa)
     !c        This part is taken from locate.f in Numerical Recipes.
     !c
     !ignoring the initial conditionals, the results will be kl_init <= k <= ku_init-1
-    !   therefore, choose kl_init = 1 and ku_init = nTg_Chris
+    !   therefore, choose kl_init = 1 and ku_init = nTg_Chris+1
     IF(T.LE.Tgrid_Chris(1)) THEN
-       k=1
-    ELSEIF(T.GE.Tgrid_Chris(nTg_Chris-1)) THEN
-       k=nTg_Chris-1
+       k = 1
+    ELSEIF(T.GE.Tgrid_Chris(nTg_Chris)) THEN
+       k = nTg_Chris
     ELSE
-       !kl=0
-       !ku=nTg_Chris+1
-       kl=1
-       ku=nTg_Chris
+       kl = 1
+       ku = nTg_Chris+1
        DO WHILE (ku-kl.GT.1)
-          km=(ku+kl)/2
+          km = (ku+kl)/2
           IF(T.GE.Tgrid_Chris(km)) THEN
-             kl=km
+             kl = km
           ELSE
-             ku=km
+             ku = km
           ENDIF
        ENDDO
-       k=kl
+       k = kl
     ENDIF
+    WRITE(*,*) 'tcool = ',tcoolfac*T/(LambdaTable_Chris(k)*(T/Tgrid_Chris(k))**alphaTable_Chris(k)), &
+                          tcoolfac*T/(LambdaTable_Chris(k)*(T/Tgrid_Chris(k))**alphaTable_Chris(k)) / utime, &
+                          k,nTg_Chris, &
+                          T,Tgrid_Chris(k), &
+                          LambdaTable_Chris(k)*(T/Tgrid_Chris(k))**alphaTable_Chris(k),LambdaTable_Chris(k), &
+                          alphaTable_Chris(k)
 
     !find Y(T), Eq. A5
     IF(ABS(alphaTable_Chris(k)-1.) < tol) THEN
@@ -743,6 +748,9 @@ subroutine exact_cooling_Chris2(ui, dudt, rho, dt, mu, gamma, Tdust, K2, kappa)
        YT = YkTable_Chris(k) + YTsegAlphaNot1_Chris(k)*(1.-(Tgrid_Chris(k)/T)**(alphaTable_Chris(k)-1.))
     ENDIF
     !YTsave = YT
+    !WRITE(*,*) 'YT1 =',YT,YkTable_Chris(k),YTsegAlphaNot1_Chris(k),Tgrid_Chris(k),T,alphaTable_Chris(k), &
+    !                   1.-(Tgrid_Chris(k)/T)**(alphaTable_Chris(k)-1.), &
+    !                   YTsegAlphaNot1_Chris(k)*(1.-(Tgrid_Chris(k)/T)**(alphaTable_Chris(k)-1.))
     
     !argument of Eq. 26
     !cCool_v2b   delta_Y = (gamma-1)*rho*mu / (mu_e*mu_H*kB) * LambdaN/TempN * delta_t
@@ -754,6 +762,10 @@ subroutine exact_cooling_Chris2(ui, dudt, rho, dt, mu, gamma, Tdust, K2, kappa)
     !dYT = 1./(tcoolfac*TNdivLN) * dt*utime
     !yT = yT + dyT
     YT = YT + 1./(tcoolfac*TNdivLN) * dt*utime
+    !WRITE(*,*) 'YT2 =',YT,YkTable_Chris(1),YkTable_Chris(nTg_Chris), &
+    !                   tcoolfac,TNdivLN,dt,utime, &
+    !                   1./(tcoolfac*TNdivLN),dt*utime, &
+    !                   1./(tcoolfac*TNdivLN) * dt*utime
 
     !bisector to find kk in Eq. A7
     !cCool_v2b Bisection Method to find kk
@@ -763,28 +775,26 @@ subroutine exact_cooling_Chris2(ui, dudt, rho, dt, mu, gamma, Tdust, K2, kappa)
     !c        This part is taken from locate.f in Numerical Recipes.
     !c
     !ignoring the initial conditionals, the results will be kl_init <= kk <= ku_init-1
-    !   therefore, choose kl_init = 1 and ku_init = nTg_Chris
+    !   therefore, choose kl_init = 1 and ku_init = nTg_Chris+1
     !IF (yfunx_v2b.EQ.yfunc_v2b(1)) THEN
     IF(YT.GT.YkTable_Chris(1)) THEN
-       kk=0
+       kk = 0
     ELSEIF(YT.EQ.YkTable_Chris(1)) THEN
-       kk=1
-    ELSEIF(YT.LE.YkTable_Chris(nTg_Chris-1)) THEN
-       kk=nTg_Chris-1
+       kk = 1
+    ELSEIF(YT.LE.YkTable_Chris(nTg_Chris)) THEN
+       kk = nTg_Chris
     ELSE
-       !kl=0
-       !ku=nTg_Chris+1
-       kl=1
-       ku=nTg_Chris
+       kl = 1
+       ku = nTg_Chris+1
        DO WHILE(ku-kl.GT.1)
-          km=(ku+kl)/2
+          km = (ku+kl)/2
           IF(YT.LE.YkTable_Chris(km)) THEN
-             kl=km
+             kl = km
           ELSE
-             ku=km
+             ku = km
           ENDIF
        ENDDO
-       kk=kl
+       kk = kl
     ENDIF
 
     ! find Yinv, Eq. A7
@@ -991,27 +1001,31 @@ SUBROUTINE set_Tgrid_cooltable_Chris
  REAL :: tol=1.d-12
 
  WRITE(*,*) 'k, T(k), Lambda(k) in cgs'
- i=1
+ i = 1
  OPEN(UNIT=15,FILE='cooltable.dat',FORM='FORMATTED')
  READ(15,*,IOSTAT=ierr) Tgrid(i), LambdaTable(i)
  WRITE(*,*) i, Tgrid(i), LambdaTable(i)
  DO WHILE(ierr==0 .AND. i<nTg)
-    i=i+1
+    i = i+1
     READ(15,*,IOSTAT=ierr) Tgrid(i), LambdaTable(i)
     IF(ierr==0) WRITE(*,*) i, Tgrid(i), LambdaTable(i)
  ENDDO
  CLOSE(15)
- IF(ierr.NE.0) i=i-1
+ IF(ierr.NE.0) i = i-1
  Tref_Chris = Tgrid(i)
  WRITE(*,*) 'set_Tgrid_cooltable_Chris: read in ',i,' temperatures and cooling values'
-WRITE(*,*) 'query: ',nTg,Tref_Chris,LambdaTable(nTg),Tref_Chris/LambdaTable(nTg),i
+ WRITE(*,*) 'query: ',nTg,Tref_Chris,LambdaTable(nTg),Tref_Chris/LambdaTable(nTg),i
 
  DO k=1,i-1
     alphaTable(k) = LOG10(LambdaTable(k+1)/LambdaTable(k)) / LOG10(Tgrid(k+1)/Tgrid(k))
  ENDDO
- alphaTable(i)=alphaTable(i-1)
+ !Decision point: how to treat cooling for particles above the cooling curve
+ !Option 1: continue the cooling curve at the same power law that connects the final two entries in the table
+ alphaTable(i) = alphaTable(i-1)
+ !Option 2: make the cooling constant, equal to the final value of the cooling table
+ alphaTable(i) = 0.
 
- YkTable(i)=0.
+ YkTable(i) = 0.
  DO k=i-1,1,-1
     IF(ABS(alphaTable(k)-1.) < tol) THEN
        YkTable(k) = YkTable(k+1) - LambdaTable(i)/Tgrid(i) &
@@ -1034,18 +1048,18 @@ SUBROUTINE set_Tgrid_cooltable_Chris2
  REAL :: tol=1.d-12,dummy1(10000),dummy2(10000)
 
  WRITE(*,*) 'k, T(k), Lambda(k) in cgs'
- k=1
+ k = 1
  OPEN(UNIT=15,FILE='cooltable.dat',FORM='FORMATTED')
  READ(15,*,IOSTAT=ierr) dummy1(k), dummy2(k)
  WRITE(*,*) k, dummy1(k), dummy2(k)
  DO WHILE(ierr==0) ! .AND. k<nTg)
-    k=k+1
+    k = k+1
     IF(k>10000) WRITE(*,*) 'ERROR -- increase size of dummy1 and dummy2 in set_Tgrid_cooltable_Chris2'
     READ(15,*,IOSTAT=ierr) dummy1(k), dummy2(k)
     IF(ierr==0) WRITE(*,*) k, dummy1(k), dummy2(k)
  ENDDO
  CLOSE(15)
- IF(ierr.NE.0) k=k-1
+ IF(ierr.NE.0) k = k-1
  nTg_Chris = k
  
  IF(ALLOCATED(Tgrid_Chris         )) DEALLOCATE(Tgrid_Chris         )
@@ -1063,8 +1077,8 @@ SUBROUTINE set_Tgrid_cooltable_Chris2
  
  !cooling table -- put dummy variables into allocated arrays
  DO k=1,nTg_Chris
-    Tgrid_Chris(k)=dummy1(k)
-    LambdaTable_Chris(k)=dummy2(k)
+    Tgrid_Chris(k) = dummy1(k)
+    LambdaTable_Chris(k) = dummy2(k)
  ENDDO
  
  !reference temperature T_ref=T_N, which is the final entry in the cooling table
@@ -1073,16 +1087,20 @@ SUBROUTINE set_Tgrid_cooltable_Chris2
  
  !frequently needed quantity -- precompute for optimization
  TNdivLN = Tgrid_Chris(nTg_Chris) / LambdaTable_Chris(nTg_Chris)
-WRITE(*,*) 'query: ',nTg_Chris,Tref_Chris,LambdaTable_Chris(nTg_Chris),TNdivLN
+ WRITE(*,*) 'query: ',nTg_Chris,Tref_Chris,LambdaTable_Chris(nTg_Chris),TNdivLN
 
  !Eq. A4, piecewise power law
  DO k=1,nTg_Chris-1
     alphaTable_Chris(k) = LOG10(LambdaTable_Chris(k+1)/LambdaTable_Chris(k)) / LOG10(Tgrid_Chris(k+1)/Tgrid_Chris(k))
  ENDDO
- alphaTable_Chris(nTg_Chris)=alphaTable_Chris(nTg_Chris-1)
+ !Decision point: how to treat cooling for particles above the cooling curve
+ !Option 1: continue the cooling curve at the same power law that connects the final two entries in the table
+ alphaTable_Chris(nTg_Chris) = alphaTable_Chris(nTg_Chris-1)
+ !Option 2: make the cooling constant, equal to the final value of the cooling table
+ !alphaTable_Chris(nTg_Chris) = 0.
 
  !Eq. A6
- YkTable_Chris(nTg_Chris)=0.
+ YkTable_Chris(nTg_Chris) = 0.
  DO k=nTg_Chris-1,1,-1
     IF(ABS(alphaTable_Chris(k)-1.) < tol) THEN
        !YkTable_Chris(k) = YkTable_Chris(k+1) - LambdaTable_Chris(nTg_Chris)/Tgrid_Chris(nTg_Chris) &

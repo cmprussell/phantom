@@ -1,0 +1,17 @@
+PROGRAM ModifyCooltable
+
+IMPLICIT NONE
+
+INTEGER :: i
+REAL*4 :: a,b
+
+OPEN(UNIT=3,FILE='cooltable.dat',FORM='FORMATTED')
+OPEN(UNIT=4,FILE='cooltable_Mult1E15.dat',FORM='FORMATTED')
+DO i=1,1000
+   READ(3,*) a,b
+   WRITE(4,'(1PE12.6,1PE15.6)') a,b*1.d15
+ENDDO
+CLOSE(3)
+CLOSE(4)
+
+END PROGRAM
