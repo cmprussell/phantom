@@ -28,8 +28,10 @@ module setup
  ! setup options and default values for these
  !
  character(len=120) :: datafile = 'stars.m.pos.-vel.txt'
- real :: m_gas = 1.e-6 ! gas mass resolution in Msun
- real :: h_sink = 0.05 ! sink particle radii in arcsec at 8kpc
+ real :: m_gas = 1.d-6 ! gas mass resolution in Msun
+ real :: h_sink = 5.d-2 ! sink particle radii in arcsec at 8kpc
+ real :: m_SMBH = 4.28d6 ! mass of supermassive black hole (SMBH) in Msun
+ real :: h_SMBH = 0.1d0 ! accretion radius of SMBH in arcsec at 8kpc
 
  private
 
@@ -41,7 +43,8 @@ contains
 !+
 !----------------------------------------------------------------
 subroutine setpart(id,npart,npartoftype,xyzh,massoftype,vxyzu,polyk,gamma,hfact,time,fileprefix)
- use part,      only:nptmass,xyzmh_ptmass,vxyz_ptmass,ihacc,ihsoft,igas
+ !use part,      only:nptmass,xyzmh_ptmass,vxyz_ptmass,ihacc,ihsoft,igas
+ use part,      only:nptmass,xyzmh_ptmass,vxyz_ptmass,ihacc,ihsoft,igas,iwindorig
  use units,     only:set_units,umass !,udist
  use physcon,   only:solarm,kpc,pi,au
  use io,        only:fatal,iprint,master
@@ -71,7 +74,11 @@ INTEGER :: ierr_Tinit
 ! units (mass = mass of black hole, length = 1 arcsec at 8kpc)
 !
  scale = (1./3600.)*(pi/180.)*8.*kpc
- call set_units(mass=3.5e6*solarm,dist=scale,G=1.d0)
+ call set_units(mass=3.5d6*solarm,dist=scale,G=1.d0)
+ !Replace the above two lines with this next line to get closer to the exact definitions
+ !   used in Gadget -- note that there is still a slight error with utime since two
+ !   sig figs is not enough to make G=1 to high accuracy
+ !call set_units(mass=6.97d39,dist=1.20d17,G=1.d0)
 !
 ! general parameters
 !
@@ -80,7 +87,8 @@ INTEGER :: ierr_Tinit
  polyk = 0.
  gamma = 5./3.
  gmw = 0.6  ! completely ionized, solar abu; eventually needs to be WR abu
- dtmax = 0.01
+ !dtmax = 0.01
+ dtmax = 0.1
  !
  ! read setup parameters from the .setup file
  ! if file does not exist, then ask for user input
@@ -104,8 +112,10 @@ INTEGER :: ierr_Tinit
 ! Set up the black hole at the Galactic centre
 !
  nptmass = 1
- xyzmh_ptmass(4,1) = 1.  ! M=1 in code units by definition
- xyzmh_ptmass(ihacc,1)  = 0.1 ! accretion radius
+ !xyzmh_ptmass(4,1) = 1.  ! M=1 in code units by definition
+ xyzmh_ptmass(4,1) = m_SMBH/3.5d6 ! M=1 --> m_SMBH=3.5d6Msun in code units by definition
+ !xyzmh_ptmass(ihacc,1)  = 0.1 ! accretion radius
+ xyzmh_ptmass(ihacc,1)  = h_SMBH ! accretion radius
  xyzmh_ptmass(ihsoft,1) = 0.1 ! no softening
 !
 ! Read positions, masses and velocities of stars from file
@@ -123,27 +133,36 @@ INTEGER :: ierr_Tinit
 !
  psep = 1.0
  call set_sphere('cubic',id,master,0.,20.,psep,hfact,npart,xyzh)
-OPEN(UNIT=61,FILE='Tinit.dat',FORM='FORMATTED',IOSTAT=ierr_Tinit)
-IF(ierr_Tinit==0) THEN
- READ(61,*) vxyzu(4,1)
- vxyzu(4,1)=5.356136065348470d-4 * vxyzu(4,1)/1.d4
- vxyzu(4,:)=vxyzu(4,1)
-ELSE
- !vxyzu(4,:) = 5.317e-4 ! T_init=1e4
- !vxyzu(4,:) = 5.317e-4 * 1.e2 ! T_init=1e6
- !vxyzu(4,:) = 5.356136065348470d-4 ! T_init=1e4K to more accuracy
- !vxyzu(4,:) = 5.356136065348470d-4 * 1.d1 ! T_init=1e5K to more accuracy
- vxyzu(4,:) = 5.356136065348470d-4 * 1.d2 ! T_init=1e6K to more accuracy
- !vxyzu(4,:) = 5.356136065348470d-4 * 1.d3 ! T_init=1e7K to more accuracy
- !vxyzu(4,:) = 5.356136065348470d-4 * 1.d4 ! T_init=1e8K to more accuracy
-ENDIF
-CLOSE(61)
+ OPEN(UNIT=61,FILE='Tinit.dat',FORM='FORMATTED',STATUS='OLD',IOSTAT=ierr_Tinit)
+ IF(ierr_Tinit==0) THEN
+    READ(61,*,IOSTAT=ierr_Tinit) vxyzu(4,1)
+    IF(ierr_Tinit==0) THEN
+       vxyzu(4,1)=5.356136065348470d-4 * vxyzu(4,1)/1.d4
+       vxyzu(4,:)=vxyzu(4,1)
+    ENDIF
+ ENDIF
+ IF(ierr_Tinit/=0) THEN
+    !vxyzu(4,:) = 5.317e-4 ! T_init=1e4
+    !vxyzu(4,:) = 5.317e-4 * 1.e2 ! T_init=1e6
+    vxyzu(4,:) = 5.356136065348470d-4 ! T_init=1e4K to more accuracy
+    !vxyzu(4,:) = 5.356136065348470d-4 * 1.d1 ! T_init=1e5K to more accuracy
+    !vxyzu(4,:) = 5.356136065348470d-4 * 1.d2 ! T_init=1e6K to more accuracy
+    !vxyzu(4,:) = 5.356136065348470d-4 * 1.d3 ! T_init=1e7K to more accuracy
+    !vxyzu(4,:) = 5.356136065348470d-4 * 1.d4 ! T_init=1e8K to more accuracy
+    WRITE(*,*) 'Tinit.dat not found or not configured correctly -- initial particle energy set to T=',vxyzu(4,1)/5.356136065348470d-4*1.d4,'K'
+ ENDIF
+ CLOSE(61)
 
  npartoftype(igas) = npart
 
-icooling = 1
-icool_method = 2
-Tfloor = 1.d4
+ !denote these particles (and all not-yet-injected particles) as initial particles
+ !later this variable will be the star from which each wind particle originated
+ iwindorig = 0
+
+ !ensure EIS is used for cooling
+ icooling = 1
+ icool_method = 2
+ Tfloor = 1.d4
 
  if (nptmass == 0) call fatal('setup','no particles setup')
  if (ierr /= 0) call fatal('setup','ERROR during setup')
@@ -210,7 +229,11 @@ subroutine write_setupfile(filename,iprint)
 
  write(lu,"(/,a)") '# resolution'
  call write_inopt(m_gas, 'm_gas','gas mass resolution in solar masses',lu,ierr2)
- call write_inopt(h_sink, 'h_sink','sink particle radii in arcsec at 8kpc',lu,ierr2)
+ call write_inopt(h_sink, 'h_sink','stellar wind injection radii (also sink particle radii for the stars) in arcsec at 8kpc',lu,ierr2)
+
+ write(lu,"(/,a)") '# SMBH properties'
+ call write_inopt(m_SMBH, 'm_SMBH','SMBH mass in solar masses',lu,ierr2)
+ call write_inopt(h_SMBH, 'h_SMBH','SMBH accretion radius in arcsec at 8kpc',lu,ierr2)
  close(lu)
 
 end subroutine write_setupfile
@@ -238,6 +261,8 @@ subroutine read_setupfile(filename,iprint,ierr)
  call read_inopt(datafile,'datafile',db,errcount=nerr)
  call read_inopt(m_gas,'m_gas',db,errcount=nerr)
  call read_inopt(h_sink,'h_sink',db,errcount=nerr)
+ call read_inopt(m_SMBH,'m_SMBH',db,errcount=nerr)
+ call read_inopt(h_SMBH,'h_SMBH',db,errcount=nerr)
 
  if (nerr > 0) then
     print "(1x,a,i2,a)",'Setup_galcen: ',nerr,' error(s) during read of setup file'
@@ -259,7 +284,10 @@ subroutine interactive_setup()
                  '    ...where the black holes are supermassive and the stars are strange ***'
  call prompt('Enter filename for star data',datafile,noblank=.true.)
  call prompt('Enter mass resolution of injected gas particles in Msun',m_gas,1.e-15,1.)
- call prompt('Enter sink particle radii in arcsec at 8kpc',h_sink,1.e-5,1.)
+ !call prompt('Enter sink particle radii in arcsec at 8kpc',h_sink,1.e-5,1.)
+ call prompt('Enter stellar wind injection radii for the stars (also their sink particle radii) in arcsec at 8kpc',h_sink,1.e-5,1.)
+ call prompt('Enter SMBH mass in Msun',m_SMBH,1.e0,1.e12)
+ call prompt('Enter SMBH accretion radius in arcsec at 8 kpc',h_SMBH,1.e-5,1.)
  print "(a)"
 
 end subroutine interactive_setup

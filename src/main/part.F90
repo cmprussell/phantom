@@ -350,6 +350,10 @@ module part
 !
  integer, allocatable :: ibelong(:)
 !
+!--origin of wind particles (the star from which each gas particle was ejected -- Galactic Center and CWB only; by Chris)
+!
+ integer, allocatable :: iwindorig(:)
+!
 !--super time stepping
 !
  integer(kind=1), allocatable :: istsactive(:)
@@ -483,6 +487,7 @@ subroutine allocate_part
  call allocate_array('tstop', tstop, maxdusttypes, maxan)
  call allocate_array('ll', ll, maxan)
  call allocate_array('ibelong', ibelong, maxp)
+ call allocate_array('iwindorig', iwindorig, maxp)
  call allocate_array('istsactive', istsactive, maxsts)
  call allocate_array('ibin_sts', ibin_sts, maxsts)
  call allocate_array('nucleation', nucleation, n_nucleation, maxp_nucleation*inucleation)
@@ -575,6 +580,7 @@ subroutine deallocate_part
  if (allocated(tstop))        deallocate(tstop)
  if (allocated(ll))           deallocate(ll)
  if (allocated(ibelong))      deallocate(ibelong)
+ if (allocated(iwindorig))    deallocate(iwindorig)
  if (allocated(istsactive))   deallocate(istsactive)
  if (allocated(ibin_sts))     deallocate(ibin_sts)
  if (allocated(group_info))   deallocate(group_info)

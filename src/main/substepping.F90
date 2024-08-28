@@ -630,7 +630,9 @@ end subroutine drift
 
 subroutine kick(dki,dt,npart,nptmass,ntypes,xyzh,vxyzu,xyzmh_ptmass,vxyz_ptmass, &
                 fext,fxyz_ptmass,dsdt_ptmass,dptmass,ibin_wake,nbinmax,timei,fxyz_ptmass_sinksink,accreted)
- use part,           only:isdead_or_accreted,massoftype,iamtype,iamboundary,iphase,ispinx,ispiny,ispinz,igas,ndptmass
+ !use part,           only:isdead_or_accreted,massoftype,iamtype,iamboundary,iphase,ispinx,ispiny,ispinz,igas,ndptmass
+ !use part,           only:isdead_or_accreted,massoftype,iamtype,iamboundary,iphase,ispinx,ispiny,ispinz,igas,ndptmass,is_accretable
+ use part,           only:isdead_or_accreted,massoftype,iamtype,iamboundary,iphase,ispinx,ispiny,ispinz,igas,ndptmass,is_accretable,iwindorig
  use ptmass,         only:f_acc,ptmass_accrete,pt_write_sinkev,update_ptmass,ptmass_kick
  use externalforces, only:accrete_particles
  use options,        only:iexternalforce
@@ -662,7 +664,10 @@ subroutine kick(dki,dt,npart,nptmass,ntypes,xyzh,vxyzu,xyzmh_ptmass,vxyz_ptmass,
     is_accretion = .false.
  endif
 
- itype = iphase(igas)
+ !itype = iphase(igas) !this is an error -- results in all accretion shutting off if the first particle no longer active
+ !itype = iamtype(iphase(1)) !this works
+ itype = igas !this works, as long as ntypes=1 sims are always gas-particle sims
+!WRITE(*,*) 'STARTING kick: ',itype,iphase(igas),igas
  pmassi = massoftype(igas)
 
  dkdt = dki*dt
@@ -714,6 +719,7 @@ subroutine kick(dki,dt,npart,nptmass,ntypes,xyzh,vxyzu,xyzmh_ptmass,vxyz_ptmass,
     !$omp shared(xyzmh_ptmass,vxyz_ptmass,fxyz_ptmass,f_acc) &
     !$omp shared(iexternalforce) &
     !$omp shared(nbinmax,ibin_wake) &
+    !$omp shared(iwindorig) &
     !$omp private(i,accreted,nfaili,fxi,fyi,fzi) &
     !$omp firstprivate(itype,pmassi,ibin_wakei) &
     !$omp reduction(+:accretedmass) &
@@ -722,11 +728,18 @@ subroutine kick(dki,dt,npart,nptmass,ntypes,xyzh,vxyzu,xyzmh_ptmass,vxyz_ptmass,
     !$omp reduction(+:nlive) &
     !$omp reduction(+:dptmass)
     accreteloop: do i=1,npart
+!IF(itype/=iphase(igas)) THEN
+!WRITE(*,*) 'UMM ',i,itype,iphase(igas),igas
+!ENDIF
        if (.not.isdead_or_accreted(xyzh(4,i))) then
           if (ntypes > 1 .and. maxphase==maxp) then
+WRITE(*,*) 'THIS IS RUNNING A' !should not be executed for galcen sims since ntypes=1
              itype = iamtype(iphase(i))
              pmassi = massoftype(itype)
              if (iamboundary(itype)) cycle accreteloop
+!ELSE !these 3 lines work if the incorrect original line of "itype = iphase(igas)" is used above
+!itype = iamtype(iphase(i))
+!pmassi = massoftype(itype)
           endif
           !
           ! correct v to the full step using only the external force
@@ -736,6 +749,7 @@ subroutine kick(dki,dt,npart,nptmass,ntypes,xyzh,vxyzu,xyzmh_ptmass,vxyz_ptmass,
           vxyzu(3,i) = vxyzu(3,i) + dkdt*fext(3,i)
 
           if (iexternalforce > 0) then
+WRITE(*,*) 'THIS IS RUNNING B' !should no be executed for galcen sims since iexternalforce=0
              call accrete_particles(iexternalforce,xyzh(1,i),xyzh(2,i), &
                                  xyzh(3,i),xyzh(4,i),pmassi,timei,accreted)
              if (accreted) accretedmass = accretedmass + pmassi
@@ -752,11 +766,25 @@ subroutine kick(dki,dt,npart,nptmass,ntypes,xyzh,vxyzu,xyzmh_ptmass,vxyz_ptmass,
              fzi = fext(3,i)
              if (ind_timesteps) ibin_wakei = ibin_wake(i)
 
-             call ptmass_accrete(1,nptmass,xyzh(1,i),xyzh(2,i),xyzh(3,i),xyzh(4,i),&
+!IF(i==30001) THEN
+!WRITE(*,*) 'PreAccrete:  ',i,is_accretable(itype),itype,iphase(i),pmassi,xyzh(4,i),xyzmh_ptmass(5,1),f_acc,SQRT(xyzh(1,i)**2+xyzh(2,i)**2+xyzh(3,i)**2)
+!ENDIF
+!IF(SQRT(xyzh(1,i)**2+xyzh(2,i)**2+xyzh(3,i)**2) < xyzmh_ptmass(5,1)) THEN
+!WRITE(*,*) 'BefoAccrete: ',i,is_accretable(itype),itype,iphase(i),pmassi,xyzh(4,i),SQRT(xyzh(1,i)**2+xyzh(2,i)**2+xyzh(3,i)**2),accreted,nfaili,iexternalforce,ntypes,maxphase==maxp,maxphase,maxp
+!ENDIF
+             !call ptmass_accrete(1,nptmass,xyzh(1,i),xyzh(2,i),xyzh(3,i),xyzh(4,i),&
+             call ptmass_accrete(1,      1,xyzh(1,i),xyzh(2,i),xyzh(3,i),xyzh(4,i),&
                               vxyzu(1,i),vxyzu(2,i),vxyzu(3,i),fxi,fyi,fzi,&
                               itype,pmassi,xyzmh_ptmass,vxyz_ptmass,&
                               accreted,dptmass,timei,f_acc,nbinmax,ibin_wakei,nfaili)
+!IF(i==30001) THEN
+!WRITE(*,*) 'PostAccrete: ',i,is_accretable(itype),itype,iphase(i),pmassi,xyzh(4,i),xyzmh_ptmass(5,1),f_acc,SQRT(xyzh(1,i)**2+xyzh(2,i)**2+xyzh(3,i)**2),accreted,nfaili
+!ENDIF
+IF(SQRT(xyzh(1,i)**2+xyzh(2,i)**2+xyzh(3,i)**2) < xyzmh_ptmass(5,1)) THEN !these particles might not yet accrete is f_acc<1.0
+WRITE(*,*) 'DoneAccrete: ',i,is_accretable(itype),itype,iphase(i),pmassi,xyzh(4,i),SQRT(xyzh(1,i)**2+xyzh(2,i)**2+xyzh(3,i)**2),accreted,nfaili,iwindorig(i)
+ENDIF
              if (accreted) then
+WRITE(*,*) 'Yes Accrete: ',i,is_accretable(itype),itype,iphase(i),pmassi,xyzh(4,i),SQRT(xyzh(1,i)**2+xyzh(2,i)**2+xyzh(3,i)**2),accreted,nfaili,iwindorig(i)
                 naccreted = naccreted + 1
                 cycle accreteloop
              else
@@ -804,6 +832,7 @@ subroutine kick(dki,dt,npart,nptmass,ntypes,xyzh,vxyzu,xyzmh_ptmass,vxyz_ptmass,
  endif
 
 
+!WRITE(*,*) 'ENDING   kick: ',itype,iphase(igas),igas
 end subroutine kick
 
 !----------------------------------------------------------------

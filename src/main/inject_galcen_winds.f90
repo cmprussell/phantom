@@ -65,7 +65,9 @@ end subroutine init_inject
 subroutine inject_particles(time,dtlast,xyzh,vxyzu,xyzmh_ptmass,vxyz_ptmass,&
                             npart,npart_old,npartoftype,dtinject)
  use io,        only:fatal,iverbose
- use part,      only:massoftype,igas,ihacc,i_tlast
+ !use part,      only:massoftype,igas,ihacc,i_tlast
+ use part,      only:massoftype,igas,ihacc,i_tlast,iwindorig
+ !USE part,      only:massoftype,igas,ihacc,i_tlast,iphase
  use partinject,only:add_or_update_particle
  use physcon,   only:pi,solarm,seconds,years,km,kb_on_mH
  use units,     only:umass,udist,utime,unit_velocity
@@ -81,6 +83,8 @@ subroutine inject_particles(time,dtlast,xyzh,vxyzu,xyzmh_ptmass,vxyz_ptmass,&
  real :: rr,phi,theta,cosphi,sinphi,costheta,sintheta
  real :: deltat,h,u,vinject,temp_inject,uu_inject,gam1
  integer :: i,j,k,nskip,i_part,ninject
+!    print*,'init: tpi = ',total_particles_injected(1:nptmass)
+!WRITE(*,*) 'INJECT PARTICLES iphase(igas) = ',iphase(igas),', time = ',time
 !
 ! kill particles outside some outer radius
 !
@@ -146,13 +150,13 @@ subroutine inject_particles(time,dtlast,xyzh,vxyzu,xyzmh_ptmass,vxyz_ptmass,&
  !!$omp parallel do default(none) &
  !!$omp shared(nptmass)
  do i=nskip+1,nptmass
-    !
-    ! extract current position, velocity and injection radius of star
-    !
-    xyz_star  = xyzmh_ptmass(1:3,i)
-    rr        = 1.0001*xyzmh_ptmass(ihacc,i)
-    tlast     = xyzmh_ptmass(i_tlast,i)
-    vxyz_star = vxyz_ptmass(1:3,i)
+    !!
+    !! extract current position, velocity and injection radius of star
+    !!
+    !xyz_star  = xyzmh_ptmass(1:3,i)
+    !rr        = 1.0001*xyzmh_ptmass(ihacc,i)
+    !tlast     = xyzmh_ptmass(i_tlast,i)
+    !vxyz_star = vxyz_ptmass(1:3,i)
 
     !
     ! calculate how much mass to inject based on
@@ -161,6 +165,7 @@ subroutine inject_particles(time,dtlast,xyzh,vxyzu,xyzmh_ptmass,vxyz_ptmass,&
     j = i - nskip ! position in wind table
     Mdot_code = wind(i_Mdot,j)*Mdot_fac
     vinject   = wind(i_vel,j)*vel_fac
+    tlast     = xyzmh_ptmass(i_tlast,i)
     deltat    = time - tlast
     Minject   = Mdot_code*time
     !
@@ -169,6 +174,10 @@ subroutine inject_particles(time,dtlast,xyzh,vxyzu,xyzmh_ptmass,vxyz_ptmass,&
     ninject = int(Minject/massoftype(igas))-total_particles_injected(i)
     if (iverbose >= 2) print*,' point mass ',i,j,' injecting ',&
                        ninject,Minject-total_particles_injected(i)*massoftype(igas),massoftype(igas),time,tlast
+!    print*,' point mass ',i,j,' injecting ',&
+!                       ninject,Minject-total_particles_injected(i)*massoftype(igas),massoftype(igas),time,tlast
+!WRITE(*,*) 'stuff: ',wind(i_Mdot,j),Mdot_code,wind(i_vel,j),vinject,deltat,Minject,massoftype(igas)
+!WRITE(*,*) 'ffuts: ',igas,massoftype
 
     !
     ! this if statement is no longer essential for more accurate mass-loss rates,
@@ -179,6 +188,13 @@ subroutine inject_particles(time,dtlast,xyzh,vxyzu,xyzmh_ptmass,vxyz_ptmass,&
     !    accumulate and eventually inject a particle, making Mdot more accurate
     !
     if (ninject > 0) then
+       !
+       ! extract current position, velocity and injection radius of star
+       !
+       xyz_star  = xyzmh_ptmass(1:3,i)
+       rr        = 1.0001*xyzmh_ptmass(ihacc,i)
+       vxyz_star = vxyz_ptmass(1:3,i)
+
        do k=1,ninject
           !
           ! get random position on sphere
@@ -201,6 +217,8 @@ subroutine inject_particles(time,dtlast,xyzh,vxyzu,xyzmh_ptmass,vxyz_ptmass,&
 
           i_part = npart + 1 ! all particles are new
           call add_or_update_particle(igas, xyzi, vxyz, h, u, i_part, npart, npartoftype, xyzh, vxyzu)
+          !star from which this wind particle originated
+          iwindorig(i_part) = i
        enddo
        !
        ! update tlast to current time
@@ -221,6 +239,7 @@ subroutine inject_particles(time,dtlast,xyzh,vxyzu,xyzmh_ptmass,vxyz_ptmass,&
  !
  dtinject = huge(dtinject)
 
+!WRITE(*,*) 'INJECTED RTICLES iphase(igas) = ',iphase(igas),', time = ',time
 end subroutine inject_particles
 
 subroutine update_injected_par

@@ -61,7 +61,8 @@ subroutine write_fulldump_fortran(t,dumpfile,ntotal,iorder,sphNG)
                  VrelVf_label,dustgasprop,dustgasprop_label,filfac,filfac_label,dust_temp,pxyzu,pxyzu_label,dens,& !,dvdx,dvdx_label
                  rad,rad_label,radprop,radprop_label,do_radiation,maxirad,maxradprop,itemp,igasP,igamma,&
                  iorig,iX,iZ,imu,nucleation,nucleation_label,n_nucleation,tau,itau_alloc,tau_lucy,itauL_alloc,&
-                 luminosity,eta_nimhd,eta_nimhd_label
+                 luminosity,eta_nimhd,eta_nimhd_label,iwindorig
+!                 luminosity,eta_nimhd,eta_nimhd_label
  use part,  only:metrics,metricderivs,tmunus
  use options,    only:use_dustfrac,use_porosity,use_var_comp,icooling
  use dump_utils, only:tag,open_dumpfile_w,allocate_header,&
@@ -293,6 +294,7 @@ subroutine write_fulldump_fortran(t,dumpfile,ntotal,iorder,sphNG)
           call write_array(1,rad,rad_label,maxirad,npart,k,ipass,idump,nums,nerr)
           call write_array(1,radprop,radprop_label,maxradprop,npart,k,ipass,idump,nums,nerr)
        endif
+       call write_array(1,iwindorig,'iWindOrig',npart,k,ipass,idump,nums,nerr)
        if (nerr > 0) call error('write_dump','error writing hydro arrays')
     enddo
 
