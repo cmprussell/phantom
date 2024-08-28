@@ -238,7 +238,7 @@ subroutine startrun(infile,logfile,evfile,dumpfile,noread)
  character(len=len(dumpfile)) :: file1D
  integer :: npart_old
 #endif
-
+ REAL :: dtChris=1.d-4 !initial timestep constraint to prevent negative pressures/temperatures from occurring right as the sim starts
 
  read_input_files = .true.
  if (present(noread)) read_input_files = .not.noread
@@ -650,6 +650,13 @@ subroutine startrun(infile,logfile,evfile,dumpfile,noread)
     if (id==master) then
        write(iprint,*) 'dt(forces)    = ',dtforce
        write(iprint,*) 'dt(courant)   = ',dtcourant
+       write(iprint,*) 'dt initial    = ',dt
+    endif
+!initial timestep constraint to prevent negative pressures/temperatures from occurring right as the sim starts
+dt = MIN(dt,dtChris)
+    if (id==master) then
+WRITE(*,*) 'Now with dtChris limit applied...'
+       write(iprint,*) 'dt(Chris)     = ',dtChris
        write(iprint,*) 'dt initial    = ',dt
     endif
  endif

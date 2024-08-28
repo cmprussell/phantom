@@ -86,6 +86,8 @@ subroutine init_cooling_solver(ierr)
  if ( (excitation_HI+relax_Bowen+dust_collision+relax_Stefan+shock_problem) == 0) then
     print *,'ERROR: no cooling prescription activated'
     ierr = 2
+    WRITE(*,*) 'NOTE: above is not actually an error -- need to fix this...'
+    ierr=0
  endif
  !call set_Tgrid()
  cooltable_Chris=1
@@ -702,14 +704,14 @@ subroutine exact_cooling_Chris2(ui, dudt, rho, dt, mu, gamma, Tdust, K2, kappa)
  !WRITE(*,*) 'asdf3:',T_on_u,gamma,mu,unit_ergg,Rg
 
  if (T < T_floor) then
-    WRITE(*,*) 'T < T_floor'
+    !WRITE(*,*) 'T < T_floor'
     Temp = T_floor
  !elseif (T > Tref_Chris) then
  !   WRITE(*,*) 'T > Tref_Chris'
  !   call calc_cooling_rate(Q, dlnQ_dlnT, rho, T, Tdust, mu, gamma, K2, kappa)
  !   Temp = T+T_on_u*Q*dt
  else
-    WRITE(*,*) 'else'
+    !WRITE(*,*) 'else'
 
     !bisector to find k in Eq. A5
     !c----    Locate the interval in which temp is found.
@@ -734,12 +736,12 @@ subroutine exact_cooling_Chris2(ui, dudt, rho, dt, mu, gamma, Tdust, K2, kappa)
        ENDDO
        k = kl
     ENDIF
-    WRITE(*,*) 'tcool = ',tcoolfac*T/(LambdaTable_Chris(k)*(T/Tgrid_Chris(k))**alphaTable_Chris(k)), &
-                          tcoolfac*T/(LambdaTable_Chris(k)*(T/Tgrid_Chris(k))**alphaTable_Chris(k)) / utime, &
-                          k,nTg_Chris, &
-                          T,Tgrid_Chris(k), &
-                          LambdaTable_Chris(k)*(T/Tgrid_Chris(k))**alphaTable_Chris(k),LambdaTable_Chris(k), &
-                          alphaTable_Chris(k)
+    !WRITE(*,*) 'tcool = ',tcoolfac*T/(LambdaTable_Chris(k)*(T/Tgrid_Chris(k))**alphaTable_Chris(k)), &
+    !                      tcoolfac*T/(LambdaTable_Chris(k)*(T/Tgrid_Chris(k))**alphaTable_Chris(k)) / utime, &
+    !                      k,nTg_Chris, &
+    !                      T,Tgrid_Chris(k), &
+    !                      LambdaTable_Chris(k)*(T/Tgrid_Chris(k))**alphaTable_Chris(k),LambdaTable_Chris(k), &
+    !                      alphaTable_Chris(k)
 
     !find Y(T), Eq. A5
     IF(ABS(alphaTable_Chris(k)-1.) < tol) THEN
@@ -817,7 +819,7 @@ subroutine exact_cooling_Chris2(ui, dudt, rho, dt, mu, gamma, Tdust, K2, kappa)
  endif
 
  IF(Temp<T_floor) WRITE(*,*) 'UH-HOH ',Temp,T_floor
- WRITE(*,*) 'T, Temp =',T,Temp
+ !WRITE(*,*) 'T, Temp =',T,Temp
  dudt = (Temp-T)/T_on_u/dt
  !note that u = Temp/T_on_u
 
@@ -1000,10 +1002,24 @@ SUBROUTINE set_Tgrid_cooltable_Chris
  INTEGER :: i,ierr,k
  REAL :: tol=1.d-12
 
- WRITE(*,*) 'k, T(k), Lambda(k) in cgs'
+ !WRITE(*,*) 'k, T(k), Lambda(k) in cgs'
  i = 1
- OPEN(UNIT=15,FILE='cooltable.dat',FORM='FORMATTED')
+ OPEN(UNIT=15,FILE='cooltable.dat',FORM='FORMATTED',STATUS='OLD',IOSTAT=ierr)
+ IF(ierr/=0) THEN
+    WRITE(*,*)
+    WRITE(*,*) 'ERROR ERROR ERROR'
+    WRITE(*,*) 'cooltable.dat is missing'
+    WRITE(*,*) 'Stopping...'
+    STOP
+ ENDIF
  READ(15,*,IOSTAT=ierr) Tgrid(i), LambdaTable(i)
+ IF(ierr/=0) THEN
+    WRITE(*,*)
+    WRITE(*,*) 'ERROR ERROR ERROR'
+    WRITE(*,*) 'cooltable.dat is not properly formatted -- error with the first entry'
+    WRITE(*,*) 'Stopping...'
+    STOP
+ ENDIF
  WRITE(*,*) i, Tgrid(i), LambdaTable(i)
  DO WHILE(ierr==0 .AND. i<nTg)
     i = i+1
@@ -1012,6 +1028,17 @@ SUBROUTINE set_Tgrid_cooltable_Chris
  ENDDO
  CLOSE(15)
  IF(ierr.NE.0) i = i-1
+ IF(i/=nTg) THEN
+    WRITE(*,*)
+    WRITE(*,*) 'ERROR ERROR ERROR'
+    IF(i<nTg) THEN
+       WRITE(*,*) 'cooltable.dat is not properly formatted -- not enough entries'
+    ELSE
+       WRITE(*,*) 'cooltable.dat is not properly formatted -- too many entries'
+    ENDIF
+    WRITE(*,*) 'Stopping...'
+    STOP
+ ENDIF
  Tref_Chris = Tgrid(i)
  WRITE(*,*) 'set_Tgrid_cooltable_Chris: read in ',i,' temperatures and cooling values'
  WRITE(*,*) 'query: ',nTg,Tref_Chris,LambdaTable(nTg),Tref_Chris/LambdaTable(nTg),i
@@ -1049,17 +1076,40 @@ SUBROUTINE set_Tgrid_cooltable_Chris2
 
  WRITE(*,*) 'k, T(k), Lambda(k) in cgs'
  k = 1
- OPEN(UNIT=15,FILE='cooltable.dat',FORM='FORMATTED')
+ OPEN(UNIT=15,FILE='cooltable.dat',FORM='FORMATTED',STATUS='OLD',IOSTAT=ierr)
+ IF(ierr/=0) THEN
+    WRITE(*,*)
+    WRITE(*,*) 'ERROR ERROR ERROR'
+    WRITE(*,*) 'cooltable.dat is missing'
+    WRITE(*,*) 'Stopping...'
+    STOP
+ ENDIF
  READ(15,*,IOSTAT=ierr) dummy1(k), dummy2(k)
- WRITE(*,*) k, dummy1(k), dummy2(k)
+ IF(ierr/=0) THEN
+    WRITE(*,*)
+    WRITE(*,*) 'ERROR ERROR ERROR'
+    WRITE(*,*) 'cooltable.dat is not properly formatted -- error with the first entry'
+    WRITE(*,*) 'Stopping...'
+    STOP
+ ENDIF
  DO WHILE(ierr==0) ! .AND. k<nTg)
+    !WRITE(*,*) k, dummy1(k), dummy2(k) !now commented out -- cooling table is outputted later
     k = k+1
-    IF(k>10000) WRITE(*,*) 'ERROR -- increase size of dummy1 and dummy2 in set_Tgrid_cooltable_Chris2'
+    IF(k>10000) THEN
+       WRITE(*,*) 'ERROR -- increase size of dummy1 and dummy2 in set_Tgrid_cooltable_Chris2'
+       STOP
+    ENDIF
     READ(15,*,IOSTAT=ierr) dummy1(k), dummy2(k)
-    IF(ierr==0) WRITE(*,*) k, dummy1(k), dummy2(k)
  ENDDO
  CLOSE(15)
  IF(ierr.NE.0) k = k-1
+ IF(k<2) THEN
+    WRITE(*,*)
+    WRITE(*,*) 'ERROR ERROR ERROR'
+    WRITE(*,*) 'cooltable.dat is not properly formatted -- not enough entries'
+    WRITE(*,*) 'Stopping...'
+    STOP
+ ENDIF
  nTg_Chris = k
  
  IF(ALLOCATED(Tgrid_Chris         )) DEALLOCATE(Tgrid_Chris         )
@@ -1083,20 +1133,24 @@ SUBROUTINE set_Tgrid_cooltable_Chris2
  
  !reference temperature T_ref=T_N, which is the final entry in the cooling table
  Tref_Chris = Tgrid_Chris(nTg_Chris)
- WRITE(*,*) 'set_Tgrid_cooltable_Chris: read in ',nTg_Chris,' temperatures and cooling values'
+ WRITE(*,*) 'set_Tgrid_cooltable_Chris2: read in ',nTg_Chris,' temperatures and cooling values'
  
  !frequently needed quantity -- precompute for optimization
  TNdivLN = Tgrid_Chris(nTg_Chris) / LambdaTable_Chris(nTg_Chris)
- WRITE(*,*) 'query: ',nTg_Chris,Tref_Chris,LambdaTable_Chris(nTg_Chris),TNdivLN
+ !WRITE(*,*) 'query: ',nTg_Chris,Tref_Chris,LambdaTable_Chris(nTg_Chris),TNdivLN
+ WRITE(*,*) 'nTg_Chris                             : ',nTg_Chris
+ WRITE(*,*) 'Tref_Chris [= Tgrid_Chris(nTg_Chris)] : ',Tref_Chris 
+ WRITE(*,*) 'LambdaTableref_Chris                  : ',LambdaTable_Chris(nTg_Chris)
+ WRITE(*,*) 'TNdivLN [= Tref / Lambdaref]          : ',TNdivLN
 
  !Eq. A4, piecewise power law
  DO k=1,nTg_Chris-1
     alphaTable_Chris(k) = LOG10(LambdaTable_Chris(k+1)/LambdaTable_Chris(k)) / LOG10(Tgrid_Chris(k+1)/Tgrid_Chris(k))
  ENDDO
  !Decision point: how to treat cooling for particles above the cooling curve
- !Option 1: continue the cooling curve at the same power law that connects the final two entries in the table
+ !   Option 1: continue the cooling curve at the same power law that connects the final two entries in the table
  alphaTable_Chris(nTg_Chris) = alphaTable_Chris(nTg_Chris-1)
- !Option 2: make the cooling constant, equal to the final value of the cooling table
+ !   Option 2: make the cooling constant, equal to the final value of the cooling table
  !alphaTable_Chris(nTg_Chris) = 0.
 
  !Eq. A6
@@ -1125,9 +1179,10 @@ SUBROUTINE set_Tgrid_cooltable_Chris2
     YTsegAlphaNot1_Chris(k) = YTsegAlpha1_Chris(k)/(1.-alphaTable_Chris(k))
  ENDDO
 
- WRITE(*,*) 'k, alpha(k), Y_k(k)'
+ WRITE(*,*) 'full cooling table and computed quantities:'
+ WRITE(*,*) '          k   T_k (K)                Lambda_k (erg*cm^3/s)    alpha_k                 Y_k'
  DO k=1,nTg_Chris
-    WRITE(*,*) k,alphaTable_Chris(k),YkTable_Chris(k)
+    WRITE(*,*) k,Tgrid_Chris(k),LambdaTable_Chris(k),alphaTable_Chris(k),YkTable_Chris(k)
  ENDDO
 END SUBROUTINE set_Tgrid_cooltable_Chris2
 
