@@ -417,6 +417,24 @@ contains
 subroutine allocate_part
  use allocutils, only:allocate_array
 
+WRITE(*,*) 'allocate_part -- Precision Check'
+WRITE(*,*) 'allocate_part -- definitions for sample real variables'
+WRITE(*,*) 'allocate_part : real(kind=4), allocatable :: alphaind(:,:)'
+WRITE(*,*) 'allocate_part : real,         allocatable :: xyzh(:,:)'
+WRITE(*,*) 'allocate_part -- KIND        for sample real variables'
+WRITE(*,*) 'allocate_part : alphaind  =',KIND(alphaind)
+WRITE(*,*) 'allocate_part : xyzh      =',KIND(xyzh)
+WRITE(*,*) 'allocate_part -- definitions for sample integer variables'
+WRITE(*,*) 'allocate_part : integer(kind=1), allocatable    :: iphase(:)'
+WRITE(*,*) 'allocate_part : integer, parameter :: ihacc  = 5  ! accretion radius'
+WRITE(*,*) 'allocate_part : integer(kind=8), allocatable :: iorig(:)'
+WRITE(*,*) 'allocate_part : integer, allocatable :: iwindorig(:)'
+WRITE(*,*) 'allocate_part -- KIND        for sample integer variables'
+WRITE(*,*) 'allocate_part : iphase    =',KIND(iphase)
+WRITE(*,*) 'allocate_part : ihacc     =',KIND(ihacc)
+WRITE(*,*) 'allocate_part : iorig     =',KIND(iorig)
+WRITE(*,*) 'allocate_part : iwindorig =',KIND(iwindorig)
+
  call allocate_array('xyzh', xyzh, 4, maxp)
  call allocate_array('xyzh_soa', xyzh_soa, maxp, 4)
  call allocate_array('vxyzu', vxyzu, maxvxyzu, maxp)

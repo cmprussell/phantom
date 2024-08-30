@@ -632,7 +632,9 @@ subroutine kick(dki,dt,npart,nptmass,ntypes,xyzh,vxyzu,xyzmh_ptmass,vxyz_ptmass,
                 fext,fxyz_ptmass,dsdt_ptmass,dptmass,ibin_wake,nbinmax,timei,fxyz_ptmass_sinksink,accreted)
  !use part,           only:isdead_or_accreted,massoftype,iamtype,iamboundary,iphase,ispinx,ispiny,ispinz,igas,ndptmass
  !use part,           only:isdead_or_accreted,massoftype,iamtype,iamboundary,iphase,ispinx,ispiny,ispinz,igas,ndptmass,is_accretable
- use part,           only:isdead_or_accreted,massoftype,iamtype,iamboundary,iphase,ispinx,ispiny,ispinz,igas,ndptmass,is_accretable,iwindorig
+ use part,           only:isdead_or_accreted,massoftype,iamtype,iamboundary,iphase,ispinx,ispiny,ispinz,igas,ndptmass,is_accretable,iwindorig,&
+                          rhoh,eos_vars,itemp
+ !use part,           only:rhoh,eos_vars,itemp
  use ptmass,         only:f_acc,ptmass_accrete,pt_write_sinkev,update_ptmass,ptmass_kick
  use externalforces, only:accrete_particles
  use options,        only:iexternalforce
@@ -720,6 +722,7 @@ subroutine kick(dki,dt,npart,nptmass,ntypes,xyzh,vxyzu,xyzmh_ptmass,vxyz_ptmass,
     !$omp shared(iexternalforce) &
     !$omp shared(nbinmax,ibin_wake) &
     !$omp shared(iwindorig) &
+    !$omp shared(eos_vars) &
     !$omp private(i,accreted,nfaili,fxi,fyi,fzi) &
     !$omp firstprivate(itype,pmassi,ibin_wakei) &
     !$omp reduction(+:accretedmass) &
@@ -749,7 +752,7 @@ WRITE(*,*) 'THIS IS RUNNING A' !should not be executed for galcen sims since nty
           vxyzu(3,i) = vxyzu(3,i) + dkdt*fext(3,i)
 
           if (iexternalforce > 0) then
-WRITE(*,*) 'THIS IS RUNNING B' !should no be executed for galcen sims since iexternalforce=0
+WRITE(*,*) 'THIS IS RUNNING B' !should not be executed for galcen sims since iexternalforce=0
              call accrete_particles(iexternalforce,xyzh(1,i),xyzh(2,i), &
                                  xyzh(3,i),xyzh(4,i),pmassi,timei,accreted)
              if (accreted) accretedmass = accretedmass + pmassi
@@ -780,11 +783,26 @@ WRITE(*,*) 'THIS IS RUNNING B' !should no be executed for galcen sims since iext
 !IF(i==30001) THEN
 !WRITE(*,*) 'PostAccrete: ',i,is_accretable(itype),itype,iphase(i),pmassi,xyzh(4,i),xyzmh_ptmass(5,1),f_acc,SQRT(xyzh(1,i)**2+xyzh(2,i)**2+xyzh(3,i)**2),accreted,nfaili
 !ENDIF
-IF(SQRT(xyzh(1,i)**2+xyzh(2,i)**2+xyzh(3,i)**2) < xyzmh_ptmass(5,1)) THEN !these particles might not yet accrete is f_acc<1.0
-WRITE(*,*) 'DoneAccrete: ',i,is_accretable(itype),itype,iphase(i),pmassi,xyzh(4,i),SQRT(xyzh(1,i)**2+xyzh(2,i)**2+xyzh(3,i)**2),accreted,nfaili,iwindorig(i)
+!IF(SQRT(xyzh(1,i)**2+xyzh(2,i)**2+xyzh(3,i)**2) < xyzmh_ptmass(5,1)) THEN !these particles might not yet accrete is f_acc<1.0
+!WRITE(*,*) 'DoneAccrete: ',i,is_accretable(itype),itype,iphase(i),pmassi,xyzh(4,i),SQRT(xyzh(1,i)**2+xyzh(2,i)**2+xyzh(3,i)**2),accreted,nfaili,iwindorig(i)
+!ENDIF
+IF(SQRT(xyzh(1,i)**2+xyzh(2,i)**2+xyzh(3,i)**2) < xyzmh_ptmass(5,1) .AND. (.NOT.accreted)) THEN !these particles might not yet accrete is f_acc<1.0
+WRITE(*,*) 'SoonWillAccrete: ',i,timei,&
+xyzh(1,i),xyzh(2,i),xyzh(3,i),&
+vxyzu(1,i),vxyzu(2,i),vxyzu(3,i),&
+ABS(xyzh(4,i)),eos_vars(itemp,i),& !vxyzu(4,i)*TempConversionFactor,&
+pmassi,rhoh(ABS(xyzh(4,i)),pmassi),vxyzu(4,i),&
+nfaili,iwindorig(i)
 ENDIF
              if (accreted) then
-WRITE(*,*) 'Yes Accrete: ',i,is_accretable(itype),itype,iphase(i),pmassi,xyzh(4,i),SQRT(xyzh(1,i)**2+xyzh(2,i)**2+xyzh(3,i)**2),accreted,nfaili,iwindorig(i)
+!WRITE(*,*) 'Yes Accrete: ',i,is_accretable(itype),itype,iphase(i),pmassi,xyzh(4,i),SQRT(xyzh(1,i)**2+xyzh(2,i)**2+xyzh(3,i)**2),accreted,nfaili,iwindorig(i)
+!write out the particle index, time, position, velocity, h, T, pmass, rho, u, accretion flag, and particle's wind origin
+WRITE(*,*) 'HereIsAnAccrete: ',i,timei,&
+xyzh(1,i),xyzh(2,i),xyzh(3,i),&
+vxyzu(1,i),vxyzu(2,i),vxyzu(3,i),&
+-xyzh(4,i),eos_vars(itemp,i),& !vxyzu(4,i)*TempConversionFactor,&
+pmassi,rhoh(-xyzh(4,i),pmassi),vxyzu(4,i),&
+nfaili,iwindorig(i)
                 naccreted = naccreted + 1
                 cycle accreteloop
              else
