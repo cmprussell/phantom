@@ -768,6 +768,10 @@ WRITE(*,*) 'THIS IS RUNNING B' !should not be executed for galcen sims since iex
              fyi = fext(2,i)
              fzi = fext(3,i)
              if (ind_timesteps) ibin_wakei = ibin_wake(i)
+             !if (ind_timesteps) then
+             !   ibin_wakei = ibin_wake(i)
+             !   itype = iphase(i)
+             !endif
 
 !IF(i==30001) THEN
 !WRITE(*,*) 'PreAccrete:  ',i,is_accretable(itype),itype,iphase(i),pmassi,xyzh(4,i),xyzmh_ptmass(5,1),f_acc,SQRT(xyzh(1,i)**2+xyzh(2,i)**2+xyzh(3,i)**2)
