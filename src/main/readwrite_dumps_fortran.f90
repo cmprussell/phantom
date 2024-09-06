@@ -1184,6 +1184,7 @@ subroutine read_phantom_arrays(i1,i2,noffset,narraylengths,nums,npartread,nparto
                 call read_array(dust_temp,'Tdust',got_Tdust,ik,i1,i2,noffset,idisk1,tag,match,ierr)
              endif
 WRITE(*,*) 'read_phantom_arrays: got_eosvars =',got_eosvars,', eos_vars_label =',eos_vars_label,', iarr, k, i =',iarr,k,i
+!change here...
              call read_array(eos_vars,eos_vars_label,got_eosvars,ik,i1,i2,noffset,idisk1,tag,match,ierr)
 WRITE(*,*) 'read_phantom_arrays: got_eosvars =',got_eosvars,', eos_vars_label =',eos_vars_label,', iarr, k, i =',iarr,k,i
 
