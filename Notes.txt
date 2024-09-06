@@ -62,7 +62,9 @@ make SYSTEM=ifort
 make SYSTEM=ifort setup
 
 make a new branch with the current branch's code; here, the new branch is named "multiAbu"
-git checkout -b multiAbu
+1a. git checkout -b multiAbu
 make a new branch with a non-current branch's code; here, the new branch is named "branchNew" and the old/copied branch is "branchOld"
-git checkout -b branchNew branchOld
+1b. git checkout -b branchNew branchOld
+make the newly created branch tacked in your github local respository; here, the new branch is named "multiAbu"
+2. git push origin multiAbu
 
