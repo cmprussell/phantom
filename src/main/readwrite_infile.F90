@@ -113,7 +113,8 @@ subroutine write_infile(infile,logfile,evfile,dumpfile,iwritein,iprint)
  use dust_formation,  only:write_options_dust_formation
  use nicil_sup,       only:write_options_nicil
  use metric,          only:write_options_metric
- use eos,             only:write_options_eos,ieos,X_in,Z_in
+ !use eos,             only:write_options_eos,ieos,X_in,Z_in
+ use eos,             only:write_options_eos,ieos,X_in,Z_in,use_var_comp
  use ptmass,          only:write_options_ptmass
  use ptmass_radiation,only:write_options_ptmass_radiation
  use cooling,         only:write_options_cooling
@@ -307,6 +308,12 @@ subroutine write_infile(infile,logfile,evfile,dumpfile,iwritein,iprint)
  call write_options_boundary(iwritein)
  call write_options_H2R(iwritein)
 
+!IF(use_var_comp) THEN
+WRITE(iwritein,*)
+WRITE(iwritein,'(A)') '# variable composition'
+WRITE(iwritein,*) 'use_var_comp = ',use_var_comp
+WRITE(*,*) 'write_infile: use_var_comp =',use_var_comp
+!ENDIF
  if (iwritein /= iprint) close(unit=iwritein)
  if (iwritein /= iprint) write(iprint,"(/,a)") ' input file '//trim(infile)//' written successfully.'
 
@@ -321,7 +328,8 @@ subroutine read_infile(infile,logfile,evfile,dumpfile)
  use dim,             only:maxvxyzu,maxptmass,gravity,sink_radiation,nucleation,&
                            itau_alloc,store_dust_temperature,gr,do_nucleation
  use timestep,        only:tmax,dtmax,nmax,nout,C_cour,C_force,C_ent
- use eos,             only:read_options_eos,ieos
+ !use eos,             only:read_options_eos,ieos
+ use eos,             only:read_options_eos,ieos,use_var_comp,set_gmwArr
  use io,              only:ireadin,iwritein,iprint,warn,die,error,fatal,id,master,fileprefix
  use infile_utils,    only:read_next_inopt,contains_loop,write_infile_series
 #ifdef DRIVING
@@ -541,6 +549,10 @@ subroutine read_infile(infile,logfile,evfile,dumpfile)
        read(valstring,*,iostat=ierr) tol_rad
     case('itsmax_rad')
        read(valstring,*,iostat=ierr) itsmax_rad
+CASE('use_var_comp')
+READ(valstring,*,iostat=ierr) use_var_comp
+WRITE(*,*) 'read_infile: use_var_comp = ',use_var_comp
+CALL set_gmwArr()
     case default
        imatch = .false.
        if (.not.imatch) call read_options_externalforces(name,valstring,imatch,igotallextern,ierr,iexternalforce)

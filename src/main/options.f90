@@ -167,7 +167,9 @@ subroutine set_default_options
  implicit_radiation_store_drad = .false.
 
  ! variable composition
+WRITE(*,*) 'options use_var_comp =',use_var_comp
  use_var_comp = .false.
+WRITE(*,*) 'options use_var_comp =',use_var_comp
 
 end subroutine set_default_options
 
