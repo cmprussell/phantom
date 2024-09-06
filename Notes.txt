@@ -1,0 +1,68 @@
+RadCoolTest_v1:
+-- galcen setup
+-- cooling values chosen such that only one hydro timestep should occur per output time
+-- various output durations (varying dtmax) so that cooling to the floor temperature is done over a varying number of steps
+-- cooling not corrected, so this is the original exact_cooling subroutine that has the error of not finding the new k (i.e. has the error of not finding k')
+
+RadCoolTest_v1b
+-- same as RadCoolTest_v1 with with the cooling error fixed (i.e. finds the new k')
+
+Test code: for me, this didn't work.  What did work was splitting the commands into two, which is presented as an alternative method in the Phantom docs.
+make SYSTEM=ifort test
+
+Test code: this did work
+0. go to the correct firectory
+<cd to /phantom/ top-level directory>
+1. compile the test suite
+make SYSTEM=ifort SETUP=test phantomtest
+2. run the test suite in a slurm job
+sbatch threads_TestSuite.qs
+
+Run bots for code formatting -- this way the bot doens't fix the spacing/alignment/etc of your code, thereby removing you as the author in "blame"
+0. add "findent" to the path; go to the scripts directory
+export PATH="$PATH:/home/1024/findent-4.3.3/bin/bin"
+cd scripts/
+1. run the bot, capturing the output in a file
+./bots.sh > output_v2b_bots.sh.txt
+
+Pulling in changes from Daniel's upstream/master branch into my version, specifically to my branch main
+1. git fetch upstream master
+2. git chechout main -- not necessary if already on my branch named main
+3. git merge upstream/master
+4. use vi to fix merge issues.  Here is a sample output of step 3, which shows files that merged correctly and ones that we need me to manually fix.
+   [(phys:crussell)@login01.caviness phantom]$ git merge upstream/master
+   Auto-merging src/main/utils_gr.f90
+   Auto-merging src/main/units.f90
+   Auto-merging src/main/substepping.F90
+   CONFLICT (content): Merge conflict in src/main/substepping.F90
+   Auto-merging src/main/readwrite_infile.F90
+   Auto-merging src/main/readwrite_dumps_fortran.f90
+   Auto-merging src/main/ptmass.F90
+   Auto-merging src/main/porosity.f90
+   Auto-merging src/main/part.F90
+   Auto-merging src/main/metric_tools.f90
+   Auto-merging src/main/inject_galcen_winds.f90
+   Removing src/main/inject_asteroidwind.f90
+   Auto-merging src/main/initial.F90
+   CONFLICT (content): Merge conflict in src/main/initial.F90
+   Auto-merging src/main/evolve.F90
+   Auto-merging src/main/cooling_solver.f90
+   Auto-merging src/main/cons2prim.f90
+   Auto-merging build/Makefile_setups
+   Auto-merging build/Makefile
+   Auto-merging .gitignore
+   Automatic merge failed; fix conflicts and then commit the result.
+In this instance, I use vi to fix the issues in substepping.F90 and initial.f90
+5. test the compilation status of the new changes
+6. Do the git add, git commit, git push sequence so these changes are stored for my copy of the code
+
+Make a new directory and compile the code
+../../scripts/writemake.sh galcen > Makefile
+make SYSTEM=ifort
+make SYSTEM=ifort setup
+
+make a new branch with the current branch's code; here, the new branch is named "multiAbu"
+git checkout -b multiAbu
+make a new branch with a non-current branch's code; here, the new branch is named "branchNew" and the old/copied branch is "branchOld"
+git checkout -b branchNew branchOld
+
