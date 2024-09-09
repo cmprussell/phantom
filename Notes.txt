@@ -69,5 +69,7 @@ make the newly created branch tacked in your github local respository; here, the
 2. git push origin multiAbu
 
 Undo the very last thing done to a particular branch, which in this case was merging a pull request
-git reset --hard HEAD~1
+1. git reset --hard HEAD~1
+Update the branch so the remote repository has the undone changes -- note: since "-f" means force, this comes with a warning to only do this if you are sure this should be done (perhaps there is a better way I'll find in the future)
+2. git push -f
 
