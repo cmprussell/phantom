@@ -299,87 +299,25 @@ subroutine write_fulldump_fortran(t,dumpfile,ntotal,iorder,sphNG)
        endif
        !call write_array(1,iwindorig,'iWindOrig',npart,k,ipass,idump,nums,nerr)  !though this seems fine, Splash doesn't seem to read in integers, so try a hack (below) where values are converted to real before outputting
 
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-! hack to write iwindorg as reals to dump file !
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-
-! stems from write_array_real8 in utils_dumpfiles.f90
-
-!                               i_real  = 6, &
-!                               i_real4 = 7, &
-!                               i_real8 = 8
-!
-! ...
-!
-!!---------------------------------------------------------------------
-!!+
-!!  Write real*4 array to block header (ipass=1) or to file (ipass=2)
-!!+
-!!---------------------------------------------------------------------
-!subroutine
-!write_array_real8(ib,arr,my_tag,len,ikind,ipass,iunit,nums,nerr,func,use_kind,singleprec)
-! real(kind=8),     intent(in) :: arr(:)
-! character(len=*), intent(in) :: my_tag
-! integer, intent(in)    :: ib,len,ikind,ipass,iunit
-! integer, intent(inout) :: nums(:,:)
-! integer, intent(inout) :: nerr
-! interface
-!  real(kind=8) pure function func(x)
-!   real(kind=8), intent(in) :: x
-!  end function func
-! end interface
-! optional :: func
-! !real(kind=8), optional :: func
-! integer, intent(in), optional :: use_kind
-! logical, intent(in), optional :: singleprec
-! integer :: i,imatch,ierr
-! logical :: use_singleprec
-!
-! ierr = 0
-! use_singleprec = .false.
-! if (present(singleprec)) use_singleprec = singleprec
-! ! use default real if it matches, unless kind is specified
-! if ((kind(0.)==8 .or. use_singleprec).and.(.not.present(use_kind))) then
-!    imatch = i_real
-! elseif (present(use_kind)) then
-!    if (use_kind==4) then
-!       imatch = i_real4
-!    else
-!       imatch = i_real8
-!    endif
-! else
-!    imatch = i_real8
-! endif
-! ! check if kind matches
-! if (ikind==imatch) then
-IF(k==8) THEN !needed since we want to write as double precision reals
-!    !print*,ipass,' WRITING ',my_tag,' as ',imatch,use_singleprec
-    if (ipass==1) then
-!       nums(imatch,ib) = nums(imatch,ib) + 1
-       nums(8,1) = nums(8,1) + 1
-    elseif (ipass==2) then
-!       write(iunit,iostat=ierr) tag(my_tag)
-       write(idump,iostat=ierr) tag('iWindOrig')
-!       if (present(func)) then
-!          write(iunit,iostat=ierr) (func(arr(i)),i=1,len)
-!       else
-!          if (imatch==i_real4 .or. use_singleprec) then
-!             write(iunit,iostat=ierr) (real(arr(i),kind=4),i=1,len)
-!          else
-!             write(iunit,iostat=ierr) arr(1:len)
+       !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+       ! hack to write iwindorg as reals to dump file !
+       !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+       ! stems from write_array_real8 in utils_dumpfiles.f90
+       !                               i_real  = 6, &
+       !                               i_real4 = 7, &
+       !                               i_real8 = 8
+       if (k==8) theneded since we want to write as double precision reals
+          if (ipass==1) then
+             !nums(imatch,ib) = nums(imatch,ib) + 1
+             nums(8,1) = nums(8,1) + 1
+          elseif (ipass==2) then
+             write(idump,iostat=ierr) tag('iWindOrig')
              write(idump,iostat=ierr) iwindorig(1:npart)*1.d0
-!          endif
-!       endif
-    endif
-ENDIF
-! endif
-! if (ierr /= 0) nerr = nerr + 1
-!
-!end subroutine write_array_real8
-
-!!!!!!!!!!!!!!!
-! end of hack !
-!!!!!!!!!!!!!!!
+          endif
+       endif
+       !!!!!!!!!!!!!!!
+       ! end of hack !
+       !!!!!!!!!!!!!!!
 
        if (nerr > 0) call error('write_dump','error writing hydro arrays')
     enddo
@@ -1205,9 +1143,17 @@ LOGICAL :: got_iwindorig
                 call read_array(radprop,radprop_label,got_radprop,ik,i1,i2,noffset,idisk1,tag,match,ierr)
              endif
 
-IF(k==8) THEN
-CALL read_array_real8_to_int4(iwindorig, 'iWindOrig', got_iwindorig, ik,i1,i2,noffset,idisk1,tag,match,ierr)
-ENDIF
+             !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+             ! hack to read iwindorg as reals from full dump file !
+             !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+             !iWindOrig (or iwindorig) is a special case since this int*4 array is stored as real*8 in the full dump files
+             if (k==8) then
+                call read_array_real8_to_int4(iwindorig, 'iWindOrig', got_iwindorig, ik,i1,i2,noffset,idisk1,tag,match,ierr)
+                write(*,'(A,L)' 'got_iwindorig =',got_iwindorig
+             endif
+             !!!!!!!!!!!!!!!
+             ! end of hack !
+             !!!!!!!!!!!!!!!
           case(2)
              call read_array(xyzmh_ptmass,xyzmh_ptmass_label,got_sink_data,ik,1,nptmass,0,idisk1,tag,match,ierr)
              call read_array(vxyz_ptmass, vxyz_ptmass_label, got_sink_vels,ik,1,nptmass,0,idisk1,tag,match,ierr)

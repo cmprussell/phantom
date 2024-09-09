@@ -2350,6 +2350,9 @@ subroutine read_array_real8arr(arr,arr_tag,got_arr,ikind,i1,i2,noffset,iunit,tag
 
 end subroutine read_array_real8arr
 
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+! hack to read iwindorg as reals from full dump file !
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !--------------------------------------------------------------------
 !+
 !  Routine for extracting real*8 array from main block in dump file
@@ -2369,7 +2372,7 @@ subroutine read_array_real8_to_int4(arr,arr_tag,got_arr,ikind,i1,i2,noffset,iuni
  real(kind=4) :: dumr4
  real(kind=4), allocatable :: dummyr4(:)
  logical      :: match_datatype
- REAL(KIND=8), ALLOCATABLE :: dummyr8(:)
+ real(kind=8), allocatable :: dummyr8(:)
 
  if (matched .or. ikind < i_real) return
  match_datatype = (ikind==i_real8 .or. (kind(0.)==8 .and. ikind==i_real))
@@ -2383,15 +2386,15 @@ subroutine read_array_real8_to_int4(arr,arr_tag,got_arr,ikind,i1,i2,noffset,iuni
           ierr = ierr_arraysize
           return
        endif
-       !read(iunit,iostat=ierr) (dum,i=1,noffset),arr(i1:i2)
-!allocate real*8 data
+       !read(iunit,iostat=ierr) (dum,i=1,noffset),arr(i1:i2) !this is the old line that has been turned into the following 5 lines
+       !allocate real*8 data
        nread = i2-i1+1
        allocate(dummyr8(nread))
-!read in real*8 data
+       !read in real*8 data
        read(iunit,iostat=ierr) (dum,i=1,noffset),dummyr8(1:nread)
-!write to int*4 array
-       arr(i1:i2) = FLOOR(dummyr8(1:nread)+0.5d0,KIND=4)
-!deallocate real*8 data
+       !write to int*4 array
+       arr(i1:i2) = floor(dummyr8(1:nread)+0.5d0,kind=4)
+       !deallocate real*8 data
        deallocate(dummyr8)
     elseif (ikind==i_real4) then
        got_arr = .true.
@@ -2408,6 +2411,9 @@ subroutine read_array_real8_to_int4(arr,arr_tag,got_arr,ikind,i1,i2,noffset,iuni
  endif
 
 end subroutine read_array_real8_to_int4
+!!!!!!!!!!!!!!!
+! end of hack !
+!!!!!!!!!!!!!!!
 
 !-----------------------------------------------------
 !+
