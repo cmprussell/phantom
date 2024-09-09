@@ -68,3 +68,6 @@ make a new branch with a non-current branch's code; here, the new branch is name
 make the newly created branch tacked in your github local respository; here, the new branch is named "multiAbu"
 2. git push origin multiAbu
 
+Undo the very last thing done to a particular branch, which in this case was merging a pull request
+git reset --hard HEAD~1
+
