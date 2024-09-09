@@ -153,7 +153,7 @@ module dump_utils
    read_array_real8, read_array_real8arr
  end interface read_array
 
-PUBLIC :: read_array_real8_to_int4
+ public :: read_array_real8_to_int4
 
  ! generic interface for reading arrays from dumpfile
  interface read_array_from_file
@@ -2361,7 +2361,7 @@ end subroutine read_array_real8arr
 !--------------------------------------------------------------------
 subroutine read_array_real8_to_int4(arr,arr_tag,got_arr,ikind,i1,i2,noffset,iunit,tag,matched,ierr)
  !real(kind=8),     intent(inout) :: arr(:)
- INTEGER(KIND=4),  intent(inout) :: arr(:)
+ integer(kind=4),  intent(inout) :: arr(:)
  character(len=*), intent(in)    :: arr_tag,tag
  logical,          intent(inout) :: got_arr
  integer,          intent(in)    :: ikind,i1,i2,noffset,iunit
