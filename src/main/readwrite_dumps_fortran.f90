@@ -306,7 +306,7 @@ subroutine write_fulldump_fortran(t,dumpfile,ntotal,iorder,sphNG)
        !                               i_real  = 6, &
        !                               i_real4 = 7, &
        !                               i_real8 = 8
-       if (k==8) !needed since we want to write as double precision reals
+       if (k==8) then !needed since we want to write as double precision reals
           if (ipass==1) then
              !nums(imatch,ib) = nums(imatch,ib) + 1
              nums(8,1) = nums(8,1) + 1
