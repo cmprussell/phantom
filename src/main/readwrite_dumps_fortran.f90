@@ -1055,7 +1055,8 @@ end subroutine read_smalldump_fortran
 subroutine read_phantom_arrays(i1,i2,noffset,narraylengths,nums,npartread,npartoftype,&
                                massoftype,nptmass,nsinkproperties,phantomdump,tagged,singleprec,&
                                tfile,alphafile,idisk1,iprint,ierr)
- use dump_utils, only:read_array,match_tag
+ !use dump_utils, only:read_array,match_tag
+ use dump_utils, only:read_array,match_tag,read_array_real8_to_int4
  use dim,        only:use_dust,h2chemistry,maxalpha,maxp,gravity,maxgrav,maxvxyzu,do_nucleation, &
                       use_dustgrowth,maxdusttypes,ndivcurlv,maxphase,gr,store_dust_temperature,&
                       ind_timesteps,use_krome
@@ -1066,7 +1067,7 @@ subroutine read_phantom_arrays(i1,i2,noffset,narraylengths,nums,npartread,nparto
                       VrelVf,VrelVf_label,dustgasprop,dustgasprop_label,filfac,filfac_label,pxyzu,pxyzu_label,dust_temp, &
                       rad,rad_label,radprop,radprop_label,do_radiation,maxirad,maxradprop,ifluxx,ifluxy,ifluxz, &
                       nucleation,nucleation_label,n_nucleation,ikappa,tau,itau_alloc,tau_lucy,itauL_alloc,&
-                      ithick,ilambda,iorig,dt_in,krome_nmols,T_gas_cool
+                      ithick,ilambda,iorig,dt_in,krome_nmols,T_gas_cool,iwindorig
  use sphNGutils, only:mass_sphng,got_mass,set_gas_particle_mass
  use options,    only:use_porosity
  integer, intent(in)   :: i1,i2,noffset,narraylengths,nums(:,:),npartread,npartoftype(:),idisk1,iprint
@@ -1083,6 +1084,7 @@ subroutine read_phantom_arrays(i1,i2,noffset,narraylengths,nums,npartread,nparto
  logical               :: got_eosvars(maxeosvars),got_nucleation(n_nucleation),got_ray_tracer
  logical               :: got_psi,got_Tdust,got_dustprop(2),got_VrelVf,got_dustgasprop(4)
  logical               :: got_filfac,got_divcurlv(4),got_rad(maxirad),got_radprop(maxradprop),got_pxyzu(4),got_iorig
+LOGICAL :: got_iwindorig
  character(len=lentag) :: tag,tagarr(64)
  integer :: k,i,iarr,ik,ndustfraci
  real, allocatable :: tmparray(:)
@@ -1118,6 +1120,7 @@ subroutine read_phantom_arrays(i1,i2,noffset,narraylengths,nums,npartread,nparto
  got_radprop     = .false.
  got_pxyzu       = .false.
  got_iorig       = .false.
+ got_iwindorig   = .false.
 
  ndustfraci = 0
  if (use_dust) allocate(tmparray(size(dustfrac,2)))
@@ -1201,6 +1204,10 @@ subroutine read_phantom_arrays(i1,i2,noffset,narraylengths,nums,npartread,nparto
                 call read_array(rad,rad_label,got_rad,ik,i1,i2,noffset,idisk1,tag,match,ierr)
                 call read_array(radprop,radprop_label,got_radprop,ik,i1,i2,noffset,idisk1,tag,match,ierr)
              endif
+
+IF(k==8) THEN
+CALL read_array_real8_to_int4(iwindorig, 'iWindOrig', got_iwindorig, ik,i1,i2,noffset,idisk1,tag,match,ierr)
+ENDIF
           case(2)
              call read_array(xyzmh_ptmass,xyzmh_ptmass_label,got_sink_data,ik,1,nptmass,0,idisk1,tag,match,ierr)
              call read_array(vxyz_ptmass, vxyz_ptmass_label, got_sink_vels,ik,1,nptmass,0,idisk1,tag,match,ierr)
