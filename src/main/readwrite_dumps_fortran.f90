@@ -1149,7 +1149,7 @@ subroutine read_phantom_arrays(i1,i2,noffset,narraylengths,nums,npartread,nparto
              !iWindOrig (or iwindorig) is a special case since this int*4 array is stored as real*8 in the full dump files
              if (k==8) then
                 call read_array_real8_to_int4(iwindorig, 'iWindOrig', got_iwindorig, ik,i1,i2,noffset,idisk1,tag,match,ierr)
-                write(*,'(A,L)' 'got_iwindorig =',got_iwindorig
+                write(*,'(a,l)') ' got_iwindorig =',got_iwindorig
              endif
              !!!!!!!!!!!!!!!
              ! end of hack !
