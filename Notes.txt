@@ -73,3 +73,13 @@ Undo the very last thing done to a particular branch, which in this case was mer
 Update the branch so the remote repository has the undone changes -- note: since "-f" means force, this comes with a warning to only do this if you are sure this should be done (perhaps there is a better way I'll find in the future)
 2. git push -f
 
+Investigate changes among branches (here between branch main and branch multiAbu): list changed files only
+1a. git diff --name-only main multiAbu
+Investigate changes among branches (here between branch main and branch multiAbu): investighate changes within each file
+1b. git diff main multiAbu
+
+
+Pull in changes to a specific non-main branch once a pull request has updated a non-main branch (in this case, branch multiAbu)
+1. git pull origin multiAbu
+
+
