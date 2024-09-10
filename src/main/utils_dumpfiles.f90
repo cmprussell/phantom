@@ -153,6 +153,8 @@ module dump_utils
    read_array_real8, read_array_real8arr
  end interface read_array
 
+ public :: read_array_real8_to_int4
+
  ! generic interface for reading arrays from dumpfile
  interface read_array_from_file
   module procedure read_array_from_file_r4, read_array_from_file_r8
@@ -2347,6 +2349,71 @@ subroutine read_array_real8arr(arr,arr_tag,got_arr,ikind,i1,i2,noffset,iunit,tag
  enddo
 
 end subroutine read_array_real8arr
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+! hack to read iwindorg as reals from full dump file !
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!--------------------------------------------------------------------
+!+
+!  Routine for extracting real*8 array from main block in dump file
+!  and putting the output into int*4 arrays
+!+
+!--------------------------------------------------------------------
+subroutine read_array_real8_to_int4(arr,arr_tag,got_arr,ikind,i1,i2,noffset,iunit,tag,matched,ierr)
+ !real(kind=8),     intent(inout) :: arr(:)
+ integer(kind=4),  intent(inout) :: arr(:)
+ character(len=*), intent(in)    :: arr_tag,tag
+ logical,          intent(inout) :: got_arr
+ integer,          intent(in)    :: ikind,i1,i2,noffset,iunit
+ logical,          intent(inout) :: matched
+ integer,          intent(out)   :: ierr
+ integer      :: i,nread
+ real(kind=8) :: dum
+ real(kind=4) :: dumr4
+ real(kind=4), allocatable :: dummyr4(:)
+ logical      :: match_datatype
+ real(kind=8), allocatable :: dummyr8(:)
+
+ if (matched .or. ikind < i_real) return
+ match_datatype = (ikind==i_real8 .or. (kind(0.)==8 .and. ikind==i_real))
+
+ if (match_tag(tag,arr_tag) .and. .not.matched) then
+    matched    = .true.
+    if (match_datatype) then
+       got_arr = .true.
+       if (i2 > size(arr)) then
+          print*,'ERROR: array size too small reading '//trim(tag),i2,size(arr)
+          ierr = ierr_arraysize
+          return
+       endif
+       !read(iunit,iostat=ierr) (dum,i=1,noffset),arr(i1:i2) !this is the old line that has been turned into the following 5 lines
+       !allocate real*8 data
+       nread = i2-i1+1
+       allocate(dummyr8(nread))
+       !read in real*8 data
+       read(iunit,iostat=ierr) (dum,i=1,noffset),dummyr8(1:nread)
+       !write to int*4 array
+       arr(i1:i2) = floor(dummyr8(1:nread)+0.5d0,kind=4)
+       !deallocate real*8 data
+       deallocate(dummyr8)
+    elseif (ikind==i_real4) then
+       got_arr = .true.
+       !print*,'WARNING: converting '//trim(tag)//' from real*4'
+       nread = i2-i1+1
+       allocate(dummyr4(nread))
+       read(iunit,iostat=ierr) (dumr4,i=1,noffset),dummyr4(1:nread)
+       arr(i1:i2) = real(dummyr4(1:nread),kind=8)
+       deallocate(dummyr4)
+    else
+       print*,'ERROR: wrong datatype for '//trim(tag)//' (is not real8)'
+       read(iunit,iostat=ierr)
+    endif
+ endif
+
+end subroutine read_array_real8_to_int4
+!!!!!!!!!!!!!!!
+! end of hack !
+!!!!!!!!!!!!!!!
 
 !-----------------------------------------------------
 !+
