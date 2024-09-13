@@ -250,7 +250,15 @@ subroutine write_fulldump_fortran(t,dumpfile,ntotal,iorder,sphNG)
              call write_array(1,eos_vars,eos_vars_label,1,npart,k,ipass,idump,nums,nerr,index=iX)
              call write_array(1,eos_vars,eos_vars_label,1,npart,k,ipass,idump,nums,nerr,index=iZ)
           endif
+       elseif (use_var_comp .and. (.not.update_muGamma) .and. (.not.use_krome)) then
+          !Note: Only write mu if use_var_comp is true and mu will not be written later.
+          !      This implementation hopefully does not affect previous implementations of when to write mu,
+          !      so all previous sims should work fine, but definitely check that a non-writing-mu sim
+          !      does not suddenly start writing mu.
+          call write_array(1,eos_vars,eos_vars_label,1,npart,k,ipass,idump,nums,nerr,index=imu)
        endif
+!!automatically write mu to data file -- this needs to be done properly in the future
+!call write_array(1,eos_vars,eos_vars_label,1,npart,k,ipass,idump,nums,nerr,index=imu)
 
        ! smoothing length written as real*4 to save disk space
        call write_array(1,xyzh,xyzh_label,1,npart,k,ipass,idump,nums,nerr,use_kind=4,index=4)

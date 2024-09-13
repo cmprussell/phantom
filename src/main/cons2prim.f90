@@ -233,6 +233,8 @@ subroutine cons2prim_everything(npart,xyzh,vxyzu,dvdx,rad,eos_vars,radprop,&
  mui    = gmw
  X_i    = X_in
  Z_i    = Z_in
+ !The following line is always the same as use_var_comp_local in galcen.in for the MultiAbu version of the GC code
+ !WRITE(*,*) 'cons2prim_everything: use_var_comp =',use_var_comp
 
 !$omp parallel do default (none) &
 !$omp shared(xyzh,vxyzu,npart,rad,eos_vars,radprop,Bevol,Bxyz) &

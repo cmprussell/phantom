@@ -452,6 +452,7 @@ subroutine substep(npart,ntypes,nptmass,dtsph,dtextforce,time,xyzh,vxyzu,fext, &
  integer :: force_count,nsubsteps
  real    :: timei,time_par,dt,t_end_step
  real    :: dtextforce_min
+!WRITE(*,*) 'use_regnbody =',use_regnbody,', use_fourthorder =',use_fourthorder !use_regnbody=false, use_fourthorder=true
 !
 ! determine whether or not to use substepping
 !
@@ -1176,11 +1177,13 @@ subroutine cooling_abundances_update(i,pmassi,xyzh,vxyzu,eos_vars,abundance,nucl
  use dim,             only:h2chemistry,do_nucleation,use_krome,update_muGamma,store_dust_temperature
  use part,            only:idK2,idmu,idkappa,idgamma,imu,igamma,nabundances
  use cooling_ism,     only:nabn,dphotflag
- use options,         only:icooling
+ !use options,         only:icooling
+ use options,         only:icooling,use_var_comp
  use chem,            only:update_abundances,get_dphot
  use dust_formation,  only:evolve_dust,calc_muGamma
  use cooling,         only:energ_cooling,cooling_in_step
  use part,            only:rhoh
+ !use eos,             only:gmw
 #ifdef KROME
  use part,            only: T_gas_cool
  use krome_interface, only: update_krome
@@ -1250,8 +1253,18 @@ subroutine cooling_abundances_update(i,pmassi,xyzh,vxyzu,eos_vars,abundance,nucl
           call energ_cooling(xyzh(1,i),xyzh(2,i),xyzh(3,i),vxyzu(4,i),rhoi,dt,divcurlv(1,i),dudtcool,dust_temp(i))
        endif
     else
-       ! cooling without stored dust temperature
-       call energ_cooling(xyzh(1,i),xyzh(2,i),xyzh(3,i),vxyzu(4,i),rhoi,dt,divcurlv(1,i),dudtcool)
+       !! cooling without stored dust temperature
+       !call energ_cooling(xyzh(1,i),xyzh(2,i),xyzh(3,i),vxyzu(4,i),rhoi,dt,divcurlv(1,i),dudtcool)
+       if (use_var_comp) then
+          !if(eos_vars(imu,i).ne.gmw) then
+             !if(mod(i,99)==0) WRITE(*,*) 'substepping: ',eos_vars(imu,i),', i =',i
+          !endif
+          ! cooling without stored dust temperature
+          call energ_cooling(xyzh(1,i),xyzh(2,i),xyzh(3,i),vxyzu(4,i),rhoi,dt,divcurlv(1,i),dudtcool,mu_in=eos_vars(imu,i))
+       else
+          ! cooling without stored dust temperature
+          call energ_cooling(xyzh(1,i),xyzh(2,i),xyzh(3,i),vxyzu(4,i),rhoi,dt,divcurlv(1,i),dudtcool)
+       endif
     endif
  endif
 #endif

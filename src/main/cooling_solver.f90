@@ -654,6 +654,7 @@ subroutine exact_cooling_Chris2(ui, dudt, rho, dt, mu, gamma, Tdust, K2, kappa)
  !use units,   only:unit_ergg
  use units,   only:unit_ergg,unit_density,utime
  !use cooling, only:Tfloor
+!USE eos, only:gmw
 
  real, intent(in)  :: ui, rho, dt, Tdust, mu, gamma
  real, intent(in)  :: K2, kappa
@@ -673,7 +674,12 @@ subroutine exact_cooling_Chris2(ui, dudt, rho, dt, mu, gamma, Tdust, K2, kappa)
  INTEGER :: kl,km,ku,kk
  REAL :: YT
  !REAL :: YTsave
- 
+
+ !The following 3 lines confirm that eos_vars(imu,i) is passed all the way to mu in this subroutine 
+ !if (mu.ne.gmw) then
+ !   WRITE(*,*) 'mu =',mu
+ !endif
+
  !NOTE: When this cooling subroutine was written and tested,
  !      kboltz was not updated to enough sig figs, so computations using kboltz
  !      vs. computations using Rg*amu yielded different results.
@@ -723,6 +729,8 @@ subroutine exact_cooling_Chris2(ui, dudt, rho, dt, mu, gamma, Tdust, K2, kappa)
  !   WRITE(*,*) 'T > Tref_Chris'
  !   call calc_cooling_rate(Q, dlnQ_dlnT, rho, T, Tdust, mu, gamma, K2, kappa)
  !   Temp = T+T_on_u*Q*dt
+ !elseif (.true.) then !these two lines cool all particles to the floor temperature
+ !   Temp = T_floor
  else
     !WRITE(*,*) 'else'
 

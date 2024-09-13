@@ -33,10 +33,8 @@ module setup
  real :: m_SMBH = 4.28d6 ! mass of supermassive black hole (SMBH) in Msun
  real :: h_SMBH = 0.1d0 ! accretion radius of SMBH in arcsec at 8kpc
 
-LOGICAL :: multiAbuTest=.TRUE.
-LOGICAL :: use_var_comp_local=.FALSE.
-!INTEGER,PARAMETER :: ngmwArr=6
-!REAL :: gmwArr(ngmwArr)
+ logical :: multiAbuTest=.true.
+ logical :: use_var_comp_local=.false.
 
  private
 
@@ -49,11 +47,12 @@ contains
 !----------------------------------------------------------------
 subroutine setpart(id,npart,npartoftype,xyzh,massoftype,vxyzu,polyk,gamma,hfact,time,fileprefix)
  !use part,      only:nptmass,xyzmh_ptmass,vxyz_ptmass,ihacc,ihsoft,igas
- use part,      only:nptmass,xyzmh_ptmass,vxyz_ptmass,ihacc,ihsoft,igas,iwindorig
+ use part,      only:nptmass,xyzmh_ptmass,vxyz_ptmass,ihacc,ihsoft,igas,iwindorig,eos_vars,imu
  use units,     only:set_units,umass !,udist
  use physcon,   only:solarm,kpc,pi,au
  use io,        only:fatal,iprint,master
- use eos,       only:gmw
+ !use eos,       only:gmw
+ use eos,       only:gmw,use_var_comp
  use timestep,  only:dtmax
  use spherical, only:set_sphere
  use datafiles, only:find_phantom_datafile
@@ -138,25 +137,39 @@ INTEGER :: ierr_Tinit
 !
  psep = 1.0
  call set_sphere('cubic',id,master,0.,20.,psep,hfact,npart,xyzh)
+!
+! initialize internal energy based on 1. temperature -- either read from a file or 1e4K
+!                                     2. mean molecular weight -- gmw
+!
  OPEN(UNIT=61,FILE='Tinit.dat',FORM='FORMATTED',STATUS='OLD',IOSTAT=ierr_Tinit)
  IF(ierr_Tinit==0) THEN
     READ(61,*,IOSTAT=ierr_Tinit) vxyzu(4,1)
     IF(ierr_Tinit==0) THEN
-       vxyzu(4,1)=5.356136065348470d-4 * vxyzu(4,1)/1.d4
-       vxyzu(4,:)=vxyzu(4,1)
+       !vxyzu(4,1) = 5.356136065348470d-4 * vxyzu(4,1)/1.d4
+       vxyzu(4,1) = 5.356136065348470d-4 * 0.6d0/gmw * vxyzu(4,1)/1.d4
+       vxyzu(4,:) = vxyzu(4,1)
     ENDIF
  ENDIF
  IF(ierr_Tinit/=0) THEN
     !vxyzu(4,:) = 5.317e-4 ! T_init=1e4
     !vxyzu(4,:) = 5.317e-4 * 1.e2 ! T_init=1e6
-    vxyzu(4,:) = 5.356136065348470d-4 ! T_init=1e4K to more accuracy
+    !vxyzu(4,:) = 5.356136065348470d-4 ! T_init=1e4K to more accuracy
+    vxyzu(4,:) = 5.356136065348470d-4 * 0.6d0/gmw ! T_init=1e4K to more accuracy
     !vxyzu(4,:) = 5.356136065348470d-4 * 1.d1 ! T_init=1e5K to more accuracy
     !vxyzu(4,:) = 5.356136065348470d-4 * 1.d2 ! T_init=1e6K to more accuracy
     !vxyzu(4,:) = 5.356136065348470d-4 * 1.d3 ! T_init=1e7K to more accuracy
     !vxyzu(4,:) = 5.356136065348470d-4 * 1.d4 ! T_init=1e8K to more accuracy
-    WRITE(*,*) 'Tinit.dat not found or not configured correctly -- initial particle energy set to T=',vxyzu(4,1)/5.356136065348470d-4*1.d4,'K'
+    !WRITE(*,*) 'Tinit.dat not found or not configured correctly -- initial particle energy set to T=',vxyzu(4,1)/5.356136065348470d-4*1.d4,'K'
+    WRITE(*,*) 'Tinit.dat not found or not configured correctly -- initial particle energy set to T=',vxyzu(4,1)/5.356136065348470d-4*gmw/0.6d0*1.d4,'K'
  ENDIF
  CLOSE(61)
+!
+! initialize mean molecular weight if needed
+!
+ WRITE(*,*) 'setpart: use_var_comp = ',use_var_comp
+ if (use_var_comp) then
+    eos_vars(imu,:) = gmw
+ endif
 
  npartoftype(igas) = npart
 
@@ -239,10 +252,12 @@ subroutine write_setupfile(filename,iprint)
  write(lu,"(/,a)") '# SMBH properties'
  call write_inopt(m_SMBH, 'm_SMBH','SMBH mass in solar masses',lu,ierr2)
  call write_inopt(h_SMBH, 'h_SMBH','SMBH accretion radius in arcsec at 8kpc',lu,ierr2)
-IF(multiAbuTest) THEN
-write(lu,"(/,a)") '# use variable composition'
-call write_inopt(use_var_comp_local, 'use_var_comp_local','whether or not to use variable composition',lu,ierr2)
-ENDIF
+
+ if (multiAbuTest) then
+    write(lu,"(/,a)") '# use variable composition'
+    call write_inopt(use_var_comp_local, 'use_var_comp_local','whether or not to use variable composition',lu,ierr2)
+ endif
+ 
  close(lu)
 
 end subroutine write_setupfile
@@ -255,14 +270,14 @@ end subroutine write_setupfile
 subroutine read_setupfile(filename,iprint,ierr)
  use infile_utils, only:open_db_from_file,inopts,close_db,read_inopt
  use dim,          only:maxvxyzu
-USE eos, ONLY:use_var_comp,set_gmwArr,ngmwArr,gmwArr
+ use eos,          only:use_var_comp,set_gmwArr,ngmwArr,gmwArr
  character(len=*), intent(in)  :: filename
  integer,          parameter   :: lu = 21
  integer,          intent(in)  :: iprint
  integer,          intent(out) :: ierr
  integer                       :: nerr
  type(inopts), allocatable     :: db(:)
-INTEGER :: i
+ integer                       :: i
 
  call open_db_from_file(db,filename,lu,ierr)
  if (ierr /= 0) return
@@ -275,28 +290,32 @@ INTEGER :: i
  call read_inopt(m_SMBH,'m_SMBH',db,errcount=nerr)
  call read_inopt(h_SMBH,'h_SMBH',db,errcount=nerr)
 
-IF(multiAbuTest) THEN
-call read_inopt(use_var_comp_local,'use_var_comp_local',db,errcount=nerr)
-use_var_comp = use_var_comp_local
-WRITE(*,*) 'use_var_comp = ',use_var_comp
-IF(use_var_comp) THEN
-!gmwArr(1)=0.6
-!gmwArr(2)=1.0
-!gmwArr(3)=1.4
-!gmwArr(4)=1.8
-!gmwArr(5)=2.2
-!gmwArr(6)=2.6
-WRITE(*,*) 'Before set_gmwArr()'
-DO i=1,ngmwArr
-WRITE(*,*) 'gmwArr(',i,') = ',gmwArr(i)
-ENDDO
-CALL set_gmwArr()
-WRITE(*,*) 'After  set_gmwArr()'
-DO i=1,ngmwArr
-WRITE(*,*) 'gmwArr(',i,') = ',gmwArr(i)
-ENDDO
-ENDIF
-ENDIF
+ if (multiAbuTest) then
+    call read_inopt(use_var_comp_local,'use_var_comp_local',db,errcount=nerr)
+    use_var_comp = use_var_comp_local
+    WRITE(*,*) 'read_setupfile: use_var_comp = ',use_var_comp
+    if (use_var_comp) then
+       WRITE(*,*) 'Before set_gmwArr()'
+       do i=1,ngmwArr
+          WRITE(*,*) 'gmwArr(',i,') = ',gmwArr(i)
+       enddo
+       call set_gmwArr()
+       WRITE(*,*) 'After  set_gmwArr()'
+       do i=1,ngmwArr
+          WRITE(*,*) 'gmwArr(',i,') = ',gmwArr(i)
+       enddo
+    else
+       WRITE(*,*) 'use_var_comp = ',use_var_comp,', so set_gmwArr() is not called. Here is what is stored in gmwArr without initialization'
+       do i=1,ngmwArr
+          WRITE(*,*) 'gmwArr(',i,') = ',gmwArr(i)
+       enddo
+    endif
+ else
+    WRITE(*,*) 'use_var_comp = ',use_var_comp,' because multiAbuTest =',multiAbuTest,', so set_gmwArr() is not called. Here is what is stored in gmwArr without initialization'
+    do i=1,ngmwArr
+       WRITE(*,*) 'gmwArr(',i,') = ',gmwArr(i)
+    enddo
+ endif
 
  if (nerr > 0) then
     print "(1x,a,i2,a)",'Setup_galcen: ',nerr,' error(s) during read of setup file'
@@ -322,9 +341,9 @@ subroutine interactive_setup()
  call prompt('Enter stellar wind injection radii for the stars (also their sink particle radii) in arcsec at 8kpc',h_sink,1.e-5,1.)
  call prompt('Enter SMBH mass in Msun',m_SMBH,1.e0,1.e12)
  call prompt('Enter SMBH accretion radius in arcsec at 8 kpc',h_SMBH,1.e-5,1.)
-IF(multiAbuTest) THEN
-CALL prompt('Enter logical value for use_var_comp',use_var_comp_local)
-ENDIF
+ if (multiAbuTest) then
+    call prompt('Enter logical value for use_var_comp',use_var_comp_local)
+ endif
  print "(a)"
 
 end subroutine interactive_setup

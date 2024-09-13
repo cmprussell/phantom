@@ -66,13 +66,15 @@ subroutine inject_particles(time,dtlast,xyzh,vxyzu,xyzmh_ptmass,vxyz_ptmass,&
                             npart,npart_old,npartoftype,dtinject)
  use io,        only:fatal,iverbose
  !use part,      only:massoftype,igas,ihacc,i_tlast
- use part,      only:massoftype,igas,ihacc,i_tlast,iwindorig,eos_vars,imu
- !USE part,      only:massoftype,igas,ihacc,i_tlast,iphase
+ use part,      only:massoftype,igas,ihacc,i_tlast,iwindorig,eos_vars,imu,itemp
+ !use part,      only:massoftype,igas,ihacc,i_tlast,iphase
  use partinject,only:add_or_update_particle
  use physcon,   only:pi,solarm,seconds,years,km,kb_on_mH
  use units,     only:umass,udist,utime,unit_velocity
  use random,    only:ran2
- use eos,       only:gmw,gamma
+ !use eos,       only:gmw,gamma
+ use eos,       only:gmw,gamma,gmwArr
+ use options,   only:use_var_comp
  real,    intent(in)    :: time, dtlast
  real,    intent(inout) :: xyzh(:,:), vxyzu(:,:), xyzmh_ptmass(:,:), vxyz_ptmass(:,:)
  integer, intent(inout) :: npart, npart_old
@@ -82,6 +84,7 @@ subroutine inject_particles(time,dtlast,xyzh,vxyzu,xyzmh_ptmass,vxyz_ptmass,&
  real :: xyzi(3),vxyz(3),xyz_star(3),vxyz_star(3),dir(3)
  real :: rr,phi,theta,cosphi,sinphi,costheta,sintheta
  real :: deltat,h,u,vinject,temp_inject,uu_inject,gam1
+ real :: uu_inject_withgmw,mui
  integer :: i,j,k,nskip,i_part,ninject
 !    print*,'init: tpi = ',total_particles_injected(1:nptmass)
 !WRITE(*,*) 'INJECT PARTICLES iphase(igas) = ',iphase(igas),', time = ',time
@@ -144,6 +147,7 @@ subroutine inject_particles(time,dtlast,xyzh,vxyzu,xyzmh_ptmass,vxyz_ptmass,&
 !
  uu_inject = temp_inject * (((kb_on_mh) / unit_velocity)/unit_velocity) / (gmw*gam1)
  !print*,' uu_inject = ',uu_inject,kb_on_mh,unit_velocity,gmw,gam1
+ if (use_var_comp) uu_inject_withgmw = uu_inject
 !
 ! loop over all wind particles
 !
@@ -195,6 +199,12 @@ subroutine inject_particles(time,dtlast,xyzh,vxyzu,xyzmh_ptmass,vxyz_ptmass,&
        rr        = 1.0001*xyzmh_ptmass(ihacc,i)
        vxyz_star = vxyz_ptmass(1:3,i)
 
+       !set abundance of new particle based on origin-star's abundances, which is used in u and mu->eos_vars
+       if (use_var_comp) then
+          mui = gmwArr(mod(i,5)+1) !for now, mu from each star is randomly assigned; eventually this will need to be based on each star's spectral type
+          uu_inject = uu_inject_withgmw * gmw/mui
+       endif
+
        do k=1,ninject
           !
           ! get random position on sphere
@@ -219,10 +229,16 @@ subroutine inject_particles(time,dtlast,xyzh,vxyzu,xyzmh_ptmass,vxyz_ptmass,&
           call add_or_update_particle(igas, xyzi, vxyz, h, u, i_part, npart, npartoftype, xyzh, vxyzu)
           !star from which this wind particle originated
           iwindorig(i_part) = i
-eos_vars(imu,i_part)=MOD(i_part,5)+1
-IF(MOD(i_part,101)==0) THEN
-WRITE(*,*) 'inject_particles: eos_vars(imu,i_part) = eos_vars(',imu,',',i_part,') = ',eos_vars(imu,i_part)
-ENDIF
+          !composition for this particular particle based on its origin-star's abundances
+          if (use_var_comp) then
+             !eos_vars(imu,i_part) = gmwArr(mod(i_part,5)+1) !eventually, this will be based on i (the star) and not i_part (the gas)
+             !eos_vars(imu,i_part) = gmwArr(mod(i,5)+1) !this is based on i (the star) and not i_part (the gas)
+             eos_vars(imu,i_part) = mui
+             eos_vars(itemp,i_part) = temp_inject
+             if(mod(i_part,101)==0) then
+                WRITE(*,*) 'inject_particles: eos_vars(imu,i_part) = eos_vars(',imu,',',i_part,') = ',eos_vars(imu,i_part)
+             endif
+          endif
        enddo
        !
        ! update tlast to current time

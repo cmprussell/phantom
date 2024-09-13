@@ -308,12 +308,12 @@ subroutine write_infile(infile,logfile,evfile,dumpfile,iwritein,iprint)
  call write_options_boundary(iwritein)
  call write_options_H2R(iwritein)
 
-!IF(use_var_comp) THEN
-WRITE(iwritein,*)
-WRITE(iwritein,'(A)') '# variable composition'
-WRITE(iwritein,*) 'use_var_comp = ',use_var_comp
-WRITE(*,*) 'write_infile: use_var_comp =',use_var_comp
-!ENDIF
+ !Presently, these lines mean that use_var_comp is written in every input file.  If this is not desirabale, then these statements need to be conditionalized.
+ write(iwritein,'(/,a)') '# variable composition'
+ call write_inopt(use_var_comp,'use_var_comp','whether gas particles have different mean molecular weights',iwritein)
+ !write(iwritein,*) 'use_var_comp = ',use_var_comp
+ WRITE(*,*) 'write_infile: use_var_comp =',use_var_comp
+
  if (iwritein /= iprint) close(unit=iwritein)
  if (iwritein /= iprint) write(iprint,"(/,a)") ' input file '//trim(infile)//' written successfully.'
 
@@ -549,10 +549,10 @@ subroutine read_infile(infile,logfile,evfile,dumpfile)
        read(valstring,*,iostat=ierr) tol_rad
     case('itsmax_rad')
        read(valstring,*,iostat=ierr) itsmax_rad
-CASE('use_var_comp')
-READ(valstring,*,iostat=ierr) use_var_comp
-WRITE(*,*) 'read_infile: use_var_comp = ',use_var_comp
-CALL set_gmwArr()
+    case('use_var_comp')
+       read(valstring,*,iostat=ierr) use_var_comp
+       WRITE(*,*) 'read_infile: use_var_comp = ',use_var_comp
+       if (use_var_comp) call set_gmwArr()
     case default
        imatch = .false.
        if (.not.imatch) call read_options_externalforces(name,valstring,imatch,igotallextern,ierr,iexternalforce)

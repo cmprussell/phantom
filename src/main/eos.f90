@@ -55,9 +55,9 @@ module eos
  logical,            public :: extract_eos_from_hdr = .false.
  integer,            public :: isink = 0.
 
- INTEGER,PARAMETER,PUBLIC :: ngmwArr=6
- REAL,PUBLIC :: gmwArr(ngmwArr)
- PUBLIC :: set_gmwArr
+ integer, parameter, public :: ngmwArr=6 !maximum number of different gas-particle (i.e. wind) abundances
+ real, public               :: gmwArr(ngmwArr)=0. !initialize to zero so errors are caused if gmwArr is used without initialization 
+ public                     :: set_gmwArr
 
  public  :: equationofstate,setpolyk,eosinfo,get_mean_molecular_weight
  public  :: get_TempPresCs,get_spsound,get_temperature,get_pressure,get_cv
@@ -1540,18 +1540,26 @@ subroutine read_options_eos(name,valstring,imatch,igotall,ierr)
 
 end subroutine read_options_eos
 
-SUBROUTINE set_gmwArr()
-INTEGER :: i
-gmwArr(1)=0.6
-gmwArr(2)=1.0
-gmwArr(3)=1.4
-gmwArr(4)=1.8
-gmwArr(5)=2.2
-gmwArr(6)=2.6
-DO i=1,ngmwArr
-WRITE(*,*) 'set_gmwArr: gmwArr(',i,') = ',gmwArr(i)
-ENDDO
-END SUBROUTINE set_gmwArr
+!-----------------------------------------------------------------------
+!+
+!  set mean molecular weight (in units of 1 amu, so values are approx 1)
+!  for each wind, which are based on the abundance of each star
+!+
+!-----------------------------------------------------------------------
+subroutine set_gmwArr()
+ integer :: i
+ 
+ gmwArr(1) = 0.6
+ gmwArr(2) = 1.0
+ gmwArr(3) = 1.4
+ gmwArr(4) = 1.8
+ gmwArr(5) = 2.2
+ gmwArr(6) = 2.6
+ !gmwArr(1:6) = 0.6
+ do i=1,ngmwArr
+    WRITE(*,*) 'set_gmwArr: gmwArr(',i,') = ',gmwArr(i)
+ enddo
+end subroutine set_gmwArr
 
 !-----------------------------------------------------------------------
 

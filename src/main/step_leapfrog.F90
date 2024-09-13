@@ -126,6 +126,8 @@ subroutine step(npart,nactive,t,dtsph,dtextforce,dtnew)
  use cons2primsolver, only:conservative2primitive,primitive2conservative
  use substepping,     only:substep,substep_gr, &
                            substep_sph_gr,substep_sph
+ use eos,            only:use_var_comp,gmw
+ use part,           only:imu
 
  integer, intent(inout) :: npart
  integer, intent(in)    :: nactive
@@ -140,6 +142,7 @@ subroutine step(npart,nactive,t,dtsph,dtextforce,dtnew)
  real(kind=4)       :: t1,t2,tcpu1,tcpu2
  real               :: pxi,pyi,pzi,p2i,p2mean
  real               :: dtsph_next,dti,time_now
+ real               :: ufloor_init !value with mu=gmw -- will be multiplied by gmw/mui for abundances where mui/=gmw
  logical, parameter :: allow_waking = .true.
  integer, parameter :: maxits = 30
  logical            :: converged,store_itype
@@ -167,11 +170,13 @@ subroutine step(npart,nactive,t,dtsph,dtextforce,dtnew)
  ialphaloc = 2
  nvfloorp  = 0
 
+ if (use_var_comp) ufloor_init = ufloor
  !$omp parallel do default(none) &
  !$omp shared(npart,xyzh,vxyzu,fxyzu,iphase,hdtsph,store_itype) &
  !$omp shared(rad,drad,pxyzu) &
  !$omp shared(Bevol,dBevol,dustevol,ddustevol,use_dustfrac) &
  !$omp shared(dustprop,ddustprop,dustproppred,ufloor) &
+ !$omp shared(ufloor_init,use_var_comp,eos_vars,gmw) &
  !$omp shared(mprev,filfacprev,filfac,use_porosity) &
  !$omp shared(ibin,ibin_old,twas,timei) &
  !$omp firstprivate(itype) &
@@ -199,6 +204,7 @@ subroutine step(npart,nactive,t,dtsph,dtextforce,dtnew)
           vxyzu(:,i) = vxyzu(:,i) + hdti*fxyzu(:,i)
        endif
 
+       if (use_var_comp) ufloor = ufloor_init * gmw/eos_vars(imu,i)
        !--floor the thermal energy if requested and required
        if (ufloor > 0.) then
           if (vxyzu(4,i) < ufloor) then
@@ -276,7 +282,8 @@ subroutine step(npart,nactive,t,dtsph,dtextforce,dtnew)
 !$omp shared(dustevol,ddustprop,dustprop,dustproppred,dustfrac,ddustevol,dustpred,use_dustfrac) &
 !$omp shared(filfac,filfacpred,use_porosity) &
 !$omp shared(alphaind,ieos,alphamax,ialphaloc) &
-!$omp shared(eos_vars,ufloor) &
+!$omp shared(eos_vars,ufloor,gmw) &
+!$omp shared(ufloor_init,use_var_comp) &
 !$omp shared(twas,timei) &
 !$omp shared(rad,drad,radpred)&
 !$omp private(hi,rhoi,tdecay1,source,ddenom,hdti) &
@@ -324,6 +331,7 @@ subroutine step(npart,nactive,t,dtsph,dtextforce,dtnew)
           vpred(:,i) = vxyzu(:,i) + hdti*fxyzu(:,i)
        endif
 
+       if (use_var_comp) ufloor = ufloor_init * gmw/eos_vars(imu,i)
        !--floor the thermal energy if requested and required
        if (ufloor > 0.) then
           if (vpred(4,i) < ufloor) then
@@ -444,6 +452,7 @@ subroutine step(npart,nactive,t,dtsph,dtextforce,dtnew)
 !$omp shared(dustprop,ddustprop,dustproppred) &
 !$omp shared(xyzmh_ptmass,vxyz_ptmass,fxyz_ptmass,nptmass,massoftype) &
 !$omp shared(dtsph,ieos,ufloor) &
+!$omp shared(ufloor_init,use_var_comp,eos_vars,gmw) &
 !$omp shared(ibin,ibin_old,ibin_sts,twas,timei,use_sts,dtsph_next,ibin_wake,sts_it_n) &
 !$omp shared(ibin_dts,nbinmax) &
 !$omp private(dti,hdti) &
@@ -505,6 +514,7 @@ subroutine step(npart,nactive,t,dtsph,dtextforce,dtnew)
                 vxyzu(:,i) = vxyzu(:,i) + hdti*fxyzu(:,i)
              endif
 
+             if (use_var_comp) ufloor = ufloor_init * gmw/eos_vars(imu,i)
              !--floor the thermal energy if requested and required
              if (ufloor > 0.) then
                 if (vxyzu(4,i) < ufloor) then
