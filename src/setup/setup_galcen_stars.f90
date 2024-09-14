@@ -33,11 +33,6 @@ module setup
  real :: m_SMBH = 4.28d6 ! mass of supermassive black hole (SMBH) in Msun
  real :: h_SMBH = 0.1d0 ! accretion radius of SMBH in arcsec at 8kpc
 
-LOGICAL :: multiAbuTest=.TRUE.
-LOGICAL :: use_var_comp_local=.FALSE.
-!INTEGER,PARAMETER :: ngmwArr=6
-!REAL :: gmwArr(ngmwArr)
-
  private
 
 contains
@@ -239,10 +234,7 @@ subroutine write_setupfile(filename,iprint)
  write(lu,"(/,a)") '# SMBH properties'
  call write_inopt(m_SMBH, 'm_SMBH','SMBH mass in solar masses',lu,ierr2)
  call write_inopt(h_SMBH, 'h_SMBH','SMBH accretion radius in arcsec at 8kpc',lu,ierr2)
-IF(multiAbuTest) THEN
-write(lu,"(/,a)") '# use variable composition'
-call write_inopt(use_var_comp_local, 'use_var_comp_local','whether or not to use variable composition',lu,ierr2)
-ENDIF
+
  close(lu)
 
 end subroutine write_setupfile
@@ -255,14 +247,12 @@ end subroutine write_setupfile
 subroutine read_setupfile(filename,iprint,ierr)
  use infile_utils, only:open_db_from_file,inopts,close_db,read_inopt
  use dim,          only:maxvxyzu
-USE eos, ONLY:use_var_comp,set_gmwArr,ngmwArr,gmwArr
  character(len=*), intent(in)  :: filename
  integer,          parameter   :: lu = 21
  integer,          intent(in)  :: iprint
  integer,          intent(out) :: ierr
  integer                       :: nerr
  type(inopts), allocatable     :: db(:)
-INTEGER :: i
 
  call open_db_from_file(db,filename,lu,ierr)
  if (ierr /= 0) return
@@ -274,29 +264,6 @@ INTEGER :: i
  call read_inopt(h_sink,'h_sink',db,errcount=nerr)
  call read_inopt(m_SMBH,'m_SMBH',db,errcount=nerr)
  call read_inopt(h_SMBH,'h_SMBH',db,errcount=nerr)
-
-IF(multiAbuTest) THEN
-call read_inopt(use_var_comp_local,'use_var_comp_local',db,errcount=nerr)
-use_var_comp = use_var_comp_local
-WRITE(*,*) 'use_var_comp = ',use_var_comp
-IF(use_var_comp) THEN
-!gmwArr(1)=0.6
-!gmwArr(2)=1.0
-!gmwArr(3)=1.4
-!gmwArr(4)=1.8
-!gmwArr(5)=2.2
-!gmwArr(6)=2.6
-WRITE(*,*) 'Before set_gmwArr()'
-DO i=1,ngmwArr
-WRITE(*,*) 'gmwArr(',i,') = ',gmwArr(i)
-ENDDO
-CALL set_gmwArr()
-WRITE(*,*) 'After  set_gmwArr()'
-DO i=1,ngmwArr
-WRITE(*,*) 'gmwArr(',i,') = ',gmwArr(i)
-ENDDO
-ENDIF
-ENDIF
 
  if (nerr > 0) then
     print "(1x,a,i2,a)",'Setup_galcen: ',nerr,' error(s) during read of setup file'
@@ -322,9 +289,6 @@ subroutine interactive_setup()
  call prompt('Enter stellar wind injection radii for the stars (also their sink particle radii) in arcsec at 8kpc',h_sink,1.e-5,1.)
  call prompt('Enter SMBH mass in Msun',m_SMBH,1.e0,1.e12)
  call prompt('Enter SMBH accretion radius in arcsec at 8 kpc',h_SMBH,1.e-5,1.)
-IF(multiAbuTest) THEN
-CALL prompt('Enter logical value for use_var_comp',use_var_comp_local)
-ENDIF
  print "(a)"
 
 end subroutine interactive_setup

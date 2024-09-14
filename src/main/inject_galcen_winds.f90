@@ -219,10 +219,6 @@ subroutine inject_particles(time,dtlast,xyzh,vxyzu,xyzmh_ptmass,vxyz_ptmass,&
           call add_or_update_particle(igas, xyzi, vxyz, h, u, i_part, npart, npartoftype, xyzh, vxyzu)
           !star from which this wind particle originated
           iwindorig(i_part) = i
-eos_vars(imu,i_part)=MOD(i_part,5)+1
-IF(MOD(i_part,101)==0) THEN
-WRITE(*,*) 'inject_particles: eos_vars(imu,i_part) = eos_vars(',imu,',',i_part,') = ',eos_vars(imu,i_part)
-ENDIF
        enddo
        !
        ! update tlast to current time

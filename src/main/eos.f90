@@ -55,10 +55,6 @@ module eos
  logical,            public :: extract_eos_from_hdr = .false.
  integer,            public :: isink = 0.
 
- INTEGER,PARAMETER,PUBLIC :: ngmwArr=6
- REAL,PUBLIC :: gmwArr(ngmwArr)
- PUBLIC :: set_gmwArr
-
  public  :: equationofstate,setpolyk,eosinfo,get_mean_molecular_weight
  public  :: get_TempPresCs,get_spsound,get_temperature,get_pressure,get_cv
  public  :: eos_is_non_ideal,eos_outputs_mu,eos_outputs_gasP
@@ -1539,19 +1535,6 @@ subroutine read_options_eos(name,valstring,imatch,igotall,ierr)
  igotall = (ngot >= 1) .and. igotall_piecewise .and. igotall_barotropic .and. igotall_gasradrec
 
 end subroutine read_options_eos
-
-SUBROUTINE set_gmwArr()
-INTEGER :: i
-gmwArr(1)=0.6
-gmwArr(2)=1.0
-gmwArr(3)=1.4
-gmwArr(4)=1.8
-gmwArr(5)=2.2
-gmwArr(6)=2.6
-DO i=1,ngmwArr
-WRITE(*,*) 'set_gmwArr: gmwArr(',i,') = ',gmwArr(i)
-ENDDO
-END SUBROUTINE set_gmwArr
 
 !-----------------------------------------------------------------------
 
