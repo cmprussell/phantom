@@ -149,7 +149,7 @@ REAL :: radReuse
 !
 ! loop over all wind particles
 !
-!i_part=0 !part of Option B
+!i_part=1 !part of Option C
  !!$omp parallel do default(none) &
  !!$omp shared(nptmass)
  do i=nskip+1,nptmass
@@ -198,8 +198,8 @@ REAL :: radReuse
        rr        = 1.0001*xyzmh_ptmass(ihacc,i)
        vxyz_star = vxyz_ptmass(1:3,i)
 
-!!i_part=1
-i_part=0 !part of Option A and Option B
+!i_part=0 !part of Option A
+i_part=1 !part of Option B
        do k=1,ninject
           !
           ! get random position on sphere
@@ -220,7 +220,8 @@ i_part=0 !part of Option A and Option B
 
           u = uu_inject
 
-!IF(.FALSE.) THEN !part of Option A
+!Option A
+IF(.FALSE.) THEN
 !WRITE(*,*) 'npart =',npart
 foundParticleToReuse=.FALSE.
 DO WHILE ((.NOT.foundParticleToReuse) .AND. i_part<npart+1)
@@ -246,9 +247,10 @@ IF(i_part<npart+1) THEN
 !ELSE
 ! WRITE(*,*) 'i_part = ',i_part,', npart = ',npart,', new particle'
 ENDIF
-!ENDIF
+ENDIF
 
-IF(.FALSE.) THEN !part of Option B and C
+!Option B and C
+!IF(.FALSE.) THEN
 !!WRITE(*,*) 'npart =',npart
 !foundParticleToReuse=.FALSE.
 !DO WHILE ((.NOT.foundParticleToReuse) .AND. i_part<npart+1)
@@ -273,7 +275,7 @@ IF(i_part<npart+1) THEN
 !ELSE
 ! WRITE(*,*) 'i_part = ',i_part,', npart = ',npart,', new particle'
 ENDIF
-ENDIF
+!ENDIF
           !i_part = npart + 1 ! all particles are new
           call add_or_update_particle(igas, xyzi, vxyz, h, u, i_part, npart, npartoftype, xyzh, vxyzu)
           !star from which this wind particle originated
