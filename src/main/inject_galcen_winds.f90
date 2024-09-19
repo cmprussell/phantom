@@ -66,7 +66,7 @@ subroutine inject_particles(time,dtlast,xyzh,vxyzu,xyzmh_ptmass,vxyz_ptmass,&
                             npart,npart_old,npartoftype,dtinject)
  use io,        only:fatal,iverbose
  !use part,      only:massoftype,igas,ihacc,i_tlast
- use part,      only:massoftype,igas,ihacc,i_tlast,iwindorig,eos_vars,imu
+ use part,      only:massoftype,igas,ihacc,i_tlast,iwindorig,eos_vars,imu,isdead_or_accreted
  !USE part,      only:massoftype,igas,ihacc,i_tlast,iphase
  use partinject,only:add_or_update_particle
  use physcon,   only:pi,solarm,seconds,years,km,kb_on_mH
@@ -83,6 +83,8 @@ subroutine inject_particles(time,dtlast,xyzh,vxyzu,xyzmh_ptmass,vxyz_ptmass,&
  real :: rr,phi,theta,cosphi,sinphi,costheta,sintheta
  real :: deltat,h,u,vinject,temp_inject,uu_inject,gam1
  integer :: i,j,k,nskip,i_part,ninject
+LOGICAL :: foundParticleToReuse
+REAL :: radReuse
 !    print*,'init: tpi = ',total_particles_injected(1:nptmass)
 !WRITE(*,*) 'INJECT PARTICLES iphase(igas) = ',iphase(igas),', time = ',time
 !
@@ -147,6 +149,7 @@ subroutine inject_particles(time,dtlast,xyzh,vxyzu,xyzmh_ptmass,vxyz_ptmass,&
 !
 ! loop over all wind particles
 !
+!i_part=0 !part of Option B
  !!$omp parallel do default(none) &
  !!$omp shared(nptmass)
  do i=nskip+1,nptmass
@@ -195,6 +198,8 @@ subroutine inject_particles(time,dtlast,xyzh,vxyzu,xyzmh_ptmass,vxyz_ptmass,&
        rr        = 1.0001*xyzmh_ptmass(ihacc,i)
        vxyz_star = vxyz_ptmass(1:3,i)
 
+!!i_part=1
+i_part=0 !part of Option A and Option B
        do k=1,ninject
           !
           ! get random position on sphere
@@ -215,7 +220,61 @@ subroutine inject_particles(time,dtlast,xyzh,vxyzu,xyzmh_ptmass,vxyz_ptmass,&
 
           u = uu_inject
 
-          i_part = npart + 1 ! all particles are new
+!IF(.FALSE.) THEN !part of Option A
+!WRITE(*,*) 'npart =',npart
+foundParticleToReuse=.FALSE.
+DO WHILE ((.NOT.foundParticleToReuse) .AND. i_part<npart+1)
+ i_part=i_part+1
+ !WRITE(*,*) 'foundParticleToReuse =',foundParticleToReuse,', i_part =',i_part
+ !DO WHILE(xyzh(4,i_part)>0. .AND. i_part<npart+1)
+ !DO WHILE(ABS(xyzh(4,i_part))>tiny(0.) .AND. i_part<npart+1)
+ DO WHILE((.NOT.isdead_or_accreted(xyzh(4,i_part))) .AND. i_part<npart+1)
+  i_part=i_part+1
+ ENDDO
+ radReuse=xyzh(1,i_part)**2+xyzh(2,i_part)**2+xyzh(3,i_part)**2
+ !IF(i_part.NE.npart+1) WRITE(*,*) 'radReuse = ',SQRT(radReuse),i_part,npart,', hi = ',xyzh(4,i_part),isdead_or_accreted(xyzh(4,i_part))
+ IF(radReuse>outer_boundary**2) foundParticleToReuse=.TRUE.
+ IF(radReuse<xyzmh_ptmass(ihacc,1)**2) foundParticleToReuse=.TRUE.
+ !IF(radReuse<facc*xyzmh_ptmass(ihacc,i)**2) foundParticleToReuse=.TRUE.
+ !WRITE(*,*) 'foundParticleToReuse =',foundParticleToReuse,', i_part =',i_part,', radReuse =',SQRT(radReuse)
+ENDDO
+IF(i_part<npart+1) THEN 
+ WRITE(*,*) 'i_part = ',i_part,', npart = ',npart,', reused particle, '// &
+            'rad =',SQRT(radReuse),isdead_or_accreted(xyzh(4,i_part))
+            !'rad =',SQRT(radReuse),tiny(0.),tiny(xyzh(4,i_part))
+            !'rad =',SQRT(xyzh(i_part,1)**2+xyzh(i_part,2)**2+xyzh(i_part,3)**2),tiny(0.),tiny(xyzh(4,i_part))
+!ELSE
+! WRITE(*,*) 'i_part = ',i_part,', npart = ',npart,', new particle'
+ENDIF
+!ENDIF
+
+IF(.FALSE.) THEN !part of Option B and C
+!!WRITE(*,*) 'npart =',npart
+!foundParticleToReuse=.FALSE.
+!DO WHILE ((.NOT.foundParticleToReuse) .AND. i_part<npart+1)
+! i_part=i_part+1
+! !WRITE(*,*) 'foundParticleToReuse =',foundParticleToReuse,', i_part =',i_part
+! !DO WHILE(xyzh(4,i_part)>0. .AND. i_part<npart+1)
+! !DO WHILE(ABS(xyzh(4,i_part))>tiny(0.) .AND. i_part<npart+1)
+ DO WHILE((.NOT.isdead_or_accreted(xyzh(4,i_part))) .AND. i_part<npart+1)
+  i_part=i_part+1
+ ENDDO
+! radReuse=xyzh(1,i_part)**2+xyzh(2,i_part)**2+xyzh(3,i_part)**2
+! IF(i_part.NE.npart+1) WRITE(*,*) 'radReuse = ',SQRT(radReuse),i_part,npart,', hi = ',xyzh(4,i_part),isdead_or_accreted(xyzh(4,i_part))
+! IF(radReuse>outer_boundary**2) foundParticleToReuse=.TRUE.
+! IF(radReuse<xyzmh_ptmass(ihacc,i)**2) foundParticleToReuse=.TRUE.
+! !IF(radReuse<facc*xyzmh_ptmass(ihacc,i)**2) foundParticleToReuse=.TRUE.
+! !WRITE(*,*) 'foundParticleToReuse =',foundParticleToReuse,', i_part =',i_part,', radReuse =',SQRT(radReuse)
+!ENDDO
+IF(i_part<npart+1) THEN 
+ radReuse=xyzh(1,i_part)**2+xyzh(2,i_part)**2+xyzh(3,i_part)**2
+ WRITE(*,*) 'i_part = ',i_part,', npart = ',npart,', reused particle, '// &
+            'rad =',SQRT(radReuse)
+!ELSE
+! WRITE(*,*) 'i_part = ',i_part,', npart = ',npart,', new particle'
+ENDIF
+ENDIF
+          !i_part = npart + 1 ! all particles are new
           call add_or_update_particle(igas, xyzi, vxyz, h, u, i_part, npart, npartoftype, xyzh, vxyzu)
           !star from which this wind particle originated
           iwindorig(i_part) = i
