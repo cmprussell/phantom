@@ -231,17 +231,17 @@ DO WHILE ((.NOT.foundParticleToReuse) .AND. i_part<npart+1)
  DO WHILE((.NOT.isdead_or_accreted(xyzh(4,i_part))) .AND. i_part<npart+1)
   i_part=i_part+1
  ENDDO
- radReuse=xyzh(1,i_part)**2+xyzh(2,i_part)**2+xyzh(3,i_part)**2
- !IF(i_part.NE.npart+1) WRITE(*,*) 'radReuse = ',SQRT(radReuse),i_part,npart,', hi = ',xyzh(4,i_part),isdead_or_accreted(xyzh(4,i_part))
- IF(radReuse>outer_boundary**2) foundParticleToReuse=.TRUE.
- IF(radReuse<xyzmh_ptmass(ihacc,1)**2) foundParticleToReuse=.TRUE.
- !IF(radReuse<facc*xyzmh_ptmass(ihacc,i)**2) foundParticleToReuse=.TRUE.
- !WRITE(*,*) 'foundParticleToReuse =',foundParticleToReuse,', i_part =',i_part,', radReuse =',SQRT(radReuse)
+ radReuse=SQRT(xyzh(1,i_part)**2+xyzh(2,i_part)**2+xyzh(3,i_part)**2)
+ !IF(i_part.NE.npart+1) WRITE(*,*) 'radReuse = ',radReuse,i_part,npart,', hi = ',xyzh(4,i_part),isdead_or_accreted(xyzh(4,i_part))
+ IF(radReuse>outer_boundary) foundParticleToReuse=.TRUE.
+ IF(radReuse<xyzmh_ptmass(ihacc,1)) foundParticleToReuse=.TRUE.
+ !IF(radReuse<facc*xyzmh_ptmass(ihacc,i)) foundParticleToReuse=.TRUE.
+ !WRITE(*,*) 'foundParticleToReuse =',foundParticleToReuse,', i_part =',i_part,', radReuse =',radReuse
 ENDDO
 IF(i_part<npart+1) THEN 
  WRITE(*,*) 'i_part = ',i_part,', npart = ',npart,', reused particle, '// &
-            'rad =',SQRT(radReuse),isdead_or_accreted(xyzh(4,i_part))
-            !'rad =',SQRT(radReuse),tiny(0.),tiny(xyzh(4,i_part))
+            'rad =',radReuse,isdead_or_accreted(xyzh(4,i_part))
+            !'rad =',radReuse,tiny(0.),tiny(xyzh(4,i_part))
             !'rad =',SQRT(xyzh(i_part,1)**2+xyzh(i_part,2)**2+xyzh(i_part,3)**2),tiny(0.),tiny(xyzh(4,i_part))
 !ELSE
 ! WRITE(*,*) 'i_part = ',i_part,', npart = ',npart,', new particle'
@@ -259,17 +259,17 @@ IF(.FALSE.) THEN !part of Option B and C
  DO WHILE((.NOT.isdead_or_accreted(xyzh(4,i_part))) .AND. i_part<npart+1)
   i_part=i_part+1
  ENDDO
-! radReuse=xyzh(1,i_part)**2+xyzh(2,i_part)**2+xyzh(3,i_part)**2
-! IF(i_part.NE.npart+1) WRITE(*,*) 'radReuse = ',SQRT(radReuse),i_part,npart,', hi = ',xyzh(4,i_part),isdead_or_accreted(xyzh(4,i_part))
-! IF(radReuse>outer_boundary**2) foundParticleToReuse=.TRUE.
-! IF(radReuse<xyzmh_ptmass(ihacc,i)**2) foundParticleToReuse=.TRUE.
-! !IF(radReuse<facc*xyzmh_ptmass(ihacc,i)**2) foundParticleToReuse=.TRUE.
-! !WRITE(*,*) 'foundParticleToReuse =',foundParticleToReuse,', i_part =',i_part,', radReuse =',SQRT(radReuse)
+! radReuse=SQRT(xyzh(1,i_part)**2+xyzh(2,i_part)**2+xyzh(3,i_part)**2)
+! IF(i_part.NE.npart+1) WRITE(*,*) 'radReuse = ',radReuse,i_part,npart,', hi = ',xyzh(4,i_part),isdead_or_accreted(xyzh(4,i_part))
+! IF(radReuse>outer_boundary) foundParticleToReuse=.TRUE.
+! IF(radReuse<xyzmh_ptmass(ihacc,i)) foundParticleToReuse=.TRUE.
+! !IF(radReuse<facc*xyzmh_ptmass(ihacc,i)) foundParticleToReuse=.TRUE.
+! !WRITE(*,*) 'foundParticleToReuse =',foundParticleToReuse,', i_part =',i_part,', radReuse =',radReuse
 !ENDDO
 IF(i_part<npart+1) THEN 
- radReuse=xyzh(1,i_part)**2+xyzh(2,i_part)**2+xyzh(3,i_part)**2
+ radReuse=SQRT(xyzh(1,i_part)**2+xyzh(2,i_part)**2+xyzh(3,i_part)**2)
  WRITE(*,*) 'i_part = ',i_part,', npart = ',npart,', reused particle, '// &
-            'rad =',SQRT(radReuse)
+            'rad =',radReuse
 !ELSE
 ! WRITE(*,*) 'i_part = ',i_part,', npart = ',npart,', new particle'
 ENDIF
