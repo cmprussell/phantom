@@ -111,6 +111,14 @@ REAL :: radReuse
  Mdot_fac = (solarm/umass)*(utime/years)
  vel_fac  = (km/udist)*(utime/seconds)
 
+!VERIFICATION
+!DO i=1,nptmass
+!IF(i.LE.nskip) THEN
+!WRITE(*,*) 'm(',i,') = ',xyzmh_ptmass(4,i),xyzmh_ptmass(4,i)*umass,xyzmh_ptmass(4,i)*umass/solarm
+!ELSE
+!WRITE(*,*) 'm(',i,') = ',xyzmh_ptmass(4,i),xyzmh_ptmass(4,i)*umass,xyzmh_ptmass(4,i)*umass/solarm,wind(i_Mdot,i-nskip),wind(i_vel,i-nskip)
+!ENDIF
+!ENDDO
 !
 ! If restarting, compute the number of particles already injected from each star.
 !    This overestimates the total number injected by 1 timestep since 'time'
@@ -149,7 +157,7 @@ REAL :: radReuse
 !
 ! loop over all wind particles
 !
-!i_part=1 !part of Option C
+i_part=1 !part of Option C
  !!$omp parallel do default(none) &
  !!$omp shared(nptmass)
  do i=nskip+1,nptmass
@@ -199,7 +207,7 @@ REAL :: radReuse
        vxyz_star = vxyz_ptmass(1:3,i)
 
 !i_part=0 !part of Option A
-i_part=1 !part of Option B
+!i_part=1 !part of Option B
        do k=1,ninject
           !
           ! get random position on sphere
@@ -241,7 +249,7 @@ DO WHILE ((.NOT.foundParticleToReuse) .AND. i_part<npart+1)
 ENDDO
 IF(i_part<npart+1) THEN 
  WRITE(*,*) 'i_part = ',i_part,', npart = ',npart,', reused particle, '// &
-            'rad =',radReuse,isdead_or_accreted(xyzh(4,i_part))
+            'rad =',radReuse,isdead_or_accreted(xyzh(4,i_part)),', time =',time
             !'rad =',radReuse,tiny(0.),tiny(xyzh(4,i_part))
             !'rad =',SQRT(xyzh(i_part,1)**2+xyzh(i_part,2)**2+xyzh(i_part,3)**2),tiny(0.),tiny(xyzh(4,i_part))
 !ELSE
@@ -271,15 +279,24 @@ ENDIF
 IF(i_part<npart+1) THEN 
  radReuse=SQRT(xyzh(1,i_part)**2+xyzh(2,i_part)**2+xyzh(3,i_part)**2)
  WRITE(*,*) 'i_part = ',i_part,', npart = ',npart,', reused particle, '// &
-            'rad =',radReuse
+            'rad =',radReuse,', time =',time,', star =',i, &
+            ', to be added = ', SQRT(xyzmh_ptmass(1,i)**2+xyzmh_ptmass(2,i)**2+xyzmh_ptmass(3,i)**2) < outer_boundary, &
+            ', instantly killed = ', SQRT(xyzi(1)**2+xyzi(2)**2+xyzi(3)**2) > outer_boundary
 !ELSE
 ! WRITE(*,*) 'i_part = ',i_part,', npart = ',npart,', new particle'
 ENDIF
 !ENDIF
           !i_part = npart + 1 ! all particles are new
+!ReuseParticles_v2
+IF(SQRT(xyzmh_ptmass(1,i)**2+xyzmh_ptmass(2,i)**2+xyzmh_ptmass(3,i)**2) < outer_boundary) THEN
           call add_or_update_particle(igas, xyzi, vxyz, h, u, i_part, npart, npartoftype, xyzh, vxyzu)
           !star from which this wind particle originated
           iwindorig(i_part) = i
+IF(i_part.LT.npart+1) THEN
+!part of Option C
+i_part = i_part + 1
+ENDIF
+ENDIF
        enddo
        !
        ! update tlast to current time
