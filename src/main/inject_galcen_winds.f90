@@ -39,8 +39,16 @@ module inject
  ! array containing properties of the wind from each star
  real,    private :: wind(n_wind_prop,maxptmass)
  integer, private :: total_particles_injected(maxptmass) = 0
- logical, private :: first_iteration = .true.
+ integer, private :: total_particles_injected_actual(maxptmass) = 0
+ !logical, private :: first_iteration = .true.
+ !logical, private :: first_iteration = .FALSE.
  integer, private :: iseed = -666
+ integer, private :: nskip_ptmass
+ real,    private :: temp_inject=0. !set to value that should cause an error if value in init_inject() is not run properly
+ real,    private :: uu_inject=0.   !set to value that should cause an error if value in init_inject() is not run properly
+ real,    private :: Mdot_fac=0.    !set to value that should cause an error if value in init_inject() is not run properly
+ real,    private :: vel_fac=0.     !set to value that should cause an error if value in init_inject() is not run properly
+ integer, private :: iunit_tpi=99
 
 contains
 !-----------------------------------------------------------------------
@@ -49,11 +57,382 @@ contains
 !+
 !-----------------------------------------------------------------------
 subroutine init_inject(ierr)
+ use io,        only:fatal
+ use timestep,  only:time
+ use part,      only:massoftype,igas,xyzmh_ptmass
+ use physcon,   only:solarm,seconds,years,km,kb_on_mH
+ use units,     only:umass,udist,utime,unit_velocity
+ use eos,       only:gmw,gamma
+ use timestep,  only:dtmax
  integer, intent(out) :: ierr
+ real    :: Mcut,gam1
+ integer :: i,j
+ logical :: iexist
+ integer :: ierr_tpi=0
+ real    :: time_tpi(10000) = 0.
+ integer :: nptmass_tpi(10000) = 0
+ integer :: total_particles_injected_tpi(maxptmass,10000) = 0
+ integer :: i_curr,i_curr2,i_first
+ logical :: tpi_read_from_file=.false.
+ real    :: time_test
+ integer :: nbinmax_test
+ integer :: total_particles_injected_test(maxptmass) = 0
+ integer :: total_diff
+ real    :: tol_init_inject !tolerance for error when comparing time values
+ logical :: tpi_file_rewrite_add = .false.
+ logical :: tpi_file_rewrite_delete = .false.
+ logical :: tpi_file_rewrite_reorder = .false.
+
  !
- ! return without error
+ ! initialize to return without error
  !
  ierr = 0
+
+ !
+ ! display time to immediately verify whether this is a new sim or a restarting sim
+ !
+ print "(/,a,f/)", ' init_inject : time =',time
+ 
+ !
+ ! correlate pointmass postion/velocity/mass table and pointmass wind table
+ ! for wind injection, skip SMBH and IMBH -- which are above 200Msun -- since black holes don't appear in the wind table
+ !
+ Mcut = 200.*(solarm/umass)
+ nskip_ptmass = 0
+ do while(xyzmh_ptmass(4,nskip_ptmass+1) > Mcut .and. nskip_ptmass<nptmass)
+    nskip_ptmass = nskip_ptmass + 1
+ enddo
+ if (nskip_ptmass==nptmass) then
+    ierr = ierr + 1
+    print*,' ERROR: no winds since all read-in point masses are skipped'
+ endif
+ !if (iverbose >= 2) print*,' skipping ',nskip_ptmass,' point masses'
+ print "(a,i0,a,f0.1,a)", ' Skipping ',nskip_ptmass,' point masses for wind injection since their point masses are >200Msun,'
+ print "(a)", '   which is presently interpreted to mean that these point masses are black holes.'
+ !
+ ! convert mass loss rate from Msun/yr to code units
+ !
+ Mdot_fac = (solarm/umass)*(utime/years)
+ vel_fac  = (km/udist)*(utime/seconds)
+ ! 
+ ! verification of Mdots and vinfs
+ !
+ print "(/a)", ' Pointmass table relating the following quantities, which is assembled from two different input tables:'
+ print "(a)",  '    1. index, which is used in xyzmh_ptmass -- from position/velocity/mass table'
+ print "(a)",  '    2. mass in a variety of units -- from position/velocity/mass table'
+ print "(a)",  '    3. wind properties -- from wind table (which excludes entries for black holes)'
+ print "(1x,90('-'))"
+ print "(a)",  '  i |  M(code units)  |  M(g)           |  M(Msun)        |  Mdot(Msun/yr)  |  vinf(km/s) |'
+ print "(1x,90('-'))"
+ do i=1,nptmass
+    if (i<=nskip_ptmass) then
+       print "(i3,1x,'|',3(es16.8,1x,'|'),a)",              i,xyzmh_ptmass(4,i),xyzmh_ptmass(4,i)*umass, &
+          xyzmh_ptmass(4,i)*umass/solarm,'  skipped -- no wind injection for this pointmass'
+    else
+       print "(i3,1x,'|',4(es16.8,1x,'|'),3x,f9.1,1x,'|')", i,xyzmh_ptmass(4,i),xyzmh_ptmass(4,i)*umass, &
+          xyzmh_ptmass(4,i)*umass/solarm,wind(i_Mdot,i-nskip_ptmass),wind(i_vel,i-nskip_ptmass)
+    endif
+ enddo
+ print "(1x,90('-'))"
+
+ !
+ ! if this is a new simulation, create and populate total_particles_injected.dat
+ !
+ ! if restarting, either
+ !    A. read in total_particles_injected from total_particles_injected.dat
+ !    B. compute total_particles_injected, with the slight discrepancy
+ !       that the last time this would have been computed is one fraction of dtmax
+ !       before "time" and therefore might have a slight error assiciated with it
+ !
+ if (time < tiny(time)) then
+    !
+    ! new sim --> create total_particles_injected.dat
+    !
+    print "(/,a)", ' New simulation: Creating total_particles_injected.dat to track total_particles_injected,'
+    print "(a)", '     which will negate any injected-particle errors upon restarting.'
+    total_particles_injected(1:nptmass) = 0
+    open(file='total_particles_injected.dat',unit=iunit_tpi,form='formatted')
+    write(iunit_tpi,*) time,nptmass,total_particles_injected(1:nptmass)
+    close(iunit_tpi)
+ else
+    !
+    ! compute particles that should have been injected already
+    ! hopefully, this is just for comparison with total_particles_injected.dat values
+    !
+    do i=nskip_ptmass+1,nptmass
+       j = i - nskip_ptmass ! position in wind table
+       total_particles_injected(i) = int(wind(i_Mdot,j)*Mdot_fac * time / massoftype(igas))
+    enddo
+    !
+    ! see if total_particles_injected.dat exists
+    ! it should always exist for future galcen sims, but this verification will
+    !    allow backwards compatibility
+    !
+    inquire(file='total_particles_injected.dat',exist=iexist)
+    if (iexist) then
+       !
+       ! read-in total_particles_injected
+       !
+       open(file='total_particles_injected.dat',unit=iunit_tpi,form='formatted',status='old')
+       ierr_tpi=0
+       j = 0
+       do while(ierr_tpi==0)
+          j = j+1
+          read(iunit_tpi,*,iostat=ierr_tpi) time_tpi(j),nptmass_tpi(j),total_particles_injected_tpi(1:nptmass,j)
+       enddo
+       j = j-1
+       close(iunit_tpi)
+       print "(/,a,i0,a)", ' read in ',j,' entries from total_particles_injected.dat'
+       !
+       ! at least one entry was read in
+       !
+       if (j>0) then
+          !
+          ! find entry in total_particles_injected.dat that corresponds to this
+          ! specific restart time
+          !
+          tol_init_inject = dtmax*1.d-3 !tolerance for error when comparing time values
+                                        !make it a small number relative to dtmax since the successive entries in
+                                        !   total_particles_injected.dat should be separated by dtmax
+          i_curr = 1
+          do while(abs(time_tpi(i_curr)-time)>tol_init_inject .and. i_curr<j)
+             i_curr = i_curr+1
+          enddo
+          !
+          ! verify that the correct entry was read -- if not, use the already
+          ! computed values for total_particle_injected (or kill the sim)
+          !
+          if (abs(time_tpi(i_curr)-time)>tol_init_inject) then
+             !
+             ! correct entry in total_particles_injected.dat for "time" was not found
+             !
+             print*, 'Warning: the correct entry in total_particles_injected.dat does not seem to exist!'
+             print*, 'time =',time,', time_tpi(i_curr) =',time_tpi(i_curr)
+             print*, 'total_particles_injected will be computed using "time"'
+
+             !!
+             !! kill the sim via reporting an error if the correct entry in total_particles_injected appears to be missing
+             !!
+             !ierr = ierr+1
+             !print "(a)", ' ERROR: the correct entry in total_particles_injected.dat does not seem to exist!'
+
+             !
+             ! attempt to make total_particles_injected.dat as useful as possible
+             !    for future restarts by removing all entries past the current time
+             !    and ensuring that the entries are in sequential order
+             !
+             tpi_file_rewrite_add = .false.
+             tpi_file_rewrite_delete = .false.
+             tpi_file_rewrite_reorder = .false.
+             do i=1,j
+                if (time_tpi(i)<time) tpi_file_rewrite_add = .true.
+                if (time_tpi(i)>time) tpi_file_rewrite_delete = .true.
+             enddo
+             do i=2,j
+                if (time_tpi(i)<time_tpi(i-1)) tpi_file_rewrite_reorder = .true.
+             enddo
+             if (tpi_file_rewrite_add) then
+                !
+                ! there are entries that should be in total_particles_injected.dat
+                !
+                if (tpi_file_rewrite_delete .or. tpi_file_rewrite_reorder) then
+                   !
+                   ! rewriting total_particles_injected.dat is needed due to either deletion or reordering
+                   ! Note: The reordering simply ensures that sequential entries are increasing.
+                   !    At present, there is no fancy sort algorithm to bring a drastically
+                   !    out-of-order list into sequential order while keeping all unique entries.
+                   !
+                   ! find the first entry to write
+                   !
+                   i_first = 1
+                   do while (time_tpi(i_first)>time)
+                      i_first = i_first+1
+                   enddo
+                   !
+                   ! rewrite total_particles_injected.dat
+                   !
+                   print "(/,a)", ' total_particles_injected.dat seems to have irregular entries given this simulation''s restart variable "time".' 
+                   print "(a)", ' Rewrite this file with only the correct entries, which are values less than "time" and in sequential order.'
+                   write(iunit_tpi,*,iostat=ierr_tpi) time_tpi(i_curr2),nptmass_tpi(i_curr2),total_particles_injected_tpi(1:nptmass,i_curr2)
+                   i_curr2 = i_first
+                   do i = i_first+1,j
+                      if (time_tpi(i) < time .and. time_tpi(i)>time_tpi(i_curr2)) then
+                         write(iunit_tpi,*,iostat=ierr_tpi) time_tpi(i),nptmass_tpi(i),total_particles_injected_tpi(1:nptmass,i)
+                         i_curr2 = i
+                      endif
+                   enddo
+                   close(iunit_tpi)
+                !else
+                   !
+                   ! total_particles_injected.dat only has good entries -- no deleting or reordering needed -- so leave the file as is
+                   !
+                endif
+             else
+                !
+                ! there are no current entries in total_particles_injected.dat that should still be there
+                ! replace total_particles_injected.dat with a file that has an entry only for the start
+                !    of the simulation
+                !
+                print "(/,a)", ' total_particles_injected.dat seems to have no relevant entries given this simulation''s restart variable "time".' 
+                print "(a)", ' Rewrite this file with only the correct entry for the start of the simulation.'
+                total_particles_injected_tpi(1:nptmass,1) = 0
+                open(file='total_particles_injected.dat',unit=iunit_tpi,form='formatted')
+                write(iunit_tpi,*,iostat=ierr_tpi) 0.0d0,nptmass,total_particles_injected_tpi(1:nptmass,1)
+                close(iunit_tpi)
+             endif
+          else
+             !
+             ! correct entry in total_particles_injected.dat for "time" was found
+             !
+             tpi_read_from_file = .true. !correct entry for current restart time was found in total_particles_injected.dat --> don't use already computed total_particles_injected values
+             print "(a)", ' correct entry in total_particles_injected.dat has been found'
+             print "(a,f,a,f,2(a,i0),a)", ' time = ',time,', time_tpi(correct) = ',time_tpi(i_curr),', correct index i_curr = ',i_curr,' (out of ',j,')'
+             print "(a,i0)", ' nptmass_tpi(correct) = ',nptmass_tpi(i_curr)
+             if (nptmass/=nptmass_tpi(i_curr)) then
+                !
+                ! kill the sim via reporting an error if the number of pointmasses in total_particles_injected is incorrect
+                !
+                ierr = ierr+1
+                print "(a)", ' ERROR: nptmass from total_particles_injected.dat does not equal nptmass!'
+                print "(a)", ' ERROR: nptmass = ',nptmass,', nptmass_tpi(i_curr) = ',nptmass_tpi(i_curr)
+             endif
+             print "(/,a)", ' Note: These might not be the actual numbers of particles injected if stars beyond'
+             print "(a)", '    outer_boundary do not have any wind particles injected [check inject_particles()].'
+             print "(a)", '    These non-injected particles are still tracked so that if the star goes within'
+             print "(a)", '    outer_boundary, then that star should start injecting wind particles normally.'
+             print "(1x,55('-'))"
+             print "(a)", '  i |    tpi_time(i) |    tpi_file(i) |          error |'
+             print "(a)", '    |  (error prone) |      (correct) |    (time-file) |'
+             print "(1x,55('-'))"
+             do i=1,nptmass
+                print "(i3,1x,'|',3(i15,1x,'|'))", i,total_particles_injected(i),total_particles_injected_tpi(i,i_curr),total_particles_injected(i)-total_particles_injected_tpi(i,i_curr)
+             enddo
+             print "(1x,55('-'))"
+             total_particles_injected(1:nptmass) = total_particles_injected_tpi(1:nptmass,i_curr)
+             !
+             ! see if total_particles_injected.dat has any out-of-order entries
+             !
+             tpi_file_rewrite_reorder = .false.
+             do i=2,j
+                if (time_tpi(i)<time_tpi(i-1)) tpi_file_rewrite_reorder = .true.
+             enddo
+             !
+             ! if not restarting from the end of the last simulation run, remove any
+             !    extra entries in total_particles_injected.dat by rewriting the file
+             ! if entries are out of order, reorder them
+             ! Note: The reordering simply ensures that sequential entries are increasing.
+             !    At present, there is no fancy sort algorithm to bring a drastically
+             !    out-of-order list into sequential order while keeping all unique entries.
+             !
+             if (i_curr<j .or. tpi_file_rewrite_reorder) then
+                print "(/,a)", ' Rewriting total_particles_injected.dat to remove unnecessary entries'
+                print "(a)", '    from times that are after this current sim''s restart time,'
+                print "(a)", '    to reorder the entries so they are in sequential order, or both.'
+                open(file='total_particles_injected.dat',unit=iunit_tpi,form='formatted')
+                !
+                ! find the first entry to write
+                !
+                i_first = 1
+                do while (time_tpi(i_first)>time)
+                   i_first = i_first+1
+                enddo
+                !
+                ! rewrite the file in sequential order ignoring entries beyond the sim's restart variable "time"
+                !
+                write(iunit_tpi,*,iostat=ierr_tpi) time_tpi(i_first),nptmass_tpi(i_first),total_particles_injected_tpi(1:nptmass,i_first)
+                i_curr2 = i_first
+                do i = i_first+1,i_curr
+                   if (time_tpi(i)<time .and. time_tpi(i)>time_tpi(i_curr2)) then
+                      write(iunit_tpi,*,iostat=ierr_tpi) time_tpi(i),nptmass_tpi(i),total_particles_injected_tpi(1:nptmass,i)
+                      i_curr2 = i
+                   endif
+                enddo
+                close(iunit_tpi)
+             endif
+          endif
+       else
+          !
+          ! total_particles_injected.dat is either a blank or corrupt file since
+          !    no entries were read in correctly.
+          ! To be sure that it is not corrupt, make total_particles_injected.dat
+          !    have a single entry for the start of the simulation.
+          !
+          print "(/,a)", ' Rewriting total_particles_injected.dat to include the'
+          print "(a)", '    entry for the start of the simulation.'
+          total_particles_injected_tpi(1:nptmass,1) = 0
+          open(file='total_particles_injected.dat',unit=iunit_tpi,form='formatted')
+          write(iunit_tpi,*,iostat=ierr_tpi) 0.0d0,nptmass,total_particles_injected_tpi(1:nptmass,1)
+          close(iunit_tpi)
+       endif
+    endif
+    if (.not.tpi_read_from_file) then
+       !
+       ! compute particles that should have been injected already, noting that
+       !    there is an error associated with "time" vs. "time-1/(2**nbinmax)*dtmax";
+       !    the former is the current calculation and the latter is the actual
+       !    last time value used for injecting particles prior to the restart
+       !
+       print "(/,a)", ' Restarting sim without correct entry in total_particles_injected.dat'
+       print "(a)", ' Ignoring any errors in the injected-particle numbers based on the last'
+       print "(a)", '    fractional timestep of dtmax, here are the wind particles that'
+       print "(a)", '    should have been injected already for each star.'
+       print "(a)", ' Note: These might not be the actual numbers of particles injected if stars beyond'
+       print "(a)", '    outer_boundary do not have any wind particles injected [check inject_particles()].'
+       print "(a)", '    These non-injected particles are still tracked so that if the star goes within'
+       print "(a)", '    outer_boundary, then that star should start injecting wind particles normally.'
+       print "(1x,36('-'))"
+       print "(a)", '  i |   total_particles_injected(i) |'
+       print "(1x,36('-'))"
+       do i=nskip_ptmass+1,nptmass
+          !j = i - nskip_ptmass ! position in wind table
+          !total_particles_injected(i) = int(wind(i_Mdot,j)*Mdot_fac * time / massoftype(igas))
+          if (total_particles_injected(i)<0) then
+             ierr = ierr + 1 !flag an error in the calculation of particles already injected
+             print*,'ERROR: star ',i,' has negative particles already injected, which is not possible.'
+          endif
+          print "(i3,1x,'|',i30,1x,'|')",i,total_particles_injected(i)
+       enddo
+       print "(1x,36('-'))"
+       !
+       ! investigate the errors that could be introduced since the last
+       !    fractional timestep is not known (or at least I don't think this info
+       !    is stored in the full dump files)
+       ! 
+       print "(/,a)", ' Timestep discrepancy investigation: determine which table corresponds'
+       print "(a)", '    to nbinmax as soon as the calcualtion starts in order to estimate'
+       print "(a)", '    the errors in the number of wind particles injected.'
+       print "(1x,48('-'))"
+       do nbinmax_test=3,20
+          time_test = time - 1./(2**nbinmax_test) * dtmax
+          print "(2(a,i0),a,f14.10)", ' nbinmax_test = ',nbinmax_test,', 2^nbinmax_test = ',2**nbinmax_test,', time_test = ',time_test
+          total_diff = 0
+          do i=nskip_ptmass+1,nptmass
+             j = i - nskip_ptmass ! position in wind table
+             total_particles_injected_test(i) = int(wind(i_Mdot,j)*Mdot_fac * time_test / massoftype(igas))
+             total_diff = total_diff + total_particles_injected(i)-total_particles_injected_test(i)
+             print "(i3,1x,'|',i30,1x,'|',i10,1x,'|')",i,total_particles_injected_test(i),total_particles_injected(i)-total_particles_injected_test(i)
+          enddo
+          print "(a,i0)", ' total missing particles from timestep discrepancy is: ',total_diff
+          print "(1x,48('-'))"
+          if (total_diff == 0) exit !finer timesteps will also show no errors in total_particles_injected, so cease this calculation
+       enddo
+    endif
+ endif
+
+ !
+ ! set more global wind-injection properties
+ !
+ temp_inject = 1.e4
+ print "(/,a,es14.6,a)", ' injected wind particles will have a temperature of temp_inject =',temp_inject,'K'
+ gam1 = gamma - 1.
+ if (gam1 <= 0) call fatal('inject','require gamma > 1 for wind injection')
+ !
+ ! convert from temperature to thermal energy
+ ! P/rho = kT/(mu m_H) = (gam-1)*u
+ !
+ !uu_inject = temp_inject * (((kb_on_mh) / unit_velocity)/unit_velocity) / (gmw*gam1)
+ uu_inject = temp_inject * kb_on_mh / unit_velocity**2 / (gmw*gam1)
+ !print*,' uu_inject = ',uu_inject,kb_on_mh,unit_velocity,gmw,gam1
 
 end subroutine init_inject
 
@@ -66,27 +445,48 @@ subroutine inject_particles(time,dtlast,xyzh,vxyzu,xyzmh_ptmass,vxyz_ptmass,&
                             npart,npart_old,npartoftype,dtinject)
  use io,        only:fatal,iverbose
  !use part,      only:massoftype,igas,ihacc,i_tlast
- use part,      only:massoftype,igas,ihacc,i_tlast,iwindorig,eos_vars,imu,isdead_or_accreted
+ !use part,      only:massoftype,igas,ihacc,i_tlast,iwindorig,eos_vars,imu,isdead_or_accreted, &
+ use part,      only:massoftype,igas,ihacc,i_tlast,iwindorig,isdead_or_accreted, &
+                     iphase,iunknown
  !USE part,      only:massoftype,igas,ihacc,i_tlast,iphase
- use partinject,only:add_or_update_particle
+ use partinject,only:add_or_update_particle,updated_particle
  use physcon,   only:pi,solarm,seconds,years,km,kb_on_mH
- use units,     only:umass,udist,utime,unit_velocity
+ !use units,     only:umass,udist,utime,unit_velocity
  use random,    only:ran2
- use eos,       only:gmw,gamma
+ !use eos,       only:gmw,gamma
+use timestep_ind,   only: nbinmax
  real,    intent(in)    :: time, dtlast
  real,    intent(inout) :: xyzh(:,:), vxyzu(:,:), xyzmh_ptmass(:,:), vxyz_ptmass(:,:)
  integer, intent(inout) :: npart, npart_old
  integer, intent(inout) :: npartoftype(:)
  real,    intent(out)   :: dtinject
- real :: r2,Mcut,Mdot_fac,vel_fac,Minject,Mdot_code,tlast
+ !real :: r2,Mcut,Mdot_fac,vel_fac,Minject,Mdot_code,tlast
+ real :: r2,Minject,Mdot_code,tlast
  real :: xyzi(3),vxyz(3),xyz_star(3),vxyz_star(3),dir(3)
  real :: rr,phi,theta,cosphi,sinphi,costheta,sintheta
- real :: deltat,h,u,vinject,temp_inject,uu_inject,gam1
- integer :: i,j,k,nskip,i_part,ninject
-LOGICAL :: foundParticleToReuse
-REAL :: radReuse
-!    print*,'init: tpi = ',total_particles_injected(1:nptmass)
-!WRITE(*,*) 'INJECT PARTICLES iphase(igas) = ',iphase(igas),', time = ',time
+ real :: deltat,h,u,vinject!,temp_inject,uu_inject!,gam1
+ integer :: i,j,k,i_part,ninject
+ integer :: ninject_actual
+ !logical :: foundParticleToReuse
+ !real :: radReuse
+
+!3 options for finding particles to reuse
+!   Option A: based on position relative to outer boundary and SMBH accretion radius
+!   Option B: based on idead_or_accreted; loop starts over for every star
+!   Option C: based on idead_or_accreted; loop does not start over for every star, which should be faster
+!further options
+!   starting in v2: only particles for stars within outer_boundary are injected (all particles [both actually injected and would-be injected] are still tracked)
+!   starting in v3: flags set to make update_injected_particles act on reused particles
+
+ !!print*,'init: tpi = ',total_particles_injected(1:nptmass)
+ !if(first_iteration) then
+ !   !print*,'init: tpi = ',total_particles_injected(1:nptmass)
+ !   first_iteration=.false.
+ !endif
+ 
+ !ReuseParticles_v3
+ updated_particle=.false.
+
 !
 ! kill particles outside some outer radius
 !
@@ -99,26 +499,27 @@ REAL :: radReuse
  enddo
  !$omp end parallel do
 
- Mcut = 1000.*(solarm/umass)
- nskip = 1
- do while(xyzmh_ptmass(4,nskip) > Mcut)
-    nskip = nskip + 1
- enddo
- if (iverbose >= 2) print*,' skipping ',nskip,' point masses'
-!
-! convert mass loss rate from Msun/yr to code units
-!
- Mdot_fac = (solarm/umass)*(utime/years)
- vel_fac  = (km/udist)*(utime/seconds)
+ !!now done in init_inject()
+ !Mcut = Mcut_Msun*(solarm/umass)
+ !nskip_ptmass = 0
+ !do while(xyzmh_ptmass(4,nskip_ptmass+1) > Mcut .and. nskip_ptmass<nptmass)
+ !   nskip_ptmass = nskip_ptmass + 1
+ !enddo
+ if (iverbose >= 2) print*,' skipping ',nskip_ptmass,' point masses'
+!!
+!! convert mass loss rate from Msun/yr to code units
+!!
+! Mdot_fac = (solarm/umass)*(utime/years)
+! vel_fac  = (km/udist)*(utime/seconds)
 
-!VERIFICATION
-!DO i=1,nptmass
-!IF(i.LE.nskip) THEN
-!WRITE(*,*) 'm(',i,') = ',xyzmh_ptmass(4,i),xyzmh_ptmass(4,i)*umass,xyzmh_ptmass(4,i)*umass/solarm
-!ELSE
-!WRITE(*,*) 'm(',i,') = ',xyzmh_ptmass(4,i),xyzmh_ptmass(4,i)*umass,xyzmh_ptmass(4,i)*umass/solarm,wind(i_Mdot,i-nskip),wind(i_vel,i-nskip)
-!ENDIF
-!ENDDO
+ !Verification of Mdots and vinfs
+ !do i=1,nptmass
+ !   if(i<=nskip_ptmass) then
+ !      write(*,*) 'm(',i,') = ',xyzmh_ptmass(4,i),xyzmh_ptmass(4,i)*umass,xyzmh_ptmass(4,i)*umass/solarm
+ !   else
+ !      write(*,*) 'm(',i,') = ',xyzmh_ptmass(4,i),xyzmh_ptmass(4,i)*umass,xyzmh_ptmass(4,i)*umass/solarm,wind(i_Mdot,i-nskip_ptmass),wind(i_vel,i-nskip_ptmass)
+ !   endif
+ !enddo
 !
 ! If restarting, compute the number of particles already injected from each star.
 !    This overestimates the total number injected by 1 timestep since 'time'
@@ -131,36 +532,40 @@ REAL :: radReuse
 !    evaluate to false an awfully large number of times.  Needs to be after
 !    dumpfile ('time') and wind data (Mdots) have been read in.
 !
- if (first_iteration) then
-    if (time /= 0) then   ! only if restarting
-       do i=nskip+1,nptmass
-          j = i - nskip ! position in wind table
-          total_particles_injected(i) = int(wind(i_Mdot,j)*Mdot_fac * time / massoftype(igas))
-       enddo
-       print*
-       print*, 'galcen initialization: wind particles already injected (total_particles_injected) =',&
-               total_particles_injected(1:nptmass)
-       print*
-    endif
-    first_iteration = .false.
- endif
+ !if (first_iteration) then
+ !   if (time /= 0) then   ! only if restarting
+ !      do i=nskip_ptmass+1,nptmass
+ !         j = i - nskip_ptmass ! position in wind table
+ !         total_particles_injected(i) = int(wind(i_Mdot,j)*Mdot_fac * time / massoftype(igas))
+ !      enddo
+ !      print*
+ !      print*, 'galcen initialization: wind particles already injected (total_particles_injected) =',&
+ !              total_particles_injected(1:nptmass)
+ !      print*
+ !   endif
+ !   first_iteration = .false.
+ !endif
+ !!above is now done in init_inject(...)
 
- temp_inject = 1.e4
- gam1 = gamma - 1.
- if (gam1 <= 0) call fatal('inject','require gamma > 1 for wind injection')
-!
-! convert from temperature to thermal energy
-! P/rho = kT/(mu m_H) = (gam-1)*u
-!
- uu_inject = temp_inject * (((kb_on_mh) / unit_velocity)/unit_velocity) / (gmw*gam1)
- !print*,' uu_inject = ',uu_inject,kb_on_mh,unit_velocity,gmw,gam1
+! temp_inject = 1.e4
+! gam1 = gamma - 1.
+! if (gam1 <= 0) call fatal('inject','require gamma > 1 for wind injection')
+!!
+!! convert from temperature to thermal energy
+!! P/rho = kT/(mu m_H) = (gam-1)*u
+!!
+! uu_inject = temp_inject * (((kb_on_mh) / unit_velocity)/unit_velocity) / (gmw*gam1)
+! !print*,' uu_inject = ',uu_inject,kb_on_mh,unit_velocity,gmw,gam1
+
+WRITE(*,*) 'nbinmax =',nbinmax,', time =',time,', tlast =',xyzmh_ptmass(i_tlast,1:nptmass)
+
+ i_part=1 !part of Option C
 !
 ! loop over all wind particles
 !
-i_part=1 !part of Option C
  !!$omp parallel do default(none) &
  !!$omp shared(nptmass)
- do i=nskip+1,nptmass
+ do i=nskip_ptmass+1,nptmass
     !!
     !! extract current position, velocity and injection radius of star
     !!
@@ -173,7 +578,7 @@ i_part=1 !part of Option C
     ! calculate how much mass to inject based on
     ! time interval since last injection
     !
-    j = i - nskip ! position in wind table
+    j = i - nskip_ptmass ! position in wind table
     Mdot_code = wind(i_Mdot,j)*Mdot_fac
     vinject   = wind(i_vel,j)*vel_fac
     tlast     = xyzmh_ptmass(i_tlast,i)
@@ -185,10 +590,10 @@ i_part=1 !part of Option C
     ninject = int(Minject/massoftype(igas))-total_particles_injected(i)
     if (iverbose >= 2) print*,' point mass ',i,j,' injecting ',&
                        ninject,Minject-total_particles_injected(i)*massoftype(igas),massoftype(igas),time,tlast
-!    print*,' point mass ',i,j,' injecting ',&
-!                       ninject,Minject-total_particles_injected(i)*massoftype(igas),massoftype(igas),time,tlast
-!WRITE(*,*) 'stuff: ',wind(i_Mdot,j),Mdot_code,wind(i_vel,j),vinject,deltat,Minject,massoftype(igas)
-!WRITE(*,*) 'ffuts: ',igas,massoftype
+    !print*,' point mass ',i,j,' injecting ',&
+    !                   ninject,Minject-total_particles_injected(i)*massoftype(igas),massoftype(igas),time,tlast
+    !write(*,*) 'stuff: ',wind(i_Mdot,j),Mdot_code,wind(i_vel,j),vinject,deltat,Minject,massoftype(igas)
+    !write(*,*) 'ffuts: ',igas,massoftype
 
     !
     ! this if statement is no longer essential for more accurate mass-loss rates,
@@ -198,6 +603,8 @@ i_part=1 !part of Option C
     !    particles this timestep; this way, fractional particles/timestep can
     !    accumulate and eventually inject a particle, making Mdot more accurate
     !
+    ninject_actual = 0 !tracks when wind particles are actually injected, instead of forgoing the 
+                       !   wind-particle injection due to the star being beyond outer_boundary
     if (ninject > 0) then
        !
        ! extract current position, velocity and injection radius of star
@@ -206,8 +613,8 @@ i_part=1 !part of Option C
        rr        = 1.0001*xyzmh_ptmass(ihacc,i)
        vxyz_star = vxyz_ptmass(1:3,i)
 
-!i_part=0 !part of Option A
-!i_part=1 !part of Option B
+       !i_part=0 !part of Option A
+       !i_part=1 !part of Option B
        do k=1,ninject
           !
           ! get random position on sphere
@@ -228,75 +635,70 @@ i_part=1 !part of Option C
 
           u = uu_inject
 
-!Option A
-IF(.FALSE.) THEN
-!WRITE(*,*) 'npart =',npart
-foundParticleToReuse=.FALSE.
-DO WHILE ((.NOT.foundParticleToReuse) .AND. i_part<npart+1)
- i_part=i_part+1
- !WRITE(*,*) 'foundParticleToReuse =',foundParticleToReuse,', i_part =',i_part
- !DO WHILE(xyzh(4,i_part)>0. .AND. i_part<npart+1)
- !DO WHILE(ABS(xyzh(4,i_part))>tiny(0.) .AND. i_part<npart+1)
- DO WHILE((.NOT.isdead_or_accreted(xyzh(4,i_part))) .AND. i_part<npart+1)
-  i_part=i_part+1
- ENDDO
- radReuse=SQRT(xyzh(1,i_part)**2+xyzh(2,i_part)**2+xyzh(3,i_part)**2)
- !IF(i_part.NE.npart+1) WRITE(*,*) 'radReuse = ',radReuse,i_part,npart,', hi = ',xyzh(4,i_part),isdead_or_accreted(xyzh(4,i_part))
- IF(radReuse>outer_boundary) foundParticleToReuse=.TRUE.
- IF(radReuse<xyzmh_ptmass(ihacc,1)) foundParticleToReuse=.TRUE.
- !IF(radReuse<facc*xyzmh_ptmass(ihacc,i)) foundParticleToReuse=.TRUE.
- !WRITE(*,*) 'foundParticleToReuse =',foundParticleToReuse,', i_part =',i_part,', radReuse =',radReuse
-ENDDO
-IF(i_part<npart+1) THEN 
- WRITE(*,*) 'i_part = ',i_part,', npart = ',npart,', reused particle, '// &
-            'rad =',radReuse,isdead_or_accreted(xyzh(4,i_part)),', time =',time
-            !'rad =',radReuse,tiny(0.),tiny(xyzh(4,i_part))
-            !'rad =',SQRT(xyzh(i_part,1)**2+xyzh(i_part,2)**2+xyzh(i_part,3)**2),tiny(0.),tiny(xyzh(4,i_part))
-!ELSE
-! WRITE(*,*) 'i_part = ',i_part,', npart = ',npart,', new particle'
-ENDIF
-ENDIF
-
-!Option B and C
-!IF(.FALSE.) THEN
-!!WRITE(*,*) 'npart =',npart
-!foundParticleToReuse=.FALSE.
-!DO WHILE ((.NOT.foundParticleToReuse) .AND. i_part<npart+1)
-! i_part=i_part+1
-! !WRITE(*,*) 'foundParticleToReuse =',foundParticleToReuse,', i_part =',i_part
-! !DO WHILE(xyzh(4,i_part)>0. .AND. i_part<npart+1)
-! !DO WHILE(ABS(xyzh(4,i_part))>tiny(0.) .AND. i_part<npart+1)
- DO WHILE((.NOT.isdead_or_accreted(xyzh(4,i_part))) .AND. i_part<npart+1)
-  i_part=i_part+1
- ENDDO
-! radReuse=SQRT(xyzh(1,i_part)**2+xyzh(2,i_part)**2+xyzh(3,i_part)**2)
-! IF(i_part.NE.npart+1) WRITE(*,*) 'radReuse = ',radReuse,i_part,npart,', hi = ',xyzh(4,i_part),isdead_or_accreted(xyzh(4,i_part))
-! IF(radReuse>outer_boundary) foundParticleToReuse=.TRUE.
-! IF(radReuse<xyzmh_ptmass(ihacc,i)) foundParticleToReuse=.TRUE.
-! !IF(radReuse<facc*xyzmh_ptmass(ihacc,i)) foundParticleToReuse=.TRUE.
-! !WRITE(*,*) 'foundParticleToReuse =',foundParticleToReuse,', i_part =',i_part,', radReuse =',radReuse
-!ENDDO
-IF(i_part<npart+1) THEN 
- radReuse=SQRT(xyzh(1,i_part)**2+xyzh(2,i_part)**2+xyzh(3,i_part)**2)
- WRITE(*,*) 'i_part = ',i_part,', npart = ',npart,', reused particle, '// &
-            'rad =',radReuse,', time =',time,', star =',i, &
-            ', to be added = ', SQRT(xyzmh_ptmass(1,i)**2+xyzmh_ptmass(2,i)**2+xyzmh_ptmass(3,i)**2) < outer_boundary, &
-            ', instantly killed = ', SQRT(xyzi(1)**2+xyzi(2)**2+xyzi(3)**2) > outer_boundary
-!ELSE
-! WRITE(*,*) 'i_part = ',i_part,', npart = ',npart,', new particle'
-ENDIF
-!ENDIF
+          !Original method -- all particles are new
           !i_part = npart + 1 ! all particles are new
-!ReuseParticles_v2
-IF(SQRT(xyzmh_ptmass(1,i)**2+xyzmh_ptmass(2,i)**2+xyzmh_ptmass(3,i)**2) < outer_boundary) THEN
-          call add_or_update_particle(igas, xyzi, vxyz, h, u, i_part, npart, npartoftype, xyzh, vxyzu)
-          !star from which this wind particle originated
-          iwindorig(i_part) = i
-IF(i_part.LT.npart+1) THEN
-!part of Option C
-i_part = i_part + 1
-ENDIF
-ENDIF
+          
+          !!Option A -- reuse particles
+          !!write(*,*) 'npart =',npart
+          !foundParticleToReuse=.false.
+          !do while ((.not.foundParticleToReuse) .and. i_part<npart+1)
+          !   i_part=i_part+1
+          !   !write(*,*) 'foundParticleToReuse =',foundParticleToReuse,', i_part =',i_part
+          !   !do while(xyzh(4,i_part)>0. .and. i_part<npart+1)
+          !   !do while(abs(xyzh(4,i_part))>tiny(0.) .and. i_part<npart+1)
+          !   do while((.not.isdead_or_accreted(xyzh(4,i_part))) .and. i_part<npart+1)
+          !      i_part=i_part+1
+          !   enddo
+          !   radReuse=SQRT(xyzh(1,i_part)**2+xyzh(2,i_part)**2+xyzh(3,i_part)**2)
+          !   !if(i_part.NE.npart+1) write(*,*) 'radReuse = ',radReuse,i_part,npart,', hi = ',xyzh(4,i_part),isdead_or_accreted(xyzh(4,i_part))
+          !   if(radReuse>outer_boundary) foundParticleToReuse=.true.
+          !   if(radReuse<xyzmh_ptmass(ihacc,1)) foundParticleToReuse=.true.
+          !   !if(radReuse<facc*xyzmh_ptmass(ihacc,i)) foundParticleToReuse=.true.
+          !   !write(*,*) 'foundParticleToReuse =',foundParticleToReuse,', i_part =',i_part,', radReuse =',radReuse
+          !enddo
+          !!if (i_part<npart+1) then
+          !!   write(*,*) 'i_part = ',i_part,', npart = ',npart,', reused particle, '// &
+          !!              'rad =',radReuse,isdead_or_accreted(xyzh(4,i_part)),', time =',time
+          !!              !'rad =',radReuse,tiny(0.),tiny(xyzh(4,i_part))
+          !!              !'rad =',SQRT(xyzh(i_part,1)**2+xyzh(i_part,2)**2+xyzh(i_part,3)**2),tiny(0.),tiny(xyzh(4,i_part))
+          !!!else
+          !!!   write(*,*) 'i_part = ',i_part,', npart = ',npart,', new particle'
+          !!endif
+
+          !Option B and C -- reuse particles
+          !write(*,*) 'npart =',npart
+          do while((.not.isdead_or_accreted(xyzh(4,i_part))) .and. i_part<npart+1)
+             i_part=i_part+1
+          enddo
+          !if(i_part<npart+1) then
+          !   radReuse=SQRT(xyzh(1,i_part)**2+xyzh(2,i_part)**2+xyzh(3,i_part)**2)
+          !   write(*,*) 'i_part = ',i_part,', npart = ',npart,', reused particle, '// &
+          !              'rad =',radReuse,', time =',time,', star =',i, &
+          !              ', to be added = ', SQRT(xyzmh_ptmass(1,i)**2+xyzmh_ptmass(2,i)**2+xyzmh_ptmass(3,i)**2) < outer_boundary, &
+          !              ', instantly killed = ', SQRT(xyzi(1)**2+xyzi(2)**2+xyzi(3)**2) > outer_boundary
+          !!else
+          !!   write(*,*) 'i_part = ',i_part,', npart = ',npart,', new particle'
+          !endif
+         
+          !ReuseParticles_v2 and beyond -- only inject particles that won't be immediately killed due to being beyond the outer_boundary
+          !this can be used with original all-particles-are-new method as well
+          if(sqrt(xyzmh_ptmass(1,i)**2+xyzmh_ptmass(2,i)**2+xyzmh_ptmass(3,i)**2) < outer_boundary) then
+             ninject_actual = ninject_actual+1
+             !write(*,*) 'Before iphase(',i_part,') = ',iphase(i_part),', iphase(',i_part+100000,') = ',iphase(i_part+100000)
+             call add_or_update_particle(igas, xyzi, vxyz, h, u, i_part, npart, npartoftype, xyzh, vxyzu)
+             !write(*,*) 'After  iphase(',i_part,') = ',iphase(i_part),', iphase(',i_part+100000,') = ',iphase(i_part+100000)
+             !star from which this wind particle originated
+             iwindorig(i_part) = i
+             !if(i_part<npart+1) then
+             if(i_part<npart) then !add_or_update_particle increased npart if a new particle was added, so now the comparison is npart
+                !ReuseParticles_v3 is the first time this next line was used
+                updated_particle=.true.
+                iphase(i_part) = iunknown ! flag this particle to update its timestep -- this overrides "call set_particle_type(particle_number,itype)" in partinject-->add_or_update_particle
+                !call set_particle_type(i_part,iunknown) !equivalent to setting phase via iphase(i_ipart) = iunknown
+                !part of Option C
+                i_part = i_part + 1
+              endif
+          endif
        enddo
        !
        ! update tlast to current time
@@ -306,18 +708,19 @@ ENDIF
        ! update total particles injected for this star
        !
        total_particles_injected(i) = total_particles_injected(i) + ninject
+       total_particles_injected_actual(i) = total_particles_injected_actual(i) + ninject_actual
     endif
  enddo
  if (iverbose >= 2) then
     print*,'npart = ',npart
     print*,'tpi = ',total_particles_injected(1:nptmass)
  endif
+    print*,'time =',time,' tpi = ',total_particles_injected(1:nptmass)
  !
  !-- no constraint on timestep
  !
  dtinject = huge(dtinject)
 
-!WRITE(*,*) 'INJECTED RTICLES iphase(igas) = ',iphase(igas),', time = ',time
 end subroutine inject_particles
 
 subroutine update_injected_par
@@ -332,10 +735,46 @@ end subroutine update_injected_par
 !-----------------------------------------------------------------------
 subroutine write_options_inject(iunit)
  use infile_utils, only:write_inopt
+ use timestep,  only:time
  integer, intent(in) :: iunit
+ !character(len=400) ::tpi_string
+ !character(len=40) ::tpi_temp
+ !integer :: i
 
  call write_inopt(trim(datafile),'datafile','name of data file for wind injection',iunit)
  call write_inopt(outer_boundary,'outer_boundary','kill gas particles outside this radius',iunit)
+ !Note: saving total_particles_injected via string in galcen.in didn't work
+ !      since the string is too long -- now saved in total_particles_injected.dat file.
+ !call write_inopt(nptmass,'nptmass_temp','temp number of point masses',iunit)
+ !tpi_string = ''
+ !do i=1,nptmass
+ !   WRITE(tpi_temp,'(I0)') total_particles_injected(i)
+ !   WRITE(*,'(A)') 'TRIM(tpi_temp) = "'//TRIM(tpi_temp)//'"'
+ !   WRITE(*,*) 'LEN(TRIM(tpi_string)) = ',LEN(TRIM(tpi_string))
+ !   WRITE(*,*) 'LEN(TRIM(tpi_temp))) = ',LEN(TRIM(tpi_temp))
+ !   !if (i==1) then
+ !   !   tpi_string(LEN(TRIM(tpi_string))+1:LEN(TRIM(tpi_string))+0+LEN(TRIM(tpi_temp))) = TRIM(tpi_temp)
+ !   !else
+ !   !   tpi_string(LEN(TRIM(tpi_string))+2:LEN(TRIM(tpi_string))+1+LEN(TRIM(tpi_temp))) = TRIM(tpi_temp)
+ !   !endif
+ !   if (i/=1) then
+ !      tpi_string(LEN(TRIM(tpi_string))+1:LEN(TRIM(tpi_string))+1) = ','
+ !   endif
+ !   tpi_string(LEN(TRIM(tpi_string))+1:LEN(TRIM(tpi_string))+LEN(TRIM(tpi_temp))) = TRIM(tpi_temp)
+ !   WRITE(*,'(A)') 'TRIM(tpi_string) ="'//TRIM(tpi_string)//'"'
+ !enddo
+ !call write_inopt(tpi_string,'tpi','wind particles injected for each point mass',iunit)
+
+ if (time>tiny(time)) then
+    !
+    ! write new entry in total_particles_injected.dat, which is needed for eliminating
+    !    discrepancies in injected-particle numbers upon a restart
+    !
+    open(file='total_particles_injected.dat',unit=iunit_tpi,form='formatted',position='append')
+    write(iunit_tpi,*) time,nptmass,total_particles_injected(1:nptmass)
+    close(iunit_tpi)
+ endif
+ !write(*,*) 'WRITE_OPTIONS_INJECT -- time =',time
 
 end subroutine write_options_inject
 
@@ -347,12 +786,14 @@ end subroutine write_options_inject
 subroutine read_options_inject(name,valstring,imatch,igotall,ierr)
  use io,      only:fatal,error,warning
  use physcon, only:solarm,years
+ !use timestep,  only:time
  character(len=*), intent(in)  :: name,valstring
  logical,          intent(out) :: imatch,igotall
  integer,          intent(out) :: ierr
  integer, save :: ngot = 0
  character(len=30), parameter :: label = 'read_options_inject'
  integer :: nstars
+ !integer :: nptmass_temp=2
 
  imatch  = .true.
  select case(trim(name))
@@ -361,16 +802,40 @@ subroutine read_options_inject(name,valstring,imatch,igotall,ierr)
  case('datafile')
     read(valstring,*,iostat=ierr) datafile
     call read_wind_data(datafile,nstars)
-    if (nstars /= nptmass) then
-       call warning('read_options_inject','number of stars /= number of wind sources')
-    endif
+    !!nptmass = 0 --> can''t compare nstars to nptmass here as was originally done
+    !if (nstars == nptmass) then
+    !   call warning('read_options_inject','number of wind sources = number of '//&
+    !      'point masses, which probably means either the black holes are missing from the '//&
+    !      'pointmass position/velocity/mass table or the wind table has extra entries')
+    !elseif (nstars > nptmass) then
+    !   call error('read_options_inject','number of wind sources > number of '//&
+    !      'point masses, which means that the wind table can not be correlated with the '//&
+    !      'pointmass position/velocity/mass table')
+    !   ierr = ierr+1
+    !else
+    !   print "(2(a,i0),a)",  ' nptmass(=',nptmass,') > num_stars_with_winds(=',nstars,') since'
+    !   print "(a)", '    black holes, which are point masses, do not have winds.'
+    !endif
+    !!if (nstars /= nptmass) then
+    !!   call warning('read_options_inject','number of stars /= number of wind sources')
+    !!endif
     ngot = ngot + 1
+ !Note: saving total_particles_injected via string in galcen.in didn't work
+ !      since the string is too long -- now saved in total_particles_injected.dat file.
+ !case('nptmass_temp')
+ !   read(valstring,*,iostat=ierr) nptmass_temp
+ !case('tpi')
+ !WRITE(*,*) 'PRE:  total_particles_injected = ',total_particles_injected(1:nptmass_temp),', nptmass_temp =',nptmass_temp
+ !WRITE(*,'(A)') 'valstring = "'//valstring//'"'
+ !   read(valstring,*,iostat=ierr) total_particles_injected(1:nptmass_temp)
+ !WRITE(*,*) 'POST: total_particles_injected = ',total_particles_injected(1:nptmass_temp)
  case default
     imatch = .false.
  end select
 
  igotall = (ngot >= 1)
 
+ !write(*,*) 'READ_OPTIONS_INJECT -- time =',time
 end subroutine read_options_inject
 
 !-----------------------------------------------------------------------
