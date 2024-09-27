@@ -48,7 +48,7 @@ module inject
  real,    private :: uu_inject=0.   !set to value that should cause an error if value in init_inject() is not run properly
  real,    private :: Mdot_fac=0.    !set to value that should cause an error if value in init_inject() is not run properly
  real,    private :: vel_fac=0.     !set to value that should cause an error if value in init_inject() is not run properly
- integer, private :: iunit_tpi=99
+ integer, private :: iunit_tpi=99   !for reading in total_particles_injected.dat -- value not in io-->set_io_unit_numbers
 
 contains
 !-----------------------------------------------------------------------
@@ -66,7 +66,7 @@ subroutine init_inject(ierr)
  use timestep,  only:dtmax
  integer, intent(out) :: ierr
  real    :: Mcut,gam1
- integer :: i,j
+ integer :: i,j,j_corrupt
  logical :: iexist
  integer :: ierr_tpi=0
  real    :: time_tpi(10000) = 0.
@@ -138,7 +138,7 @@ subroutine init_inject(ierr)
  !
  ! if this is a new simulation, create and populate total_particles_injected.dat
  !
- ! if restarting, either
+ ! if this is a restarting simulation, either
  !    A. read in total_particles_injected from total_particles_injected.dat
  !    B. compute total_particles_injected, with the slight discrepancy
  !       that the last time this would have been computed is one fraction of dtmax
@@ -175,14 +175,28 @@ subroutine init_inject(ierr)
        !
        open(file='total_particles_injected.dat',unit=iunit_tpi,form='formatted',status='old')
        ierr_tpi=0
+       j_corrupt = 0
        j = 0
        do while(ierr_tpi==0)
           j = j+1
           read(iunit_tpi,*,iostat=ierr_tpi) time_tpi(j),nptmass_tpi(j),total_particles_injected_tpi(1:nptmass,j)
+          if (ierr_tpi>0) then
+             !
+             ! Corrupt entry: Skip it but keep reading from the file in hopes of one or
+             !    more well-formatted entries later on in the file.
+             ! Not sure if all compilers have unreadable error codes > 0 and EOF error codes < 0, upon
+             !    which this distinction relies -- take out this if statement if things seem to be going
+             !    haywire when reading in total_particles_injected.dat when not using ifort.
+             !
+             j = j-1
+             ierr_tpi = 0
+             j_corrupt = j_corrupt+1
+          endif
        enddo
        j = j-1
        close(iunit_tpi)
-       print "(/,a,i0,a)", ' read in ',j,' entries from total_particles_injected.dat'
+       print "(/,a,i0,a)", ' Read in ',j,' entries from total_particles_injected.dat.'
+       if(j_corrupt>0) print "(a,i0,a)", ' Read in ',j_corrupt,' corrupt entries from total_particles_injected.dat, which will be removed from the file.'
        !
        ! at least one entry was read in
        !
@@ -206,9 +220,12 @@ subroutine init_inject(ierr)
              !
              ! correct entry in total_particles_injected.dat for "time" was not found
              !
-             print*, 'Warning: the correct entry in total_particles_injected.dat does not seem to exist!'
-             print*, 'time =',time,', time_tpi(i_curr) =',time_tpi(i_curr)
-             print*, 'total_particles_injected will be computed using "time"'
+             print "(a)", ' Warning: the correct entry in total_particles_injected.dat does not seem to exist!'
+             print "(a,f)", '    time =',time
+             do i=1,i_curr
+                print "(a,i0,a,f)", '    time_tpi(',i,') =',time_tpi(i)
+             enddo
+             print "(a)", ' total_particles_injected will be computed using "time".'
 
              !!
              !! kill the sim via reporting an error if the correct entry in total_particles_injected appears to be missing
@@ -253,7 +270,8 @@ subroutine init_inject(ierr)
                    !
                    print "(/,a)", ' total_particles_injected.dat seems to have irregular entries given this simulation''s restart variable "time".' 
                    print "(a)", ' Rewrite this file with only the correct entries, which are values less than "time" and in sequential order.'
-                   write(iunit_tpi,*,iostat=ierr_tpi) time_tpi(i_curr2),nptmass_tpi(i_curr2),total_particles_injected_tpi(1:nptmass,i_curr2)
+                   open(file='total_particles_injected.dat',unit=iunit_tpi,form='formatted')
+                   write(iunit_tpi,*,iostat=ierr_tpi) time_tpi(i_first),nptmass_tpi(i_first),total_particles_injected_tpi(1:nptmass,i_first)
                    i_curr2 = i_first
                    do i = i_first+1,j
                       if (time_tpi(i) < time .and. time_tpi(i)>time_tpi(i_curr2)) then
@@ -284,7 +302,7 @@ subroutine init_inject(ierr)
              !
              ! correct entry in total_particles_injected.dat for "time" was found
              !
-             tpi_read_from_file = .true. !correct entry for current restart time was found in total_particles_injected.dat --> don't use already computed total_particles_injected values
+             tpi_read_from_file = .true. !correct entry for current restart time was found in total_particles_injected.dat --> don't use total_particles_injected values computed above
              print "(a)", ' correct entry in total_particles_injected.dat has been found'
              print "(a,f,a,f,2(a,i0),a)", ' time = ',time,', time_tpi(correct) = ',time_tpi(i_curr),', correct index i_curr = ',i_curr,' (out of ',j,')'
              print "(a,i0)", ' nptmass_tpi(correct) = ',nptmass_tpi(i_curr)
@@ -296,7 +314,10 @@ subroutine init_inject(ierr)
                 print "(a)", ' ERROR: nptmass from total_particles_injected.dat does not equal nptmass!'
                 print "(a)", ' ERROR: nptmass = ',nptmass,', nptmass_tpi(i_curr) = ',nptmass_tpi(i_curr)
              endif
-             print "(/,a)", ' Note: These might not be the actual numbers of particles injected if stars beyond'
+             print "(/,a)", ' total_particles_injected values for current restart time (correct) compared to the'
+             print "(a)", '    calculation with the "time" variable (error prone) and their associated errors.'
+             print "(a)", '    These errors are not in the computation due to using total_particles_injected.dat.'
+             print "(a)", ' Note: These might not be the actual numbers of particles injected if stars beyond'
              print "(a)", '    outer_boundary do not have any wind particles injected [check inject_particles()].'
              print "(a)", '    These non-injected particles are still tracked so that if the star goes within'
              print "(a)", '    outer_boundary, then that star should start injecting wind particles normally.'
@@ -372,10 +393,12 @@ subroutine init_inject(ierr)
        !    the former is the current calculation and the latter is the actual
        !    last time value used for injecting particles prior to the restart
        !
-       print "(/,a)", ' Restarting sim without correct entry in total_particles_injected.dat'
-       print "(a)", ' Ignoring any errors in the injected-particle numbers based on the last'
-       print "(a)", '    fractional timestep of dtmax, here are the wind particles that'
-       print "(a)", '    should have been injected already for each star.'
+       print "(/,a)", ' ****************************************************************************'
+       print "(a)", ' * Restarting sim without the correct entry in total_particles_injected.dat *'
+       print "(a)", ' ****************************************************************************'
+       print "(a)", ' Here are the wind particles that  should have been injected already for each star'
+       print "(a)", '    (ignoring any errors in the injected-particle numbers based on the last'
+       print "(a)", '    fractional timestep of dtmax).'
        print "(a)", ' Note: These might not be the actual numbers of particles injected if stars beyond'
        print "(a)", '    outer_boundary do not have any wind particles injected [check inject_particles()].'
        print "(a)", '    These non-injected particles are still tracked so that if the star goes within'
@@ -398,9 +421,11 @@ subroutine init_inject(ierr)
        !    fractional timestep is not known (or at least I don't think this info
        !    is stored in the full dump files)
        ! 
-       print "(/,a)", ' Timestep discrepancy investigation: determine which table corresponds'
-       print "(a)", '    to nbinmax as soon as the calcualtion starts in order to estimate'
-       print "(a)", '    the errors in the number of wind particles injected.'
+       print "(/,a)", ' Timestep discrepancy investigation: Once the simulation restarts,'
+       print "(a)", '    find the initial nbinmax and compare it to the appropriate table in'
+       print "(a)", '    order to estimate the errors in the number of wind particles injected.'
+       print "(a)", '    If the last nbinmax before the restart (not stored) equals the first new'
+       print "(a)", '    nbinmax upon restarting, then the injected-particle exact errors are known.'
        print "(1x,48('-'))"
        do nbinmax_test=3,20
           time_test = time - 1./(2**nbinmax_test) * dtmax
@@ -767,8 +792,8 @@ subroutine write_options_inject(iunit)
 
  if (time>tiny(time)) then
     !
-    ! write new entry in total_particles_injected.dat, which is needed for eliminating
-    !    discrepancies in injected-particle numbers upon a restart
+    ! write new entry in total_particles_injected.dat when each full dump is written,
+    !    which is needed for eliminating discrepancies in injected-particle numbers when restarting
     !
     open(file='total_particles_injected.dat',unit=iunit_tpi,form='formatted',position='append')
     write(iunit_tpi,*) time,nptmass,total_particles_injected(1:nptmass)
