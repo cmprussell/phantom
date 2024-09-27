@@ -582,7 +582,7 @@ use timestep_ind,   only: nbinmax
 ! uu_inject = temp_inject * (((kb_on_mh) / unit_velocity)/unit_velocity) / (gmw*gam1)
 ! !print*,' uu_inject = ',uu_inject,kb_on_mh,unit_velocity,gmw,gam1
 
-WRITE(*,*) 'nbinmax =',nbinmax,', time =',time,', tlast =',xyzmh_ptmass(i_tlast,1:nptmass)
+!WRITE(*,*) 'nbinmax =',nbinmax,', time =',time,', tlast =',xyzmh_ptmass(i_tlast,1:nptmass)
 
  i_part=1 !part of Option C
 !
@@ -740,7 +740,7 @@ WRITE(*,*) 'nbinmax =',nbinmax,', time =',time,', tlast =',xyzmh_ptmass(i_tlast,
     print*,'npart = ',npart
     print*,'tpi = ',total_particles_injected(1:nptmass)
  endif
-    print*,'time =',time,' tpi = ',total_particles_injected(1:nptmass)
+!WRITE(*,*) 'time =',time,' tpi = ',total_particles_injected(1:nptmass)
  !
  !-- no constraint on timestep
  !
