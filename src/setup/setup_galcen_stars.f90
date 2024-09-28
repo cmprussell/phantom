@@ -36,13 +36,6 @@ module setup
  real :: m_SMBH = 4.28d6 ! mass of supermassive black hole (SMBH) in Msun
  real :: h_SMBH = 0.1d0 ! accretion radius of SMBH in arcsec at 8kpc
 
- write(lu,"(/,a)") '# resolution'
- call write_inopt(m_gas, 'm_gas','gas mass resolution in solar masses',lu,ierr2)
- call write_inopt(h_sink, 'h_sink','stellar wind injection radii (also sink particle radii for the stars) in arcsec at 8kpc',lu,ierr2)
-
- write(lu,"(/,a)") '# SMBH properties'
- call write_inopt(m_SMBH, 'm_SMBH','SMBH mass in solar masses',lu,ierr2)
- call write_inopt(h_SMBH, 'h_SMBH','SMBH accretion radius in arcsec at 8kpc',lu,ierr2)
  private
 
 contains
