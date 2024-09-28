@@ -83,7 +83,7 @@ subroutine inject_particles(time,dtlast,xyzh,vxyzu,xyzmh_ptmass,vxyz_ptmass,&
  integer :: i,j,k,nskip,i_part,ninject
  !real :: radReuse
 !    print*,'init: tpi = ',total_particles_injected(1:nptmass)
-!WRITE(*,*) 'INJECT PARTICLES iphase(igas) = ',iphase(igas),', time = ',time
+!write(*,*) 'INJECT PARTICLES iphase(igas) = ',iphase(igas),', time = ',time
 !
 ! kill particles outside some outer radius
 !
@@ -110,7 +110,7 @@ subroutine inject_particles(time,dtlast,xyzh,vxyzu,xyzmh_ptmass,vxyz_ptmass,&
 
  !verification
  !do i=1,nptmass
- !   if(i<=nskip) then
+ !   if (i<=nskip) then
  !      write(*,*) 'm(',i,') = ',xyzmh_ptmass(4,i),xyzmh_ptmass(4,i)*umass,xyzmh_ptmass(4,i)*umass/solarm
  !   else
  !      write(*,*) 'm(',i,') = ',xyzmh_ptmass(4,i),xyzmh_ptmass(4,i)*umass,xyzmh_ptmass(4,i)*umass/solarm,wind(i_Mdot,i-nskip),wind(i_vel,i-nskip)
@@ -212,7 +212,7 @@ subroutine inject_particles(time,dtlast,xyzh,vxyzu,xyzmh_ptmass,vxyz_ptmass,&
 
           !!
           !! original method -- all particles are new
-          !! 
+          !!
           !i_part = npart + 1 ! all particles are new
 
           !
@@ -239,13 +239,14 @@ subroutine inject_particles(time,dtlast,xyzh,vxyzu,xyzmh_ptmass,vxyz_ptmass,&
              ! star from where this wind particle originated
              !
              iwindorig(i_part) = i
-             if (i_part<npart) then !add_or_update_particle increased npart if a new particle was added, 
-                                   !   so now the comparison is with npart (whereas above the comparison was with npart+1)
+             !note: add_or_update_particle increased npart by 1 if a new particle was added, so now the
+             !         comparison is with npart (whereas above the comparison was with npart+1)
+             if (i_part<npart) then
                 !
                 ! particle was updated, not added
                 !
                 updated_particle=.true.
-                ! 
+                !
                 ! flag this particle to update its timestep -- this overrides
                 !    "call set_particle_type(particle_number,itype)" in partinject-->add_or_update_particle
                 !
@@ -255,10 +256,10 @@ subroutine inject_particles(time,dtlast,xyzh,vxyzu,xyzmh_ptmass,vxyz_ptmass,&
                 ! begin the search for the next accreted or dead particle to reuse with the next particle
                 !
                 i_part = i_part + 1
-              endif
-          !else
+             endif
+             !else (not needed, but kept here for the following comment)
              !
-             ! do not inject the particle, but keep track of it via total_particles_injected 
+             ! do not inject the particle, but keep track of it via total_particles_injected
              !    in case this star comes back within outer_boundary and then starts injecting particles
              !
           endif
@@ -282,7 +283,7 @@ subroutine inject_particles(time,dtlast,xyzh,vxyzu,xyzmh_ptmass,vxyz_ptmass,&
  !
  dtinject = huge(dtinject)
 
-!WRITE(*,*) 'INJECTED RTICLES iphase(igas) = ',iphase(igas),', time = ',time
+!write(*,*) 'INJECTED PARTICLES iphase(igas) = ',iphase(igas),', time = ',time
 end subroutine inject_particles
 
 subroutine update_injected_par

@@ -75,4 +75,4 @@ src/main/cons2primsolver.f90_Orig
 src/main/inject_galcen_winds.f90_Debug
 src/main/partinject.F90_Debug
 src/main/partinject.F90_Orig
-
+scripts/output_bots_*.sh
