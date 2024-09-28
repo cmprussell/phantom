@@ -15,11 +15,14 @@ module setup
 !
 ! :Runtime parameters:
 !   - datafile : *filename for star data (m,x,y,z,vx,vy,vz)*
-!   - h_sink   : *sink particle radii in arcsec at 8kpc*
+!   - h_SMBH   : *SMBH accretion radius in arcsec at 8kpc*
+!   - h_sink   : *stellar wind injection radii (also sink particle radii for the stars) in arcsec at 8kpc*
+!   - m_SMBH   : *SMBH mass in solar masses*
 !   - m_gas    : *gas mass resolution in solar masses*
 !
-! :Dependencies: datafiles, dim, eos, infile_utils, io, part, physcon,
-!   prompting, spherical, timestep, units
+! :Dependencies: cooling, cooling_solver, datafiles, dim, eos,
+!   infile_utils, io, options, part, physcon, prompting, spherical,
+!   timestep, units
 !
  implicit none
  public :: setpart
@@ -33,6 +36,13 @@ module setup
  real :: m_SMBH = 4.28d6 ! mass of supermassive black hole (SMBH) in Msun
  real :: h_SMBH = 0.1d0 ! accretion radius of SMBH in arcsec at 8kpc
 
+ write(lu,"(/,a)") '# resolution'
+ call write_inopt(m_gas, 'm_gas','gas mass resolution in solar masses',lu,ierr2)
+ call write_inopt(h_sink, 'h_sink','stellar wind injection radii (also sink particle radii for the stars) in arcsec at 8kpc',lu,ierr2)
+
+ write(lu,"(/,a)") '# SMBH properties'
+ call write_inopt(m_SMBH, 'm_SMBH','SMBH mass in solar masses',lu,ierr2)
+ call write_inopt(h_SMBH, 'h_SMBH','SMBH accretion radius in arcsec at 8kpc',lu,ierr2)
  private
 
 contains
@@ -69,7 +79,7 @@ subroutine setpart(id,npart,npartoftype,xyzh,massoftype,vxyzu,polyk,gamma,hfact,
  character(len=len(datafile)) :: filename
  integer :: ierr,i
  real    :: scale,psep
-INTEGER :: ierr_Tinit
+ integer :: ierr_Tinit
 !
 ! units (mass = mass of black hole, length = 1 arcsec at 8kpc)
 !
@@ -133,15 +143,18 @@ INTEGER :: ierr_Tinit
 !
  psep = 1.0
  call set_sphere('cubic',id,master,0.,20.,psep,hfact,npart,xyzh)
- OPEN(UNIT=61,FILE='Tinit.dat',FORM='FORMATTED',STATUS='OLD',IOSTAT=ierr_Tinit)
- IF(ierr_Tinit==0) THEN
-    READ(61,*,IOSTAT=ierr_Tinit) vxyzu(4,1)
-    IF(ierr_Tinit==0) THEN
+!
+! set temperature of initial particles
+!
+ open(unit=61,file='Tinit.dat',form='formatted',status='old',iostat=ierr_Tinit)
+ if (ierr_Tinit==0) then
+    read(61,*,iostat=ierr_Tinit) vxyzu(4,1)
+    if (ierr_Tinit==0) then
        vxyzu(4,1)=5.356136065348470d-4 * vxyzu(4,1)/1.d4
        vxyzu(4,:)=vxyzu(4,1)
-    ENDIF
- ENDIF
- IF(ierr_Tinit/=0) THEN
+    endif
+ endif
+ if (ierr_Tinit/=0) then
     !vxyzu(4,:) = 5.317e-4 ! T_init=1e4
     !vxyzu(4,:) = 5.317e-4 * 1.e2 ! T_init=1e6
     vxyzu(4,:) = 5.356136065348470d-4 ! T_init=1e4K to more accuracy
@@ -149,9 +162,9 @@ INTEGER :: ierr_Tinit
     !vxyzu(4,:) = 5.356136065348470d-4 * 1.d2 ! T_init=1e6K to more accuracy
     !vxyzu(4,:) = 5.356136065348470d-4 * 1.d3 ! T_init=1e7K to more accuracy
     !vxyzu(4,:) = 5.356136065348470d-4 * 1.d4 ! T_init=1e8K to more accuracy
-    WRITE(*,*) 'Tinit.dat not found or not configured correctly -- initial particle energy set to T=',vxyzu(4,1)/5.356136065348470d-4*1.d4,'K'
- ENDIF
- CLOSE(61)
+    write(*,*) 'Tinit.dat not found or not configured correctly -- initial particle energy set to T=',vxyzu(4,1)/5.356136065348470d-4*1.d4,'K'
+ endif
+ close(61)
 
  npartoftype(igas) = npart
 

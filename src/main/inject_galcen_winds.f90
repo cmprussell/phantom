@@ -59,16 +59,14 @@ end subroutine init_inject
 
 !-----------------------------------------------------------------------
 !+
-!  Main routine handling injection at the L1 point.
+!  Main routine handling wind injection from the stars.
 !+
 !-----------------------------------------------------------------------
 subroutine inject_particles(time,dtlast,xyzh,vxyzu,xyzmh_ptmass,vxyz_ptmass,&
                             npart,npart_old,npartoftype,dtinject)
  use io,        only:fatal,iverbose
- !use part,      only:massoftype,igas,ihacc,i_tlast
- use part,      only:massoftype,igas,ihacc,i_tlast,iwindorig,eos_vars,imu
- !USE part,      only:massoftype,igas,ihacc,i_tlast,iphase
- use partinject,only:add_or_update_particle
+ use part,      only:massoftype,igas,ihacc,i_tlast,iwindorig,isdead_or_accreted,iphase,iunknown
+ use partinject,only:add_or_update_particle,updated_particle
  use physcon,   only:pi,solarm,seconds,years,km,kb_on_mH
  use units,     only:umass,udist,utime,unit_velocity
  use random,    only:ran2
@@ -83,8 +81,8 @@ subroutine inject_particles(time,dtlast,xyzh,vxyzu,xyzmh_ptmass,vxyz_ptmass,&
  real :: rr,phi,theta,cosphi,sinphi,costheta,sintheta
  real :: deltat,h,u,vinject,temp_inject,uu_inject,gam1
  integer :: i,j,k,nskip,i_part,ninject
-!    print*,'init: tpi = ',total_particles_injected(1:nptmass)
-!WRITE(*,*) 'INJECT PARTICLES iphase(igas) = ',iphase(igas),', time = ',time
+
+ !print*,'init: tpi = ',total_particles_injected(1:nptmass)
 !
 ! kill particles outside some outer radius
 !
@@ -109,6 +107,14 @@ subroutine inject_particles(time,dtlast,xyzh,vxyzu,xyzmh_ptmass,vxyz_ptmass,&
  Mdot_fac = (solarm/umass)*(utime/years)
  vel_fac  = (km/udist)*(utime/seconds)
 
+ !verification
+ !do i=1,nptmass
+ !   if (i<=nskip) then
+ !      write(*,*) 'm(',i,') = ',xyzmh_ptmass(4,i),xyzmh_ptmass(4,i)*umass,xyzmh_ptmass(4,i)*umass/solarm
+ !   else
+ !      write(*,*) 'm(',i,') = ',xyzmh_ptmass(4,i),xyzmh_ptmass(4,i)*umass,xyzmh_ptmass(4,i)*umass/solarm,wind(i_Mdot,i-nskip),wind(i_vel,i-nskip)
+ !   endif
+ !enddo
 !
 ! If restarting, compute the number of particles already injected from each star.
 !    This overestimates the total number injected by 1 timestep since 'time'
@@ -147,17 +153,10 @@ subroutine inject_particles(time,dtlast,xyzh,vxyzu,xyzmh_ptmass,vxyz_ptmass,&
 !
 ! loop over all wind particles
 !
+ i_part=1 !for tracking resuse particles
  !!$omp parallel do default(none) &
  !!$omp shared(nptmass)
  do i=nskip+1,nptmass
-    !!
-    !! extract current position, velocity and injection radius of star
-    !!
-    !xyz_star  = xyzmh_ptmass(1:3,i)
-    !rr        = 1.0001*xyzmh_ptmass(ihacc,i)
-    !tlast     = xyzmh_ptmass(i_tlast,i)
-    !vxyz_star = vxyz_ptmass(1:3,i)
-
     !
     ! calculate how much mass to inject based on
     ! time interval since last injection
@@ -174,11 +173,6 @@ subroutine inject_particles(time,dtlast,xyzh,vxyzu,xyzmh_ptmass,vxyz_ptmass,&
     ninject = int(Minject/massoftype(igas))-total_particles_injected(i)
     if (iverbose >= 2) print*,' point mass ',i,j,' injecting ',&
                        ninject,Minject-total_particles_injected(i)*massoftype(igas),massoftype(igas),time,tlast
-!    print*,' point mass ',i,j,' injecting ',&
-!                       ninject,Minject-total_particles_injected(i)*massoftype(igas),massoftype(igas),time,tlast
-!WRITE(*,*) 'stuff: ',wind(i_Mdot,j),Mdot_code,wind(i_vel,j),vinject,deltat,Minject,massoftype(igas)
-!WRITE(*,*) 'ffuts: ',igas,massoftype
-
     !
     ! this if statement is no longer essential for more accurate mass-loss rates,
     !    but it should help with setting h since tlast --> deltat is more accurate
@@ -215,10 +209,59 @@ subroutine inject_particles(time,dtlast,xyzh,vxyzu,xyzmh_ptmass,vxyz_ptmass,&
 
           u = uu_inject
 
-          i_part = npart + 1 ! all particles are new
-          call add_or_update_particle(igas, xyzi, vxyz, h, u, i_part, npart, npartoftype, xyzh, vxyzu)
-          !star from which this wind particle originated
-          iwindorig(i_part) = i
+          !!
+          !! original method -- all particles are new
+          !!
+          !i_part = npart + 1 ! all particles are new
+
+          !
+          ! reuse particles
+          ! find first dead or accreted particle
+          !
+          do while((.not.isdead_or_accreted(xyzh(4,i_part))) .and. i_part<npart+1)
+             i_part=i_part+1
+          enddo
+          !
+          ! only inject particles that won't be immediately killed due to being beyond the outer_boundary
+          ! this can be used with the original all-particles-are-new method as well
+          !
+          if (sqrt(xyzmh_ptmass(1,i)**2+xyzmh_ptmass(2,i)**2+xyzmh_ptmass(3,i)**2) < outer_boundary) then
+             !!
+             !! track particles that are actually injected
+             !!
+             !ninject_actual = ninject_actual+1
+             !
+             ! add or update the particle via built-in method within partinject
+             !
+             call add_or_update_particle(igas, xyzi, vxyz, h, u, i_part, npart, npartoftype, xyzh, vxyzu)
+             !
+             ! star from where this wind particle originated
+             !
+             iwindorig(i_part) = i
+             !note: add_or_update_particle increased npart by 1 if a new particle was added, so now the
+             !         comparison is with npart (whereas above the comparison was with npart+1)
+             if (i_part<npart) then
+                !
+                ! particle was updated, not added
+                !
+                updated_particle=.true.
+                !
+                ! flag this particle to update its timestep -- this overrides
+                !    "call set_particle_type(particle_number,itype)" in partinject-->add_or_update_particle
+                !
+                iphase(i_part) = iunknown
+                !call set_particle_type(i_part,iunknown) !alternative/equivalent to above line
+                !
+                ! begin the search for the next accreted or dead particle to reuse with the next particle
+                !
+                i_part = i_part + 1
+             endif
+             !else (not needed, but kept here for the following comment)
+             !
+             ! do not inject the particle, but keep track of it via total_particles_injected
+             !    in case this star comes back within outer_boundary and then starts injecting particles
+             !
+          endif
        enddo
        !
        ! update tlast to current time
@@ -239,7 +282,6 @@ subroutine inject_particles(time,dtlast,xyzh,vxyzu,xyzmh_ptmass,vxyz_ptmass,&
  !
  dtinject = huge(dtinject)
 
-!WRITE(*,*) 'INJECTED RTICLES iphase(igas) = ',iphase(igas),', time = ',time
 end subroutine inject_particles
 
 subroutine update_injected_par
@@ -283,9 +325,10 @@ subroutine read_options_inject(name,valstring,imatch,igotall,ierr)
  case('datafile')
     read(valstring,*,iostat=ierr) datafile
     call read_wind_data(datafile,nstars)
-    if (nstars /= nptmass) then
-       call warning('read_options_inject','number of stars /= number of wind sources')
-    endif
+    !note: nptmass=0 here, so can't compare nstars and nptmass
+    !if (nstars /= nptmass) then
+    !   call warning('read_options_inject','number of stars /= number of wind sources')
+    !endif
     ngot = ngot + 1
  case default
     imatch = .false.
