@@ -81,9 +81,8 @@ subroutine inject_particles(time,dtlast,xyzh,vxyzu,xyzmh_ptmass,vxyz_ptmass,&
  real :: rr,phi,theta,cosphi,sinphi,costheta,sintheta
  real :: deltat,h,u,vinject,temp_inject,uu_inject,gam1
  integer :: i,j,k,nskip,i_part,ninject
- !real :: radReuse
-!    print*,'init: tpi = ',total_particles_injected(1:nptmass)
-!write(*,*) 'INJECT PARTICLES iphase(igas) = ',iphase(igas),', time = ',time
+
+ !print*,'init: tpi = ',total_particles_injected(1:nptmass)
 !
 ! kill particles outside some outer radius
 !
@@ -283,7 +282,6 @@ subroutine inject_particles(time,dtlast,xyzh,vxyzu,xyzmh_ptmass,vxyz_ptmass,&
  !
  dtinject = huge(dtinject)
 
-!write(*,*) 'INJECTED PARTICLES iphase(igas) = ',iphase(igas),', time = ',time
 end subroutine inject_particles
 
 subroutine update_injected_par
