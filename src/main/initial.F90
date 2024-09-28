@@ -659,6 +659,17 @@ subroutine startrun(infile,logfile,evfile,dumpfile,noread)
 #ifdef CWB
  nbinmax=MAX(nbinmax,CEILING(LOG(dtmax/dtinject)/LOG(2.))) !from dtinject=dtmax/2^nbinmax
 #endif
+ !
+ ! Chris' fix for starting galcen sims
+ !
+ if (nbinmax<3) then
+    !
+    ! nbinmax is set in the recent call derivs(...) command, so specify nbinmax here
+    ! (specifying nbinmax in init_inject leads to nbinmax getting overwritten...)
+    !
+    print "(/,a,i0,a)", ' setting nbinmax = ',nbinmax,' to nbinmax = 3 so particles are injected before the first output file is written at time=dtmax'
+    nbinmax = MAX(nbinmax,3)
+ endif
 
  if (nalpha >= 2) then
     ialphaloc = 2
