@@ -41,6 +41,12 @@ module inject
  integer, private :: total_particles_injected(maxptmass) = 0
  logical, private :: first_iteration = .true.
  integer, private :: iseed = -666
+ integer, private :: nskip_ptmass
+ real,    private :: temp_inject=0. !set to value that should cause an error if value in init_inject() is not run properly
+ real,    private :: uu_inject=0.   !set to value that should cause an error if value in init_inject() is not run properly
+ real,    private :: Mdot_fac=0.    !set to value that should cause an error if value in init_inject() is not run properly
+ real,    private :: vel_fac=0.     !set to value that should cause an error if value in init_inject() is not run properly
+
 
 contains
 !-----------------------------------------------------------------------
@@ -49,11 +55,73 @@ contains
 !+
 !-----------------------------------------------------------------------
 subroutine init_inject(ierr)
+ use io,        only:fatal
+ use part,      only:xyzmh_ptmass
+ use physcon,   only:solarm,seconds,years,km,kb_on_mH
+ use units,     only:umass,udist,utime,unit_velocity
+ use eos,       only:gmw,gamma
  integer, intent(out) :: ierr
+ integer :: i
+ real    :: Mcut
+
  !
  ! return without error
  !
  ierr = 0
+
+ !
+ ! correlate pointmass postion/velocity/mass table and pointmass wind table
+ ! for wind injection, skip SMBH and IMBH -- which are above 200Msun -- since
+ ! black holes don't appear in the wind table
+ !
+ Mcut = 200.*(solarm/umass)
+ nskip_ptmass = 0
+ do while(xyzmh_ptmass(4,nskip_ptmass+1) > Mcut .and. nskip_ptmass<nptmass)
+    nskip_ptmass = nskip_ptmass + 1
+ enddo
+ if (nskip_ptmass==nptmass) then
+    ierr = ierr + 1
+    print*,' ERROR: no winds since all read-in point masses are skipped'
+ endif
+ print "(a,i0,a,f0.1,a)", ' Skipping ',nskip_ptmass,' point masses for wind injection since their point masses are >200Msun,'
+ print "(a)", '   which is presently interpreted to mean that these point masses are black holes.'
+ !
+ ! convert mass loss rate from Msun/yr to code units
+ !
+ Mdot_fac = (solarm/umass)*(utime/years)
+ vel_fac  = (km/udist)*(utime/seconds)
+ ! 
+ ! verification of Mdots and vinfs
+ !
+ print "(/a)", ' Pointmass table relating the following quantities, which is assembled from two different input tables:'
+ print "(a)",  '    1. index, which is used in xyzmh_ptmass -- from position/velocity/mass table'
+ print "(a)",  '    2. mass in a variety of units -- from position/velocity/mass table'
+ print "(a)",  '    3. wind properties -- from wind table (which excludes entries for black holes)'
+ print "(1x,90('-'))"
+ print "(a)",  '  i |  M(code units)  |  M(g)           |  M(Msun)        | Mdot(Msun/yr)  |  vinf(km/s) |'
+ print "(1x,90('-'))"
+ do i=1,nptmass
+    if (i<=nskip_ptmass) then
+       print "(i3,1x,'|',3(es16.8,1x,'|'),a)", i,xyzmh_ptmass(4,i),xyzmh_ptmass(4,i)*umass, &
+          xyzmh_ptmass(4,i)*umass/solarm,'  skipped -- no wind injection for this pointmass'
+    else
+       print "(i3,1x,'|',4(es16.8,1x,'|'),3x,f9.1,1x,'|')", i,xyzmh_ptmass(4,i),xyzmh_ptmass(4,i)*umass, &
+          xyzmh_ptmass(4,i)*umass/solarm,wind(i_Mdot,i-nskip_ptmass),wind(i_vel,i-nskip_ptmass)
+    endif
+ enddo
+ print "(1x,90('-'))"
+
+ !
+ ! set more global wind-injection properties
+ !
+ temp_inject = 1.e4
+ print "(/,a,es14.6,a)", ' injected wind particles will have a temperature of temp_inject =',temp_inject,'K'
+ if (gamma<=1.) call fatal('inject','require gamma > 1 for wind injection')
+ !
+ ! convert from temperature to thermal energy
+ ! P/rho = kT/(mu m_H) = (gam-1)*u
+ !
+ uu_inject = temp_inject * kb_on_mh / unit_velocity**2 / (gmw*(gamma-1.))
 
 end subroutine init_inject
 
@@ -68,19 +136,17 @@ subroutine inject_particles(time,dtlast,xyzh,vxyzu,xyzmh_ptmass,vxyz_ptmass,&
  use part,      only:massoftype,igas,ihacc,i_tlast,iwindorig,isdead_or_accreted,iphase,iunknown
  use partinject,only:add_or_update_particle,updated_particle
  use physcon,   only:pi,solarm,seconds,years,km,kb_on_mH
- use units,     only:umass,udist,utime,unit_velocity
  use random,    only:ran2
- use eos,       only:gmw,gamma
  real,    intent(in)    :: time, dtlast
  real,    intent(inout) :: xyzh(:,:), vxyzu(:,:), xyzmh_ptmass(:,:), vxyz_ptmass(:,:)
  integer, intent(inout) :: npart, npart_old
  integer, intent(inout) :: npartoftype(:)
  real,    intent(out)   :: dtinject
- real :: r2,Mcut,Mdot_fac,vel_fac,Minject,Mdot_code,tlast
+ real :: r2,Mdot_fac,vel_fac,Minject,Mdot_code,tlast
  real :: xyzi(3),vxyz(3),xyz_star(3),vxyz_star(3),dir(3)
  real :: rr,phi,theta,cosphi,sinphi,costheta,sintheta
- real :: deltat,h,u,vinject,temp_inject,uu_inject,gam1
- integer :: i,j,k,nskip,i_part,ninject
+ real :: deltat,h,u,vinject,uu_inject
+ integer :: i,j,k,i_part,ninject
 
  !print*,'init: tpi = ',total_particles_injected(1:nptmass)
 !
@@ -95,24 +161,16 @@ subroutine inject_particles(time,dtlast,xyzh,vxyzu,xyzmh_ptmass,vxyz_ptmass,&
  enddo
  !$omp end parallel do
 
- Mcut = 1000.*(solarm/umass)
- nskip = 1
- do while(xyzmh_ptmass(4,nskip) > Mcut)
-    nskip = nskip + 1
- enddo
- if (iverbose >= 2) print*,' skipping ',nskip,' point masses'
-!
-! convert mass loss rate from Msun/yr to code units
-!
- Mdot_fac = (solarm/umass)*(utime/years)
- vel_fac  = (km/udist)*(utime/seconds)
+ if (iverbose >= 2) print*,' skipping ',nskip_ptmass,' point masses'
 
- !verification
+ !!
+ !! Verification of Mdots and vinfs
+ !!
  !do i=1,nptmass
- !   if (i<=nskip) then
+ !   if (i<=nskip_ptmass) then
  !      write(*,*) 'm(',i,') = ',xyzmh_ptmass(4,i),xyzmh_ptmass(4,i)*umass,xyzmh_ptmass(4,i)*umass/solarm
  !   else
- !      write(*,*) 'm(',i,') = ',xyzmh_ptmass(4,i),xyzmh_ptmass(4,i)*umass,xyzmh_ptmass(4,i)*umass/solarm,wind(i_Mdot,i-nskip),wind(i_vel,i-nskip)
+ !      write(*,*) 'm(',i,') = ',xyzmh_ptmass(4,i),xyzmh_ptmass(4,i)*umass,xyzmh_ptmass(4,i)*umass/solarm,wind(i_Mdot,i-nskip_ptmass),wind(i_vel,i-nskip_ptmass)
  !   endif
  !enddo
 !
@@ -127,41 +185,19 @@ subroutine inject_particles(time,dtlast,xyzh,vxyzu,xyzmh_ptmass,vxyz_ptmass,&
 !    evaluate to false an awfully large number of times.  Needs to be after
 !    dumpfile ('time') and wind data (Mdots) have been read in.
 !
- if (first_iteration) then
-    if (time /= 0) then   ! only if restarting
-       do i=nskip+1,nptmass
-          j = i - nskip ! position in wind table
-          total_particles_injected(i) = int(wind(i_Mdot,j)*Mdot_fac * time / massoftype(igas))
-       enddo
-       print*
-       print*, 'galcen initialization: wind particles already injected (total_particles_injected) =',&
-               total_particles_injected(1:nptmass)
-       print*
-    endif
-    first_iteration = .false.
- endif
 
- temp_inject = 1.e4
- gam1 = gamma - 1.
- if (gam1 <= 0) call fatal('inject','require gamma > 1 for wind injection')
-!
-! convert from temperature to thermal energy
-! P/rho = kT/(mu m_H) = (gam-1)*u
-!
- uu_inject = temp_inject * (((kb_on_mh) / unit_velocity)/unit_velocity) / (gmw*gam1)
- !print*,' uu_inject = ',uu_inject,kb_on_mh,unit_velocity,gmw,gam1
 !
 ! loop over all wind particles
 !
  i_part=1 !for tracking resuse particles
  !!$omp parallel do default(none) &
  !!$omp shared(nptmass)
- do i=nskip+1,nptmass
+ do i=nskip_ptmass+1,nptmass
     !
     ! calculate how much mass to inject based on
     ! time interval since last injection
     !
-    j = i - nskip ! position in wind table
+    j = i - nskip_ptmass ! position in wind table
     Mdot_code = wind(i_Mdot,j)*Mdot_fac
     vinject   = wind(i_vel,j)*vel_fac
     tlast     = xyzmh_ptmass(i_tlast,i)

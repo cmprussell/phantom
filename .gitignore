@@ -76,6 +76,7 @@ src/main/inject_galcen_winds.f90_Debug
 src/main/partinject.F90_Debug
 src/main/partinject.F90_Orig
 scripts/output_bots_*.sh
+scripts/output_bots_*.txt
 src/*/*90_Orig*
 src/*/*90_Debug*
 *.swp
