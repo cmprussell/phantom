@@ -159,7 +159,7 @@ subroutine evol(infile,logfile,evfile,dumpfile,flag)
  dtinject  = huge(dtinject)
 #ifdef CWB
  dtinject = dtinject_cwb
-WRITE(*,*) 'CWB-specific code: dtinject set to dtinject_cwb; dtinject, dtinject_cwb =',dtinject,dtinject_cwb
+ write(*,*) 'CWB-specific code: dtinject set to dtinject_cwb; dtinject, dtinject_cwb =',dtinject,dtinject_cwb
 #endif
  dtrad     = huge(dtrad)
  np_cs_eq_0 = 0
