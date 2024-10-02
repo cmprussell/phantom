@@ -14,11 +14,12 @@ module setup
 ! :Owner: Daniel Price
 !
 ! :Runtime parameters:
-!   - datafile : *filename for star data (m,x,y,z,vx,vy,vz)*
-!   - h_SMBH   : *SMBH accretion radius in arcsec at 8kpc*
-!   - h_sink   : *stellar wind injection radii (also sink particle radii for the stars) in arcsec at 8kpc*
-!   - m_SMBH   : *SMBH mass in solar masses*
-!   - m_gas    : *gas mass resolution in solar masses*
+!   - datafile           : *filename for star data (m,x,y,z,vx,vy,vz)*
+!   - h_SMBH             : *SMBH accretion radius in arcsec at 8kpc*
+!   - h_sink             : *stellar wind injection radii (also sink particle radii for the stars) in arcsec at 8kpc*
+!   - m_SMBH             : *SMBH mass in solar masses*
+!   - m_gas              : *gas mass resolution in solar masses*
+!   - use_var_comp_local : *whether or not to use variable composition*
 !
 ! :Dependencies: cooling, cooling_solver, datafiles, dim, eos,
 !   infile_utils, io, options, part, physcon, prompting, spherical,
@@ -261,7 +262,7 @@ subroutine write_setupfile(filename,iprint)
     write(lu,"(/,a)") '# use variable composition'
     call write_inopt(use_var_comp_local, 'use_var_comp_local','whether or not to use variable composition',lu,ierr2)
  endif
- 
+
  close(lu)
 
 end subroutine write_setupfile

@@ -17,8 +17,8 @@ module inject
 !   - datafile       : *name of data file for wind injection*
 !   - outer_boundary : *kill gas particles outside this radius*
 !
-! :Dependencies: dim, eos, infile_utils, io, part, partinject, physcon,
-!   random, timestep, units
+! :Dependencies: dim, eos, infile_utils, io, options, part, partinject,
+!   physcon, random, timestep, units
 !
  use dim,  only:maxptmass
  use part, only:nptmass
@@ -544,8 +544,8 @@ subroutine inject_particles(time,dtlast,xyzh,vxyzu,xyzmh_ptmass,vxyz_ptmass,&
                 !eos_vars(imu,i_part) = gmwArr(mod(i,5)+1) !this is based on i (the star) and not i_part (the gas)
                 eos_vars(imu,i_part) = mui
                 eos_vars(itemp,i_part) = temp_inject
-                if(mod(i_part,101)==0) then
-                   WRITE(*,*) 'inject_particles: eos_vars(imu,i_part) = eos_vars(',imu,',',i_part,') = ',eos_vars(imu,i_part)
+                if (mod(i_part,101)==0) then
+                   write(*,*) 'inject_particles: eos_vars(imu,i_part) = eos_vars(',imu,',',i_part,') = ',eos_vars(imu,i_part)
                 endif
              endif
 

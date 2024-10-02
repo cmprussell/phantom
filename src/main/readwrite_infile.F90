@@ -63,6 +63,7 @@ module readwrite_infile
 !   - tolv               : *tolerance on v iterations in timestepping*
 !   - twallmax           : *maximum wall time (hhh:mm, 000:00=ignore)*
 !   - use_mcfost         : *use the mcfost library*
+!   - use_var_comp       : *whether gas particles have different mean molecular weights*
 !   - xtol               : *tolerance on xyz iterations*
 !
 ! :Dependencies: HIIRegion, boundary_dyn, cooling, damping, dim, dust,
@@ -573,7 +574,7 @@ subroutine read_infile(infile,logfile,evfile,dumpfile)
        if (.not.imatch .and. mhd_nonideal) call read_options_nicil(name,valstring,imatch,igotallnonideal,ierr)
        if (.not.imatch) call read_options_eos(name,valstring,imatch,igotalleos,ierr)
        if (.not.imatch .and. maxvxyzu >= 4) call read_options_cooling(name,valstring,imatch,igotallcooling,ierr)
-WRITE(*,*) 'igotallcooling =',igotallcooling,', name =',TRIM(name)
+       write(*,*) 'igotallcooling =',igotallcooling,', name =',trim(name)
        if (.not.imatch) call read_options_damping(name,valstring,imatch,igotalldamping,ierr)
        if (maxptmass > 0) then
           if (.not.imatch) call read_options_ptmass(name,valstring,imatch,igotallptmass,ierr)

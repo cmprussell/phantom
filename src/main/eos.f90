@@ -56,7 +56,7 @@ module eos
  integer,            public :: isink = 0.
 
  integer, parameter, public :: ngmwArr=6 !maximum number of different gas-particle (i.e. wind) abundances
- real, public               :: gmwArr(ngmwArr)=0. !initialize to zero so errors are caused if gmwArr is used without initialization 
+ real, public               :: gmwArr(ngmwArr)=0. !initialize to zero so errors are caused if gmwArr is used without initialization
  public                     :: set_gmwArr
 
  public  :: equationofstate,setpolyk,eosinfo,get_mean_molecular_weight
@@ -1548,7 +1548,7 @@ end subroutine read_options_eos
 !-----------------------------------------------------------------------
 subroutine set_gmwArr()
  integer :: i
- 
+
  gmwArr(1) = 0.6
  gmwArr(2) = 1.0
  gmwArr(3) = 1.4
@@ -1557,7 +1557,7 @@ subroutine set_gmwArr()
  gmwArr(6) = 2.6
  !gmwArr(1:6) = 0.6
  do i=1,ngmwArr
-    WRITE(*,*) 'set_gmwArr: gmwArr(',i,') = ',gmwArr(i)
+    write(*,*) 'set_gmwArr: gmwArr(',i,') = ',gmwArr(i)
  enddo
 end subroutine set_gmwArr
 
