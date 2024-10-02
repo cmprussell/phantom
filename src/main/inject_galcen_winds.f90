@@ -106,14 +106,10 @@ subroutine init_inject(ierr)
  endif
  print "(a,i0,a,f0.1,a)", ' Skipping ',nskip_ptmass,' point masses for wind injection since their point masses are >200Msun,'
  print "(a)", '   which is presently interpreted to mean that these point masses are black holes.'
- !
  ! convert mass loss rate from Msun/yr to code units
- !
  Mdot_fac = (solarm/umass)*(utime/years)
  vel_fac  = (km/udist)*(utime/seconds)
- !
  ! verification of Mdots and vinfs
- !
  print "(/a)", ' Pointmass table relating the following quantities, which is assembled from two different input tables:'
  print "(a)",  '    1. index, which is used in xyzmh_ptmass -- from position/velocity/mass table'
  print "(a)",  '    2. mass in a variety of units -- from position/velocity/mass table'
@@ -142,9 +138,7 @@ subroutine init_inject(ierr)
  !       before "time" and therefore might have a slight error assiciated with it
  !
  if (time < tiny(time)) then
-    !
     ! new sim --> create total_particles_injected.dat
-    !
     print "(/,a)", ' New simulation: Creating total_particles_injected.dat to track total_particles_injected,'
     print "(a)", '     which will negate any injected-particle errors upon restarting.'
     total_particles_injected(1:nptmass) = 0
@@ -152,24 +146,18 @@ subroutine init_inject(ierr)
     write(iunit_tpi,*) time,nptmass,total_particles_injected(1:nptmass)
     close(iunit_tpi)
  else
-    !
     ! compute particles that should have been injected already
     ! hopefully, this is just for comparison with total_particles_injected.dat values
-    !
     do i=nskip_ptmass+1,nptmass
        j = i - nskip_ptmass ! position in wind table
        total_particles_injected(i) = int(wind(i_Mdot,j)*Mdot_fac * time / massoftype(igas))
     enddo
-    !
     ! see if total_particles_injected.dat exists
     ! it should always exist for future galcen sims, but this verification will
     !    allow backwards compatibility
-    !
     inquire(file='total_particles_injected.dat',exist=iexist)
     if (iexist) then
-       !
        ! read-in total_particles_injected
-       !
        open(file='total_particles_injected.dat',unit=iunit_tpi,form='formatted',status='old')
        ierr_tpi=0
        j_corrupt = 0
@@ -178,13 +166,11 @@ subroutine init_inject(ierr)
           j = j+1
           read(iunit_tpi,*,iostat=ierr_tpi) time_tpi(j),nptmass_tpi(j),total_particles_injected_tpi(1:nptmass,j)
           if (ierr_tpi>0) then
-             !
              ! Corrupt entry: Skip it but keep reading from the file in hopes of one or
              !    more well-formatted entries later on in the file.
              ! Not sure if all compilers have unreadable error codes > 0 and EOF error codes < 0, upon
              !    which this distinction relies -- take out this if statement if things seem to be going
              !    haywire when reading in total_particles_injected.dat when not using ifort.
-             !
              j = j-1
              ierr_tpi = 0
              j_corrupt = j_corrupt+1
@@ -194,13 +180,9 @@ subroutine init_inject(ierr)
        close(iunit_tpi)
        print "(/,a,i0,a)", ' Read in ',j,' entries from total_particles_injected.dat.'
        if (j_corrupt>0) print "(a,i0,a)", ' Read in ',j_corrupt,' corrupt entries from total_particles_injected.dat, which will be removed from the file.'
-       !
        ! at least one entry was read in
-       !
        if (j>0) then
-          !
           ! find entry in total_particles_injected.dat that corresponds to this specific restart time
-          !
           tol_init_inject = dtmax*1.d-3 !tolerance for error when comparing time values
           !                             !make it a small number relative to dtmax since the successive entries in
           !                             !   total_particles_injected.dat should be separated by dtmax
@@ -208,14 +190,10 @@ subroutine init_inject(ierr)
           do while(abs(time_tpi(i_curr)-time)>tol_init_inject .and. i_curr<j)
              i_curr = i_curr+1
           enddo
-          !
           ! verify that the correct entry was read -- if not, use the already
           !    computed values for total_particle_injected (or kill the sim)
-          !
           if (abs(time_tpi(i_curr)-time)>tol_init_inject) then
-             !
              ! correct entry in total_particles_injected.dat for "time" was not found
-             !
              print "(a)", ' Warning: the correct entry in total_particles_injected.dat does not seem to exist!'
              print "(a,f)", '    time =',time
              do i=1,i_curr
@@ -223,17 +201,13 @@ subroutine init_inject(ierr)
              enddo
              print "(a)", ' total_particles_injected will be computed using "time".'
 
-             !!
              !! kill the sim via reporting an error if the correct entry in total_particles_injected appears to be missing
-             !!
              !ierr = ierr+1
              !print "(a)", ' ERROR: the correct entry in total_particles_injected.dat does not seem to exist!'
 
-             !
              ! attempt to make total_particles_injected.dat as useful as possible
              !    for future restarts by removing all entries past the current time
              !    and ensuring that the entries are in sequential order
-             !
              tpi_file_rewrite_add = .false.
              tpi_file_rewrite_delete = .false.
              tpi_file_rewrite_reorder = .false.
@@ -245,25 +219,19 @@ subroutine init_inject(ierr)
                 if (time_tpi(i)<time_tpi(i-1)) tpi_file_rewrite_reorder = .true.
              enddo
              if (tpi_file_rewrite_add) then
-                !
                 ! there are entries that should be in total_particles_injected.dat
-                !
                 if (tpi_file_rewrite_delete .or. tpi_file_rewrite_reorder) then
-                   !
                    ! rewriting total_particles_injected.dat is needed due to either deletion or reordering
                    ! Note: The reordering simply ensures that sequential entries are increasing.
                    !    At present, there is no fancy sort algorithm to bring a drastically
                    !    out-of-order list into sequential order while keeping all unique entries.
                    !
                    ! find the first entry to write
-                   !
                    i_first = 1
                    do while (time_tpi(i_first)>time)
                       i_first = i_first+1
                    enddo
-                   !
                    ! rewrite total_particles_injected.dat
-                   !
                    print "(/,a)", ' total_particles_injected.dat seems to have irregular entries given this simulation''s restart variable "time".'
                    print "(a)", ' Rewrite this file with only the correct entries, which are values less than "time" and in sequential order.'
                    open(file='total_particles_injected.dat',unit=iunit_tpi,form='formatted')
@@ -277,16 +245,12 @@ subroutine init_inject(ierr)
                    enddo
                    close(iunit_tpi)
                    !else (not needed, but kept here for the following comment)
-                   !
                    ! total_particles_injected.dat only has good entries -- no deleting or reordering needed -- so leave the file as is
-                   !
                 endif
              else
-                !
                 ! there are no current entries in total_particles_injected.dat that should still be there
                 ! replace total_particles_injected.dat with a file that has an entry only for the start
                 !    of the simulation
-                !
                 print "(/,a)", ' total_particles_injected.dat seems to have no relevant entries given this simulation''s restart variable "time".'
                 print "(a)", ' Rewrite this file with only the correct entry for the start of the simulation.'
                 total_particles_injected_tpi(1:nptmass,1) = 0
@@ -295,17 +259,14 @@ subroutine init_inject(ierr)
                 close(iunit_tpi)
              endif
           else
-             !
              ! correct entry in total_particles_injected.dat for "time" was found
-             !
-             tpi_read_from_file = .true. !correct entry for current restart time was found in total_particles_injected.dat --> don't use total_particles_injected values computed above
+             tpi_read_from_file = .true. !correct entry for current restart time was found in total_particles_injected.dat
+             !                           !   --> don't use total_particles_injected values computed above
              print "(a)", ' correct entry in total_particles_injected.dat has been found'
              print "(a,f,a,f,2(a,i0),a)", ' time = ',time,', time_tpi(correct) = ',time_tpi(i_curr),', correct index i_curr = ',i_curr,' (out of ',j,')'
              print "(a,i0)", ' nptmass_tpi(correct) = ',nptmass_tpi(i_curr)
              if (nptmass/=nptmass_tpi(i_curr)) then
-                !
                 ! kill the sim via reporting an error if the number of pointmasses in total_particles_injected is incorrect
-                !
                 ierr = ierr+1
                 print "(a)", ' ERROR: nptmass from total_particles_injected.dat does not equal nptmass!'
                 print "(a)", ' ERROR: nptmass = ',nptmass,', nptmass_tpi(i_curr) = ',nptmass_tpi(i_curr)
@@ -326,36 +287,28 @@ subroutine init_inject(ierr)
              enddo
              print "(1x,55('-'))"
              total_particles_injected(1:nptmass) = total_particles_injected_tpi(1:nptmass,i_curr)
-             !
              ! see if total_particles_injected.dat has any out-of-order entries
-             !
              tpi_file_rewrite_reorder = .false.
              do i=2,j
                 if (time_tpi(i)<time_tpi(i-1)) tpi_file_rewrite_reorder = .true.
              enddo
-             !
              ! if not restarting from the end of the last simulation run, remove any
              !    extra entries in total_particles_injected.dat by rewriting the file
              ! if entries are out of order, reorder them
              ! Note: The reordering simply ensures that sequential entries are increasing.
              !    At present, there is no fancy sort algorithm to bring a drastically
              !    out-of-order list into sequential order while keeping all unique entries.
-             !
              if (i_curr<j .or. tpi_file_rewrite_reorder) then
                 print "(/,a)", ' Rewriting total_particles_injected.dat to remove unnecessary entries'
                 print "(a)", '    from times that are after this current sim''s restart time,'
                 print "(a)", '    to reorder the entries so they are in sequential order, or both.'
                 open(file='total_particles_injected.dat',unit=iunit_tpi,form='formatted')
-                !
                 ! find the first entry to write
-                !
                 i_first = 1
                 do while (time_tpi(i_first)>time)
                    i_first = i_first+1
                 enddo
-                !
                 ! rewrite the file in sequential order ignoring entries beyond the sim's restart variable "time"
-                !
                 write(iunit_tpi,*,iostat=ierr_tpi) time_tpi(i_first),nptmass_tpi(i_first),total_particles_injected_tpi(1:nptmass,i_first)
                 i_curr2 = i_first
                 do i = i_first+1,i_curr
@@ -368,12 +321,10 @@ subroutine init_inject(ierr)
              endif
           endif
        else
-          !
           ! total_particles_injected.dat is either a blank or corrupt file since
           !    no entries were read in correctly.
           ! To be sure that it is not corrupt, make total_particles_injected.dat
           !    have a single entry for the start of the simulation.
-          !
           print "(/,a)", ' Rewriting total_particles_injected.dat to include the'
           print "(a)", '    entry for the start of the simulation.'
           total_particles_injected_tpi(1:nptmass,1) = 0
@@ -385,12 +336,10 @@ subroutine init_inject(ierr)
        print "(/,a)", ' Warning: file total_particles_injected.dat does not exist!'
     endif
     if (.not.tpi_read_from_file) then
-       !
        ! compute particles that should have been injected already, noting that
        !    there is an error associated with "time" vs. "time-1/(2**nbinmax)*dtmax";
        !    the former is the current calculation and the latter is the actual
        !    last time value used for injecting particles prior to the restart
-       !
        print "(/,a)", ' ****************************************************************************'
        print "(a)", ' * Restarting sim without the correct entry in total_particles_injected.dat *'
        print "(a)", ' ****************************************************************************'
@@ -414,11 +363,9 @@ subroutine init_inject(ierr)
           print "(i3,1x,'|',i30,1x,'|')",i,total_particles_injected(i)
        enddo
        print "(1x,36('-'))"
-       !
        ! investigate the errors that could be introduced since the last
        !    fractional timestep is not known (or at least I don't think this info
        !    is stored in the full dump files)
-       !
        print "(/,a)", ' Timestep discrepancy investigation: Once the simulation restarts,'
        print "(a)", '    find the initial nbinmax and compare it to the appropriate table in'
        print "(a)", '    order to estimate the errors in the number of wind particles injected.'
@@ -448,10 +395,8 @@ subroutine init_inject(ierr)
  temp_inject = 1.e4
  print "(/,a,es14.6,a)", ' injected wind particles will have a temperature of temp_inject =',temp_inject,'K'
  if (gamma<=1.) call fatal('inject','require gamma > 1 for wind injection')
- !
  ! convert from temperature to thermal energy
- ! P/rho = kT/(mu m_H) = (gam-1)*u
- !
+ !    P/rho = kT/(mu m_H) = (gam-1)*u
  uu_inject = temp_inject * kb_on_mh / unit_velocity**2 / (gmw*(gamma-1.))
 
 end subroutine init_inject
@@ -482,10 +427,8 @@ subroutine inject_particles(time,dtlast,xyzh,vxyzu,xyzmh_ptmass,vxyz_ptmass,&
 
  !print*,'init: tpi = ',total_particles_injected(1:nptmass)
 
- !
  ! flag to signal to partinject-->update_injected_particles(...) that a particle
  !    was updated (rather than added), which necessitates twas being computed
- !
  updated_particle=.false.
 
 !
@@ -502,9 +445,7 @@ subroutine inject_particles(time,dtlast,xyzh,vxyzu,xyzmh_ptmass,vxyz_ptmass,&
 
  if (iverbose >= 2) print*,' skipping ',nskip_ptmass,' point masses'
 
- !!
  !! Verification of Mdots and vinfs
- !!
  !do i=1,nptmass
  !   if (i<=nskip_ptmass) then
  !      write(*,*) 'm(',i,') = ',xyzmh_ptmass(4,i),xyzmh_ptmass(4,i)*umass,xyzmh_ptmass(4,i)*umass/solarm
@@ -513,9 +454,7 @@ subroutine inject_particles(time,dtlast,xyzh,vxyzu,xyzmh_ptmass,vxyz_ptmass,&
  !   endif
  !enddo
 
- !
  ! for reusing particles
- !
  i_part = 1
 
 !
@@ -524,48 +463,34 @@ subroutine inject_particles(time,dtlast,xyzh,vxyzu,xyzmh_ptmass,vxyz_ptmass,&
  !!$omp parallel do default(none) &
  !!$omp shared(nptmass)
  do i=nskip_ptmass+1,nptmass
-    !
     ! calculate how much mass to inject based on time interval since last injection
-    !
     j = i - nskip_ptmass ! position in wind table
     Mdot_code = wind(i_Mdot,j)*Mdot_fac
     vinject   = wind(i_vel,j)*vel_fac
     tlast     = xyzmh_ptmass(i_tlast,i)
     deltat    = time - tlast
     Minject   = Mdot_code*time
-    !
     ! divide by mass of gas particles
-    !
     ninject = int(Minject/massoftype(igas))-total_particles_injected(i)
     if (iverbose >= 2) print*,' point mass ',i,j,' injecting ',&
                        ninject,Minject-total_particles_injected(i)*massoftype(igas),massoftype(igas),time,tlast
 
-    !!
     !! track when wind particles are actually injected, excluding particles that
     !!   are not actually injected due to the star being beyond outer_boundary
-    !!
     !ninject_actual = 0
 
     if (ninject > 0) then
-       !
        ! extract current position of star
-       !
        xyz_star  = xyzmh_ptmass(1:3,i)
-       !
        ! only inject particles that won't be immediately killed due to being beyond outer_boundary
        ! this can be used with the original all-particles-are-new method as well
-       !
        if (sqrt(xyz_star(1)**2+xyz_star(2)**2+xyz_star(3)**2) < outer_boundary) then
-          !
           ! extract current velocity and injection radius of star
-          !
           rr        = 1.0001*xyzmh_ptmass(ihacc,i)
           vxyz_star = vxyz_ptmass(1:3,i)
 
           do k=1,ninject
-             !
              ! get random position on sphere
-             !
              phi = 2.*pi*(ran2(iseed) - 0.5)
              theta = acos(2.*ran2(iseed) - 1.)
              sintheta = sin(theta)
@@ -582,77 +507,53 @@ subroutine inject_particles(time,dtlast,xyzh,vxyzu,xyzmh_ptmass,vxyz_ptmass,&
 
              u = uu_inject
 
-             !!
              !! original method -- all particles are new
-             !!
              !i_part = npart + 1 ! all particles are new
 
-             !
              ! reuse particles
              ! find first dead or accreted particle
-             !
              do while((.not.isdead_or_accreted(xyzh(4,i_part))) .and. i_part<npart+1)
                 i_part=i_part+1
              enddo
 
-             !!
              !! track particles that are actually injected
-             !!
              !ninject_actual = ninject_actual+1
 
-             !
              ! add or update the particle via built-in method within partinject
-             !
              call add_or_update_particle(igas, xyzi, vxyz, h, u, i_part, npart, npartoftype, xyzh, vxyzu)
-             !
              ! star from where this wind particle originated
-             !
              iwindorig(i_part) = i
 
              !note: add_or_update_particle increased npart by 1 if a new particle was added, so now the
              !         comparison is with npart (whereas above the comparison was with npart+1)
              if (i_part<npart) then
-                !
                 ! particle was updated, not added; needed for partinject-->update_injected_particles(...)
-                !
                 updated_particle=.true.
-                !
                 ! flag this particle to update its timestep -- this overrides
                 !    "call set_particle_type(particle_number,itype)" in partinject-->add_or_update_particle
-                !
                 iphase(i_part) = iunknown
                 !call set_particle_type(i_part,iunknown) !alternative/equivalent to above line
-                !
                 ! begin the search for the next accreted or dead particle to reuse with the next particle
-                !
                 i_part = i_part + 1
              endif
              !else (not needed, but kept here for the following comment)
-             !
              ! do not inject the particle, but keep track of it via total_particles_injected
              !    in case this star comes back within outer_boundary and then starts injecting particles
-             !
              !endif
           enddo
        endif
-       !
        ! update tlast to the current time
        ! tlast is only updated for a particular star that should have injected particles this timestep;
        !    this way, fractional particles-per-timestep can accumulate and eventually
        !    inject a particle, making Mdot more accurate
-       !
        xyzmh_ptmass(i_tlast,i) = time
-       !
        ! update total particles injected for this star
        ! this tally includes particles that would have been injected had their star
        !    not been beyond outer_boundary; this is because these not-actually-injected particles
        !    need to be tracked in case the star orbits back within outer_boundary and starts
        !    actually injecting particles
-       !
        total_particles_injected(i) = total_particles_injected(i) + ninject
-       !!
        !! track particles that are actually injected
-       !!
        !total_particles_injected_actual(i) = total_particles_injected_actual(i) + ninject_actual
     endif
  enddo
