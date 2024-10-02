@@ -11,7 +11,7 @@ module inject
 !
 ! :References: Cuadra et al. (2008), MNRAS 383, 458
 !
-! :Owner: Daniel Price
+! :Owner: Christopher Russell
 !
 ! :Runtime parameters:
 !   - datafile       : *name of data file for wind injection*
@@ -359,7 +359,7 @@ subroutine init_inject(ierr)
                 write(iunit_tpi,*,iostat=ierr_tpi) time_tpi(i_first),nptmass_tpi(i_first),total_particles_injected_tpi(1:nptmass,i_first)
                 i_curr2 = i_first
                 do i = i_first+1,i_curr
-                   if (time_tpi(i)<time .and. time_tpi(i)>time_tpi(i_curr2)) then
+                   if (time_tpi(i)<time+tol_init_inject .and. time_tpi(i)>time_tpi(i_curr2)) then
                       write(iunit_tpi,*,iostat=ierr_tpi) time_tpi(i),nptmass_tpi(i),total_particles_injected_tpi(1:nptmass,i)
                       i_curr2 = i
                    endif
@@ -381,6 +381,8 @@ subroutine init_inject(ierr)
           write(iunit_tpi,*,iostat=ierr_tpi) 0.0d0,nptmass,total_particles_injected_tpi(1:nptmass,1)
           close(iunit_tpi)
        endif
+    else
+       print "(/,a)", ' Warning: file total_particles_injected.dat does not exist!'
     endif
     if (.not.tpi_read_from_file) then
        !
