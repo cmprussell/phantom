@@ -147,7 +147,7 @@ subroutine evol(infile,logfile,evfile,dumpfile,flag)
  integer         :: j,nskip,nskipped,nevwrite_threshold,nskipped_sink,nsinkwrite_threshold
  character(len=120) :: dumpfile_orig
  integer         :: dummy,istepHII,nptmass_old
- real            :: tol_time=100.*EPSILON(tmax) !fractional tolerance for comparting time to tmax based on presicion of tmax
+ real            :: tol_time=100.*EPSILON(tmax) !fractional tolerance for comparing time to tmax based on presicion of tmax
 
  dummy = 0
 
