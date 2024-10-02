@@ -247,7 +247,7 @@ subroutine startrun(infile,logfile,evfile,dumpfile,noread)
  character(len=len(dumpfile)) :: file1D
  integer :: npart_old
 #endif
- REAL :: dtChris=1.d-4 !initial timestep constraint to prevent negative pressures/temperatures from occurring right as the sim starts
+ real :: dtChris=1.d-4 !initial timestep constraint to prevent negative pressures/temperatures from occurring right as the sim starts
 
  read_input_files = .true.
  if (present(noread)) read_input_files = .not.noread
@@ -657,8 +657,19 @@ subroutine startrun(infile,logfile,evfile,dumpfile,noread)
 #endif
  enddo
 #ifdef CWB
- nbinmax=MAX(nbinmax,CEILING(LOG(dtmax/dtinject)/LOG(2.))) !from dtinject=dtmax/2^nbinmax
+ nbinmax=max(nbinmax,ceiling(log(dtmax/dtinject)/log(2.))) !from dtinject=dtmax/2^nbinmax
 #endif
+ !
+ ! Chris' fix for starting galcen sims
+ !
+ if (nbinmax<3) then
+    !
+    ! nbinmax is set in the recent call derivs(...) command, so specify nbinmax here
+    ! (specifying nbinmax in init_inject leads to nbinmax getting overwritten...)
+    !
+    print "(/,a,i0,a)", ' setting nbinmax = ',nbinmax,' to nbinmax = 3 so particles are injected before the first output file is written at time=dtmax'
+    nbinmax = MAX(nbinmax,3)
+ endif
 
  if (nalpha >= 2) then
     ialphaloc = 2
@@ -677,10 +688,13 @@ subroutine startrun(infile,logfile,evfile,dumpfile,noread)
        write(iprint,*) 'dt(courant)   = ',dtcourant
        write(iprint,*) 'dt initial    = ',dt
     endif
-!initial timestep constraint to prevent negative pressures/temperatures from occurring right as the sim starts
-dt = MIN(dt,dtChris)
+    !
+    ! initial timestep constraint to prevent negative pressures/temperatures from occurring
+    !    right as the sim starts -- intended for galcen, though could be applicable to others
+    !
+    dt = min(dt,dtChris)
     if (id==master) then
-WRITE(*,*) 'Now with dtChris limit applied...'
+       write(*,*) 'Now with dtChris limit applied...'
        write(iprint,*) 'dt(Chris)     = ',dtChris
        write(iprint,*) 'dt initial    = ',dt
     endif

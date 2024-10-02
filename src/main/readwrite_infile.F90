@@ -113,8 +113,7 @@ subroutine write_infile(infile,logfile,evfile,dumpfile,iwritein,iprint)
  use dust_formation,  only:write_options_dust_formation
  use nicil_sup,       only:write_options_nicil
  use metric,          only:write_options_metric
- !use eos,             only:write_options_eos,ieos,X_in,Z_in
- use eos,             only:write_options_eos,ieos,X_in,Z_in,use_var_comp
+ use eos,             only:write_options_eos,ieos,X_in,Z_in
  use ptmass,          only:write_options_ptmass
  use ptmass_radiation,only:write_options_ptmass_radiation
  use cooling,         only:write_options_cooling
@@ -312,7 +311,7 @@ subroutine write_infile(infile,logfile,evfile,dumpfile,iwritein,iprint)
  write(iwritein,'(/,a)') '# variable composition'
  call write_inopt(use_var_comp,'use_var_comp','whether gas particles have different mean molecular weights',iwritein)
  !write(iwritein,*) 'use_var_comp = ',use_var_comp
- WRITE(*,*) 'write_infile: use_var_comp =',use_var_comp
+ write(*,*) 'write_infile: use_var_comp =',use_var_comp
 
  if (iwritein /= iprint) close(unit=iwritein)
  if (iwritein /= iprint) write(iprint,"(/,a)") ' input file '//trim(infile)//' written successfully.'
@@ -328,8 +327,7 @@ subroutine read_infile(infile,logfile,evfile,dumpfile)
  use dim,             only:maxvxyzu,maxptmass,gravity,sink_radiation,nucleation,&
                            itau_alloc,store_dust_temperature,gr,do_nucleation
  use timestep,        only:tmax,dtmax,nmax,nout,C_cour,C_force,C_ent
- !use eos,             only:read_options_eos,ieos
- use eos,             only:read_options_eos,ieos,use_var_comp,set_gmwArr
+ use eos,             only:read_options_eos,ieos
  use io,              only:ireadin,iwritein,iprint,warn,die,error,fatal,id,master,fileprefix
  use infile_utils,    only:read_next_inopt,contains_loop,write_infile_series
 #ifdef DRIVING
@@ -551,7 +549,7 @@ subroutine read_infile(infile,logfile,evfile,dumpfile)
        read(valstring,*,iostat=ierr) itsmax_rad
     case('use_var_comp')
        read(valstring,*,iostat=ierr) use_var_comp
-       WRITE(*,*) 'read_infile: use_var_comp = ',use_var_comp
+       write(*,*) 'read_infile: use_var_comp = ',use_var_comp
        if (use_var_comp) call set_gmwArr()
     case default
        imatch = .false.

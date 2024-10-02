@@ -1132,9 +1132,7 @@ subroutine read_phantom_arrays(i1,i2,noffset,narraylengths,nums,npartread,nparto
              if (store_dust_temperature) then
                 call read_array(dust_temp,'Tdust',got_Tdust,ik,i1,i2,noffset,idisk1,tag,match,ierr)
              endif
-WRITE(*,*) 'read_phantom_arrays: got_eosvars =',got_eosvars,', eos_vars_label =',eos_vars_label,', iarr, k, i =',iarr,k,i
              call read_array(eos_vars,eos_vars_label,got_eosvars,ik,i1,i2,noffset,idisk1,tag,match,ierr)
-WRITE(*,*) 'read_phantom_arrays: got_eosvars =',got_eosvars,', eos_vars_label =',eos_vars_label,', iarr, k, i =',iarr,k,i
 
              if (maxalpha==maxp) call read_array(alphaind,(/'alpha'/),got_alpha,ik,i1,i2,noffset,idisk1,tag,match,ierr)
              !

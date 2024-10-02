@@ -699,15 +699,11 @@ subroutine check_arrays(i1,i2,noffset,npartoftype,npartread,nptmass,nsinkpropert
  if (eos_is_non_ideal(ieos) .and. .not.got_eosvars(itemp)) then
     if (id==master .and. i1==1) write(*,"(/,a,/)") 'WARNING: missing temperature information from file'
  endif
- WRITE(*,*) 'check_arrays: use_var_comp =',use_var_comp
+ write(*,*) 'check_arrays: use_var_comp =',use_var_comp
  if (.not.use_var_comp) then !still allow use_var_comp to become true for other types of simulations (i.e. for non-GC sims)
     use_var_comp = (got_eosvars(iX) .and. got_eosvars(iZ) .and. got_eosvars(imu))
  endif
- WRITE(*,*) 'check_arrays: use_var_comp =',use_var_comp
- !if(.not.use_var_comp) then
- !   use_var_comp=.true.
- !   WRITE(*,*) 'check_arrays: use_var_comp =',use_var_comp,  ' --> hardwired to be true'
- !endif
+ write(*,*) 'check_arrays: use_var_comp =',use_var_comp
  if (store_dust_temperature .and. .not.got_Tdust) then
     if (id==master .and. i1==1) write(*,"(/,a,/)") 'WARNING: missing dust temperature information from file'
  endif
