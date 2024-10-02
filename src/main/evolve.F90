@@ -147,6 +147,7 @@ subroutine evol(infile,logfile,evfile,dumpfile,flag)
  integer         :: j,nskip,nskipped,nevwrite_threshold,nskipped_sink,nsinkwrite_threshold
  character(len=120) :: dumpfile_orig
  integer         :: dummy,istepHII,nptmass_old
+ real            :: tol_time=100.*EPSILON(tmax) !fractional tolerance for comparing time to tmax based on presicion of tmax
 
  dummy = 0
 
@@ -158,7 +159,7 @@ subroutine evol(infile,logfile,evfile,dumpfile,flag)
  dtinject  = huge(dtinject)
 #ifdef CWB
  dtinject = dtinject_cwb
-WRITE(*,*) 'CWB-specific code: dtinject set to dtinject_cwb; dtinject, dtinject_cwb =',dtinject,dtinject_cwb
+ write(*,*) 'CWB-specific code: dtinject set to dtinject_cwb; dtinject, dtinject_cwb =',dtinject,dtinject_cwb
 #endif
  dtrad     = huge(dtrad)
  np_cs_eq_0 = 0
@@ -234,7 +235,7 @@ WRITE(*,*) 'CWB-specific code: dtinject set to dtinject_cwb; dtinject, dtinject_
 !
 ! --------------------- main loop ----------------------------------------
 !
- timestepping: do while ((time < tmax).and.((nsteps < nmax) .or.  (nmax < 0)).and.(rhomaxnow*rhofinal1 < 1.0))
+ timestepping: do while ((time < tmax*(1.-tol_time)).and.((nsteps < nmax) .or.  (nmax < 0)).and.(rhomaxnow*rhofinal1 < 1.0))
 
 #ifdef INJECT_PARTICLES
     !
