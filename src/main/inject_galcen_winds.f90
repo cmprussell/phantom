@@ -89,7 +89,8 @@ subroutine init_inject(ierr)
  !
  ! display time to immediately verify whether this is a new sim or a restarting sim
  !
- print "(/,a,f/)", ' init_inject : time =',time
+ !print "(/,a,f/)", ' init_inject : time =',time
+ print "(/,a,g0/)", ' init_inject : time =',time
 
  !
  ! correlate pointmass postion/velocity/mass table and pointmass wind table
@@ -195,9 +196,11 @@ subroutine init_inject(ierr)
           if (abs(time_tpi(i_curr)-time)>tol_init_inject) then
              ! correct entry in total_particles_injected.dat for "time" was not found
              print "(a)", ' Warning: the correct entry in total_particles_injected.dat does not seem to exist!'
-             print "(a,f)", '    time =',time
+             !print "(a,f)", '    time =',time
+             print "(a,g0)", '    time =',time
              do i=1,i_curr
-                print "(a,i0,a,f)", '    time_tpi(',i,') =',time_tpi(i)
+                !print "(a,i0,a,f)", '    time_tpi(',i,') =',time_tpi(i)
+                print "(a,i0,a,g0)", '    time_tpi(',i,') =',time_tpi(i)
              enddo
              print "(a)", ' total_particles_injected will be computed using "time".'
 
@@ -263,7 +266,8 @@ subroutine init_inject(ierr)
              tpi_read_from_file = .true. !correct entry for current restart time was found in total_particles_injected.dat
              !                           !   --> don't use total_particles_injected values computed above
              print "(a)", ' correct entry in total_particles_injected.dat has been found'
-             print "(a,f,a,f,2(a,i0),a)", ' time = ',time,', time_tpi(correct) = ',time_tpi(i_curr),', correct index i_curr = ',i_curr,' (out of ',j,')'
+             !print "(a,f,a,f,2(a,i0),a)", ' time = ',time,', time_tpi(correct) = ',time_tpi(i_curr),', correct index i_curr = ',i_curr,' (out of ',j,')'
+             print "(a,g0,a,g0,2(a,i0),a)", ' time = ',time,', time_tpi(correct) = ',time_tpi(i_curr),', correct index i_curr = ',i_curr,' (out of ',j,')'
              print "(a,i0)", ' nptmass_tpi(correct) = ',nptmass_tpi(i_curr)
              if (nptmass/=nptmass_tpi(i_curr)) then
                 ! kill the sim via reporting an error if the number of pointmasses in total_particles_injected is incorrect
@@ -587,6 +591,9 @@ subroutine write_options_inject(iunit)
  call write_inopt(trim(datafile),'datafile','name of data file for wind injection',iunit)
  call write_inopt(outer_boundary,'outer_boundary','kill gas particles outside this radius',iunit)
 
+WRITE(*,*) 'write_options_inject: time =',time
+WRITE(*,*) 'write_options_inject: tiny(time) =',tiny(time)
+ if (.not.isnan(time)) then
  if (time>tiny(time)) then
     !
     ! write new entry in total_particles_injected.dat when each full dump is
@@ -597,6 +604,7 @@ subroutine write_options_inject(iunit)
     open(file='total_particles_injected.dat',unit=iunit_tpi,form='formatted',position='append')
     write(iunit_tpi,*) time,nptmass,total_particles_injected(1:nptmass)
     close(iunit_tpi)
+ endif
  endif
 
 end subroutine write_options_inject
