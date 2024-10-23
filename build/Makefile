@@ -282,6 +282,10 @@ ifeq ($(CWB), yes)
     FPPFLAGS += -DCWB
 endif
 
+ifeq ($(STELLARPOTENTIAL), yes)
+    FPPFLAGS += -DSTELLARPOTENTIAL
+endif
+
 ifdef SRCTURB
     FPPFLAGS += -DDRIVING
 endif
