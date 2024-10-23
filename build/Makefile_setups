@@ -351,6 +351,7 @@ ifeq ($(SETUP), galcen)
     SETUPFILE= setup_galcen_stars.f90
     SRCINJECT= inject_galcen_winds.f90
     IND_TIMESTEPS=yes
+    STELLARPOTENTIAL=yes
     KNOWN_SETUP=yes
 endif
 

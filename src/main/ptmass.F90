@@ -215,6 +215,9 @@ subroutine get_accel_sink_gas(nptmass,xi,yi,zi,hi,xyzmh_ptmass,fxi,fyi,fzi,phi, 
        dz     = zi - xyzmh_ptmass(3,j)
     endif
     pmassj = xyzmh_ptmass(4,j)
+#ifdef STELLARPOTENTIAL
+    pmassj = pmassj * 2.
+#endif
     hsoft  = xyzmh_ptmass(ihsoft,j)
     J2     = xyzmh_ptmass(iJ2,j)
     if (hsoft > 0.0) hsoft = max(hsoft,hi)
