@@ -89,7 +89,6 @@ subroutine init_inject(ierr)
  !
  ! display time to immediately verify whether this is a new sim or a restarting sim
  !
- !print "(/,a,f/)", ' init_inject : time =',time
  print "(/,a,g0/)", ' init_inject : time =',time
 
  !
@@ -196,10 +195,8 @@ subroutine init_inject(ierr)
           if (abs(time_tpi(i_curr)-time)>tol_init_inject) then
              ! correct entry in total_particles_injected.dat for "time" was not found
              print "(a)", ' Warning: the correct entry in total_particles_injected.dat does not seem to exist!'
-             !print "(a,f)", '    time =',time
              print "(a,g0)", '    time =',time
              do i=1,i_curr
-                !print "(a,i0,a,f)", '    time_tpi(',i,') =',time_tpi(i)
                 print "(a,i0,a,g0)", '    time_tpi(',i,') =',time_tpi(i)
              enddo
              print "(a)", ' total_particles_injected will be computed using "time".'
@@ -266,7 +263,6 @@ subroutine init_inject(ierr)
              tpi_read_from_file = .true. !correct entry for current restart time was found in total_particles_injected.dat
              !                           !   --> don't use total_particles_injected values computed above
              print "(a)", ' correct entry in total_particles_injected.dat has been found'
-             !print "(a,f,a,f,2(a,i0),a)", ' time = ',time,', time_tpi(correct) = ',time_tpi(i_curr),', correct index i_curr = ',i_curr,' (out of ',j,')'
              print "(a,g0,a,g0,2(a,i0),a)", ' time = ',time,', time_tpi(correct) = ',time_tpi(i_curr),', correct index i_curr = ',i_curr,' (out of ',j,')'
              print "(a,i0)", ' nptmass_tpi(correct) = ',nptmass_tpi(i_curr)
              if (nptmass/=nptmass_tpi(i_curr)) then
