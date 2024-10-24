@@ -591,20 +591,16 @@ subroutine write_options_inject(iunit)
  call write_inopt(trim(datafile),'datafile','name of data file for wind injection',iunit)
  call write_inopt(outer_boundary,'outer_boundary','kill gas particles outside this radius',iunit)
 
-WRITE(*,*) 'write_options_inject: time =',time
-WRITE(*,*) 'write_options_inject: tiny(time) =',tiny(time)
- if (.not.isnan(time)) then
- if (time>tiny(time)) then
-    !
-    ! write new entry in total_particles_injected.dat when each full dump is
-    ! written,
-    !    which is needed for eliminating discrepancies in injected-particle
-    !    numbers when restarting
-    !
-    open(file='total_particles_injected.dat',unit=iunit_tpi,form='formatted',position='append')
-    write(iunit_tpi,*) time,nptmass,total_particles_injected(1:nptmass)
-    close(iunit_tpi)
- endif
+ if (.not.isnan(time)) then !prevents issues when a simulation starts while debugging flags (which are stricter than normal flags) are turned on
+    if (time>tiny(time)) then
+       !
+       ! write new entry in total_particles_injected.dat when each full dump is written,
+       !    which is needed for eliminating discrepancies in injected-particle numbers when restarting
+       !
+       open(file='total_particles_injected.dat',unit=iunit_tpi,form='formatted',position='append')
+       write(iunit_tpi,*) time,nptmass,total_particles_injected(1:nptmass)
+       close(iunit_tpi)
+    endif
  endif
 
 end subroutine write_options_inject
