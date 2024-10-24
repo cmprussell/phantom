@@ -30,7 +30,7 @@ _build
 *.cmod
 *.ilm
 *.stb
-build/Makefile_setups_Orig
+build/Makefile*_Orig
 build/fort.[0-9]*
 jobs/
 scripts/output_bots.sh.txt
@@ -39,6 +39,7 @@ scripts/output_*bots*.txt
 src/*/*90_Orig*
 src/*/*90_Debug*
 src/main/cooling_solver.f90_PleaseDontLoseThisVersion
+src/main/force.F90_BeforeMajorDebug
 src/main/substepping.F90_TestOptions
 radiation-test01explicit.ev
 radiation-test01implicit.ev
