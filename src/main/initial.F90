@@ -668,7 +668,8 @@ subroutine startrun(infile,logfile,evfile,dumpfile,noread)
     ! (specifying nbinmax in init_inject leads to nbinmax getting overwritten...)
     !
     print "(/,a,i0,a)", ' setting nbinmax = ',nbinmax,' to nbinmax = 3 so particles are injected before the first output file is written at time=dtmax'
-    nbinmax = MAX(nbinmax,3)
+    !nbinmax = MAX(nbinmax,3)
+    nbinmax = 3
  endif
 
  if (nalpha >= 2) then

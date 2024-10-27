@@ -159,6 +159,10 @@ subroutine get_accel_sink_gas(nptmass,xi,yi,zi,hi,xyzmh_ptmass,fxi,fyi,fzi,phi, 
  use vectorutils,   only:unitvec
  use extern_geopot, only:get_geopot_force
  use part,          only:ipert,isemi
+#ifdef STELLAR_POTENTIAL
+ use physcon,        only:pc,solarm
+ use units,          only:udist,umass
+#endif
  integer,           intent(in)    :: nptmass
  real,              intent(in)    :: xi,yi,zi,hi
  real,              intent(inout) :: fxi,fyi,fzi,phi
@@ -172,6 +176,9 @@ subroutine get_accel_sink_gas(nptmass,xi,yi,zi,hi,xyzmh_ptmass,fxi,fyi,fzi,phi, 
  real                             :: dx,dy,dz,rr2,ddr,dr3,f1,f2,pmassj,J2,shat(3),Rsink
  real                             :: hsoft,hsoft1,hsoft21,q2i,qi,psoft,fsoft
  real                             :: fxj,fyj,fzj,dsx,dsy,dsz,fac,r
+#ifdef STELLAR_POTENTIAL
+ real                             :: rrsp
+#endif
  integer                          :: j
  logical                          :: tofrom,extrap,kappa
  !
@@ -232,6 +239,30 @@ subroutine get_accel_sink_gas(nptmass,xi,yi,zi,hi,xyzmh_ptmass,fxi,fyi,fzi,phi, 
     fxj = 0.
     fyj = 0.
     fzj = 0.
+#ifdef STELLAR_POTENTIAL
+    if (j==1) then
+       !This is the stellar potential that was implemented in Cuadra+08, Cuadra+15, etc.
+       !CuspRadius = 0.4 pc
+       !CuspMass = 6.e5 Msun
+       !CuspAlpha1 = 1.6
+       !CuspAlpha2 = 1.0
+       !if (r<=CuspRadius)
+       !   mass_extra = CuspMass * (r/CuspRadius)^CuspAlpha1
+       !else
+       !   mass_extra = CuspMass * ((r/CuspRadius)^CuspAlpha2 * CuspAlpha1/CuspAlpha2 + 1.d0 - CuspAlpha1/CuspAlpha2)
+       !endif
+       !Note: since CuspAlpha2=1, the r>CuspRadius expression is simplified as follows
+       !   mass_extra = CuspMass * ((r/CuspRadius)^1 * 1.6/1 + 1.d0 - 1.6/1)
+       !   mass_extra = CuspMass * (r/CuspRadius * 1.6 - 0.6)
+       !Note: variable rrsp is defined as rrsp=r/CuspRadius
+       rrsp = sqrt((xi-xyzmh_ptmass(1,j))**2 + (yi-xyzmh_ptmass(2,j))**2 + (zi-xyzmh_ptmass(3,j))**2) / (0.4d0*pc/udist)
+       if (rrsp<=1.d0) then
+          pmassj = pmassj + 6.d5*solarm/umass*rrsp**1.6d0
+       else
+          pmassj = pmassj + 6.d5*solarm/umass*(rrsp*1.6d0-0.6d0)
+       endif
+    endif
+#endif
     if (rr2 < (radkern*hsoft)**2) then
        !
        ! if the sink particle is given a softening length, soften the
@@ -304,7 +335,7 @@ subroutine get_accel_sink_gas(nptmass,xi,yi,zi,hi,xyzmh_ptmass,fxi,fyi,fzi,phi, 
        ! timestep is sqrt(separation/force)
        fonrmax = max(f1,f2,fonrmax)
        if (kappa) then
-          if(abs(bin_info(isemi,j))>tiny(f2)) then
+          if (abs(bin_info(isemi,j))>tiny(f2)) then
              bin_info(ipert,j) = bin_info(ipert,j) + f2
           endif
        endif
@@ -348,6 +379,10 @@ subroutine get_accel_sink_sink(nptmass,xyzmh_ptmass,fxyz_ptmass,phitot,dtsinksin
  use kernel,         only:kernel_softening,radkern
  use vectorutils,    only:unitvec
  use part,           only:igarg,igid,icomp,ihacc,ipert
+#ifdef STELLAR_POTENTIAL
+ use physcon,        only:pc,solarm
+ use units,          only:udist,umass
+#endif
  integer,           intent(in)  :: nptmass
  real,              intent(in)  :: xyzmh_ptmass(nsinkproperties,nptmass)
  real,              intent(out) :: fxyz_ptmass(4,nptmass)
@@ -367,6 +402,9 @@ subroutine get_accel_sink_sink(nptmass,xyzmh_ptmass,fxyz_ptmass,phitot,dtsinksin
  real    :: fterm,pterm,potensoft0,dsx,dsy,dsz
  real    :: J2i,rsinki,shati(3)
  real    :: J2j,rsinkj,shatj(3)
+#ifdef STELLAR_POTENTIAL
+ real    :: rrsp
+#endif
  integer :: k,l,i,j,gidi,gidj,compi
  logical :: extrap,subsys
 
@@ -409,6 +447,10 @@ subroutine get_accel_sink_sink(nptmass,xyzmh_ptmass,fxyz_ptmass,phitot,dtsinksin
  !$omp shared(iexternalforce,ti,h_soft_sinksink,potensoft0,hsoft1,hsoft21) &
  !$omp shared(extrapfac,extrap,fsink_old,h_acc,icreate_sinks) &
  !$omp shared(group_info,bin_info,subsys) &
+#ifdef STELLAR_POTENTIAL
+ !$omp shared(udist,umass) &
+ !$omp shared(rrsp) &
+#endif
  !$omp private(i,j,xi,yi,zi,pmassi,pmassj,hacci,haccj) &
  !$omp private(gidi,gidj,compi,pert_out) &
  !$omp private(dx,dy,dz,rr2,rr2j,ddr,dr3,f1,f2) &
@@ -481,6 +523,30 @@ subroutine get_accel_sink_sink(nptmass,xyzmh_ptmass,fxyz_ptmass,phitot,dtsinksin
        ddr  = 1./sqrt(rr2)
 #endif
 
+#ifdef STELLAR_POTENTIAL
+       if (j==1) then
+          !This is the stellar potential that was implemented in Cuadra+08, Cuadra+15, etc.
+          !CuspRadius = 0.4 pc
+          !CuspMass = 6.e5 Msun
+          !CuspAlpha1 = 1.6
+          !CuspAlpha2 = 1.0
+          !if (r<=CuspRadius)
+          !   mass_extra = CuspMass * (r/CuspRadius)^CuspAlpha1
+          !else
+          !   mass_extra = CuspMass * ((r/CuspRadius)^CuspAlpha2 * CuspAlpha1/CuspAlpha2 + 1.d0 - CuspAlpha1/CuspAlpha2)
+          !endif
+          !Note: since CuspAlpha2=1, the r>CuspRadius expression is simplified as follows
+          !   mass_extra = CuspMass * ((r/CuspRadius)^1 * 1.6/1 + 1.d0 - 1.6/1)
+          !   mass_extra = CuspMass * (r/CuspRadius * 1.6 - 0.6)
+          !Note: variable rrsp is defined as rrsp=r/CuspRadius
+          rrsp = sqrt((xi-xyzmh_ptmass(1,j))**2 + (yi-xyzmh_ptmass(2,j))**2 + (zi-xyzmh_ptmass(3,j))**2) / (0.4d0*pc/udist)
+          if (rrsp<=1.d0) then
+             pmassj = pmassj + 6.d5*solarm/umass*rrsp**1.6d0
+          else
+             pmassj = pmassj + 6.d5*solarm/umass*(rrsp*1.6d0-0.6d0)
+          endif
+       endif
+#endif
        if (rr2 < (radkern*h_soft_sinksink)**2) then
           !
           ! if the sink particle is given a softening length, soften the
@@ -842,7 +908,7 @@ subroutine ptmass_accrete(is,nptmass,xi,yi,zi,hi,vxi,vyi,vzi,fxi,fyi,fzi, &
  integer            :: i,ifail
  real               :: dx,dy,dz,r2,dvx,dvy,dvz,v2,hacc
  logical, parameter :: iofailreason=.false.
- !LOGICAL, PARAMETER :: iofailreason=.true.
+ !logical, parameter :: iofailreason=.true.
  integer            :: j
  real               :: mpt,tbirthi,drdv,angmom2,angmomh2,epart,dxj,dyj,dzj,dvxj,dvyj,dvzj,rj2,vj2,epartj
  logical            :: mostbound
@@ -859,8 +925,8 @@ subroutine ptmass_accrete(is,nptmass,xi,yi,zi,hi,vxi,vyi,vzi,fxi,fyi,fzi, &
     !   !write(iprint,"(/,a)") 'ptmass_accrete: FAILED: particle is not an accretable type'
     !   write(iprint,"(/,a,I3,L2)") 'ptmass_accrete: FAILED: particle is not an accretable type',itypei,is_accretable(itypei)
     return
-!ELSE
-!WRITE(*,*) 'ptmass_accrete: is accretable',itypei,is_accretable(itypei)
+    !else
+    !   write(*,*) 'ptmass_accrete: is accretable',itypei,is_accretable(itypei)
  endif
  !
  sinkloop : do i=is,nptmass
@@ -941,14 +1007,14 @@ subroutine ptmass_accrete(is,nptmass,xi,yi,zi,hi,vxi,vyi,vzi,fxi,fyi,fzi, &
        case(2)
           write(iprint,"(/,a,Es9.2,a,Es9.2)") 'ptmass_accrete: FAILED: angular momentum is too large: ' &
                                               ,angmom2,' > ',angmomh2
-       !case(1)
-       !   write(iprint,"(/,a)") 'ptmass_accrete: FAILED: r2 > hacc**2'
+          !case(1)
+          !   write(iprint,"(/,a)") 'ptmass_accrete: FAILED: r2 > hacc**2'
        case(-1)
           write(iprint,"(/,a)") 'ptmass_accrete: PASSED indiscriminately: particle will be accreted'
        case(-2)
           write(iprint,"(/,a)") 'ptmass_accrete: PASSED: particle will be accreted'
-       !case default
-       !   write(iprint,"(/,a)") 'ptmass_accrete: FAILED: unknown reason'
+          !case default
+          !   write(iprint,"(/,a)") 'ptmass_accrete: FAILED: unknown reason'
        end select
     endif
     if (present(nfaili)) nfaili = ifail
