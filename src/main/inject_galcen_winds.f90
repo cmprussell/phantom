@@ -496,7 +496,8 @@ subroutine inject_particles(time,dtlast,xyzh,vxyzu,xyzmh_ptmass,vxyz_ptmass,&
 
           !set abundance of new particle based on origin-star's abundances, which is used in u and mu->eos_vars
           if (use_var_comp) then
-             mui = gmwArr(mod(i,5)+1) !for now, mu from each star is randomly assigned; eventually this will need to be based on each star's spectral type
+             !mui = gmwArr(mod(i,5)+1) !for now, mu from each star is randomly assigned; eventually this will need to be based on each star's spectral type
+             mui = gmwArr(mod(i,3)+1) !for now, mu from each star is randomly assigned; eventually this will need to be based on each star's spectral type
           endif
 
           do k=1,ninject

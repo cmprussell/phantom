@@ -20,6 +20,7 @@ module setup
 !   - m_SMBH             : *SMBH mass in solar masses*
 !   - m_gas              : *gas mass resolution in solar masses*
 !   - use_var_comp_local : *whether or not to use variable composition*
+!   - num_var_comp_local : *number of variable compositions to use*
 !
 ! :Dependencies: cooling, cooling_solver, datafiles, dim, eos,
 !   infile_utils, io, options, part, physcon, prompting, spherical,
@@ -37,7 +38,9 @@ module setup
  real :: m_SMBH = 4.28d6 ! mass of supermassive black hole (SMBH) in Msun
  real :: h_SMBH = 0.1d0 ! accretion radius of SMBH in arcsec at 8kpc
  logical :: multiAbuTest=.true.
- logical :: use_var_comp_local=.false.
+ logical :: use_var_comp_local=.false.  !whether or not to use variable composition
+ integer :: num_var_comp_local=0        !set number of various compositions to zero with the hope of
+                                        !   causing an error if this variable is not initiailized properly
 
  private
 
@@ -55,7 +58,7 @@ subroutine setpart(id,npart,npartoftype,xyzh,massoftype,vxyzu,polyk,gamma,hfact,
  use physcon,   only:solarm,kpc,pi,au
  use io,        only:fatal,iprint,master
  !use eos,       only:gmw
- use eos,       only:gmw,use_var_comp
+ use eos,       only:gmw,use_var_comp,num_var_comp
  use timestep,  only:dtmax
  use spherical, only:set_sphere
  use datafiles, only:find_phantom_datafile
@@ -171,8 +174,9 @@ subroutine setpart(id,npart,npartoftype,xyzh,massoftype,vxyzu,polyk,gamma,hfact,
 !
 ! initialize mean molecular weight if needed
 !
- write(*,*) 'setpart: use_var_comp = ',use_var_comp
+ write(*,'(a,l)') ' setpart: use_var_comp =',use_var_comp
  if (use_var_comp) then
+    write(*,'(a,i0)') ' setpart: num_var_comp = ',num_var_comp
     eos_vars(imu,:) = gmw
  endif
 
@@ -261,6 +265,9 @@ subroutine write_setupfile(filename,iprint)
  if (multiAbuTest) then
     write(lu,"(/,a)") '# use variable composition'
     call write_inopt(use_var_comp_local, 'use_var_comp_local','whether or not to use variable composition',lu,ierr2)
+    if (use_var_comp_local) then
+       call write_inopt(num_var_comp_local, 'num_var_comp_local','number of variable compositions to use',lu,ierr2)
+    endif
  endif
 
  close(lu)
@@ -275,7 +282,7 @@ end subroutine write_setupfile
 subroutine read_setupfile(filename,iprint,ierr)
  use infile_utils, only:open_db_from_file,inopts,close_db,read_inopt
  use dim,          only:maxvxyzu
- use eos,          only:use_var_comp,set_gmwArr,ngmwArr,gmwArr
+ use eos,          only:use_var_comp,num_var_comp,set_gmwArr,gmwArr
  character(len=*), intent(in)  :: filename
  integer,          parameter   :: lu = 21
  integer,          intent(in)  :: iprint
@@ -298,27 +305,39 @@ subroutine read_setupfile(filename,iprint,ierr)
  if (multiAbuTest) then
     call read_inopt(use_var_comp_local,'use_var_comp_local',db,errcount=nerr)
     use_var_comp = use_var_comp_local
-    write(*,*) 'read_setupfile: use_var_comp = ',use_var_comp
+    write(*,'(a,l)') ' read_setupfile: use_var_comp =',use_var_comp
     if (use_var_comp) then
-       write(*,*) 'Before set_gmwArr()'
-       do i=1,ngmwArr
-          write(*,*) 'gmwArr(',i,') = ',gmwArr(i)
-       enddo
+       call read_inopt(num_var_comp_local,'num_var_comp_local',db,errcount=nerr)
+       num_var_comp = num_var_comp_local
+       write(*,'(a,i0)') ' read_setupfile: num_var_comp = ',num_var_comp
+       write(*,'(a)') ' Before set_gmwArr() from read_setupfile()'
+       write(*,'(a,i0)') ' size(gmwArr) = ',size(gmwArr)
+       if (size(gmwArr)>0) then
+          do i=1,num_var_comp
+             write(*,'(a,i0,a,g0)') ' gmwArr(',i,') = ',gmwArr(i)
+          enddo
+       endif
        call set_gmwArr()
-       write(*,*) 'After  set_gmwArr()'
-       do i=1,ngmwArr
-          write(*,*) 'gmwArr(',i,') = ',gmwArr(i)
-       enddo
+       write(*,'(a)') ' After  set_gmwArr() from read_setupfile()'
+       write(*,'(a,i0)') ' size(gmwArr) = ',size(gmwArr)
+       if (size(gmwArr)>0) then
+          do i=1,num_var_comp
+             write(*,'(a,i0,a,g0)') ' gmwArr(',i,') = ',gmwArr(i)
+          enddo
+       endif
     else
-       write(*,*) 'use_var_comp = ',use_var_comp,', so set_gmwArr() is not called. Here is what is stored in gmwArr without initialization'
-       do i=1,ngmwArr
-          write(*,*) 'gmwArr(',i,') = ',gmwArr(i)
-       enddo
+       write(*,'(a,l,a)') ' use_var_comp = ',use_var_comp,', so set_gmwArr() is not called from read_setupfile'
+       if (size(gmwArr)>0) then
+       write(*,'(a)') '    Here is what is stored in gmwArr without initializationi:'
+          do i=1,num_var_comp
+             write(*,'(a,i0,a,g0)') 'gmwArr(',i,') = ',gmwArr(i)
+          enddo
+       endif
     endif
  else
-    write(*,*) 'use_var_comp = ',use_var_comp,' because multiAbuTest =',multiAbuTest,', so set_gmwArr() is not called. Here is what is stored in gmwArr without initialization'
-    do i=1,ngmwArr
-       write(*,*) 'gmwArr(',i,') = ',gmwArr(i)
+    write(*,'(2(a,l),a)') 'use_var_comp =',use_var_comp,' because multiAbuTest =',multiAbuTest,', so set_gmwArr() is not called. Here is what is stored in gmwArr without initialization'
+    do i=1,num_var_comp
+       write(*,'(a,i0,a,g0)') ' gmwArr(',i,') = ',gmwArr(i)
     enddo
  endif
 
@@ -337,6 +356,7 @@ end subroutine read_setupfile
 !------------------------------------------
 subroutine interactive_setup()
  use prompting, only:prompt
+ use eos,       only:use_var_comp,num_var_comp,set_gmwArr,gmwArr
 
  print "(2(/,a),/)",'*** Welcome to your friendly neighbourhood Galactic Centre setup',&
                  '    ...where the black holes are supermassive and the stars are strange ***'
@@ -347,6 +367,11 @@ subroutine interactive_setup()
  call prompt('Enter SMBH accretion radius in arcsec at 8 kpc',h_SMBH,1.e-5,1.)
  if (multiAbuTest) then
     call prompt('Enter logical value for use_var_comp',use_var_comp_local)
+    use_var_comp = use_var_comp_local
+    if (use_var_comp_local) then
+       call prompt('Enter number of different compositions, num_var_comp',num_var_comp_local)
+       num_var_comp = num_var_comp_local
+    endif
  endif
  print "(a)"
 

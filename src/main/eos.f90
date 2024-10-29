@@ -55,8 +55,9 @@ module eos
  logical,            public :: extract_eos_from_hdr = .false.
  integer,            public :: isink = 0.
 
- integer, parameter, public :: ngmwArr=6 !maximum number of different gas-particle (i.e. wind) abundances
- real, public               :: gmwArr(ngmwArr)=0. !initialize to zero so errors are caused if gmwArr is used without initialization
+ !integer, parameter, public :: ngmwArr=6 !maximum number of different gas-particle (i.e. wind) abundances
+ !real, public,              :: gmwArr(ngmwArr)=0. !initialize to zero so errors are caused if gmwArr is used without initialization
+ real, public, allocatable  :: gmwArr(:) !this will store the gmw value for each different composition -- allocated in set_gmwArr()
  public                     :: set_gmwArr
 
  public  :: equationofstate,setpolyk,eosinfo,get_mean_molecular_weight
@@ -76,6 +77,7 @@ module eos
  real,    public :: X_in          = 0.74   ! default metallicities
  real,    public :: Z_in          = 0.02   ! default metallicities
  logical, public :: use_var_comp  = .false. ! use variable composition
+ integer, public :: num_var_comp  = 0      ! number of different compositions
  real,    public :: temperature_coef
 
  logical, public :: done_init_eos = .false.
@@ -1549,16 +1551,42 @@ end subroutine read_options_eos
 subroutine set_gmwArr()
  integer :: i
 
- gmwArr(1) = 0.6
- gmwArr(2) = 1.0
- gmwArr(3) = 1.4
- gmwArr(4) = 1.8
- gmwArr(5) = 2.2
- gmwArr(6) = 2.6
- !gmwArr(1:6) = 0.6
- do i=1,ngmwArr
-    write(*,*) 'set_gmwArr: gmwArr(',i,') = ',gmwArr(i)
+ write(*,'(a,i0)') ' START set_gmwArr, num_var_comp = ',num_var_comp
+ !if (num_var_comp==0) return
+ if (num_var_comp==0) then
+    write(*,'(a)') ' num_var_comp has not been read in yet, so cannot initialize gmwArr -- returning...'
+    return
+ endif
+
+ if (allocated(gmwArr)) then
+    if (size(gmwArr) == num_var_comp) then
+       write(*,'(a)') ' gmwArr has already been initialized to the correct size -- returning...'
+       return
+    else
+       write(*,'(a)') 'WHAT!!! gmwArr is already allocated to a different size!'
+       write(*,'(2(a,i0))') 'WHAT!!! size(gmwArr) = ',size(gmwArr),', num_var_comp = ',num_var_comp
+       write(*,'(a)') 'WHAT!!! deallocte gmwArr and then re-allocate gmwArr'
+       deallocate(gmwArr)
+    endif
+ endif
+ allocate(gmwArr(num_var_comp))
+ write(*,'(a,i0)') ' gmwArr just allocated: size(gmwArr) = ',SIZE(gmwArr)
+ do i=1,num_var_comp
+    gmwArr(i) = 0.6*i
+    write(*,'(a,i0,a,g0)') ' set_gmwArr: gmwArr(',i,') = ',gmwArr(i)
  enddo
+ !gmwArr(1) = 0.6
+ !gmwArr(2) = 1.0
+ !gmwArr(3) = 1.4
+ !gmwArr(4) = 1.8
+ !gmwArr(5) = 2.2
+ !gmwArr(6) = 2.6
+ !gmwArr(1:6) = 0.6
+ !do i=1,ngmwArr
+ !do i=1,num_var_comp
+ !   write(*,'(a,i0,a,g0)') 'set_gmwArr: gmwArr(',i,') = ',gmwArr(i)
+ !enddo
+ write(*,'(a,i0)') ' END set_gmwArr, num_var_comp = ',num_var_comp
 end subroutine set_gmwArr
 
 !-----------------------------------------------------------------------

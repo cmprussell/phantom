@@ -114,7 +114,7 @@ subroutine write_infile(infile,logfile,evfile,dumpfile,iwritein,iprint)
  use dust_formation,  only:write_options_dust_formation
  use nicil_sup,       only:write_options_nicil
  use metric,          only:write_options_metric
- use eos,             only:write_options_eos,ieos,X_in,Z_in,use_var_comp
+ use eos,             only:write_options_eos,ieos,X_in,Z_in,use_var_comp,num_var_comp
  use ptmass,          only:write_options_ptmass
  use ptmass_radiation,only:write_options_ptmass_radiation
  use cooling,         only:write_options_cooling
@@ -308,11 +308,15 @@ subroutine write_infile(infile,logfile,evfile,dumpfile,iwritein,iprint)
  call write_options_boundary(iwritein)
  call write_options_H2R(iwritein)
 
- !Presently, these lines mean that use_var_comp is written in every input file.  If this is not desirabale, then these statements need to be conditionalized.
+ !Presently, these lines mean that use_var_comp is written every input file.  If this is not desirabale, then these statements need to be conditionalized.
  write(iwritein,'(/,a)') '# variable composition'
  call write_inopt(use_var_comp,'use_var_comp','whether gas particles have different mean molecular weights',iwritein)
  !write(iwritein,*) 'use_var_comp = ',use_var_comp
- write(*,*) 'write_infile: use_var_comp =',use_var_comp
+ if (iwritein /= iprint) write(*,'(a,l)') ' write_infile: use_var_comp =',use_var_comp
+ if (use_var_comp) then
+    call write_inopt(num_var_comp,'num_var_comp','number of variable compositions',iwritein)
+    if (iwritein /= iprint) write(*,'(a,i0)') ' write_infile: num_var_comp = ',num_var_comp
+ endif
 
  if (iwritein /= iprint) close(unit=iwritein)
  if (iwritein /= iprint) write(iprint,"(/,a)") ' input file '//trim(infile)//' written successfully.'
@@ -328,7 +332,7 @@ subroutine read_infile(infile,logfile,evfile,dumpfile)
  use dim,             only:maxvxyzu,maxptmass,gravity,sink_radiation,nucleation,&
                            itau_alloc,store_dust_temperature,gr,do_nucleation
  use timestep,        only:tmax,dtmax,nmax,nout,C_cour,C_force,C_ent
- use eos,             only:read_options_eos,ieos,use_var_comp,set_gmwArr
+ use eos,             only:read_options_eos,ieos,use_var_comp,num_var_comp,set_gmwArr
  use io,              only:ireadin,iwritein,iprint,warn,die,error,fatal,id,master,fileprefix
  use infile_utils,    only:read_next_inopt,contains_loop,write_infile_series
 #ifdef DRIVING
@@ -550,7 +554,11 @@ subroutine read_infile(infile,logfile,evfile,dumpfile)
        read(valstring,*,iostat=ierr) itsmax_rad
     case('use_var_comp')
        read(valstring,*,iostat=ierr) use_var_comp
-       write(*,*) 'read_infile: use_var_comp = ',use_var_comp
+       write(*,'(a,l)') ' read_infile: use_var_comp =',use_var_comp
+       !if (use_var_comp) call set_gmwArr()
+    case('num_var_comp')
+       read(valstring,*,iostat=ierr) num_var_comp
+       write(*,'(a,i0)') ' read_infile: num_var_comp = ',num_var_comp
        if (use_var_comp) call set_gmwArr()
     case default
        imatch = .false.
