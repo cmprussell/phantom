@@ -253,16 +253,16 @@ subroutine read_options_cooling(name,valstring,imatch,igotall,ierr)
        call read_options_cooling_gammie_PL(name,valstring,imatch,igotallgammiePL,ierr)
     case default
        call read_options_cooling_solver(name,valstring,imatch,igotallfunc,ierr)
-WRITE(*,*) 'igotallfunc =',igotallfunc
+       write(*,*) 'igotallfunc =',igotallfunc
     end select
  end select
  ierr = 0
  if (icooling >= 0 .and. ngot >= 2 .and. igotallgammie .and. igotallfunc .and. igotallism) then
     igotall = .true.
-WRITE(*,*) 'Setting igotall 1, igotall = ',igotall,', ngot =',ngot,', name =',TRIM(name)
+    write(*,*) 'Setting igotall 1, igotall = ',igotall,', ngot =',ngot,', name =',trim(name)
  else
     igotall = .false.
-WRITE(*,*) 'Setting igotall 2, igotall = ',igotall,', ngot =',ngot,', name =',TRIM(name)
+    write(*,*) 'Setting igotall 2, igotall = ',igotall,', ngot =',ngot,', name =',trim(name)
  endif
 
 end subroutine read_options_cooling

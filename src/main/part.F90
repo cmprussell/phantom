@@ -438,23 +438,23 @@ contains
 subroutine allocate_part
  use allocutils, only:allocate_array
 
-WRITE(*,*) 'allocate_part -- Precision Check'
-WRITE(*,*) 'allocate_part -- definitions for sample real variables'
-WRITE(*,*) 'allocate_part : real(kind=4), allocatable :: alphaind(:,:)'
-WRITE(*,*) 'allocate_part : real,         allocatable :: xyzh(:,:)'
-WRITE(*,*) 'allocate_part -- KIND        for sample real variables'
-WRITE(*,*) 'allocate_part : alphaind  =',KIND(alphaind)
-WRITE(*,*) 'allocate_part : xyzh      =',KIND(xyzh)
-WRITE(*,*) 'allocate_part -- definitions for sample integer variables'
-WRITE(*,*) 'allocate_part : integer(kind=1), allocatable    :: iphase(:)'
-WRITE(*,*) 'allocate_part : integer, parameter :: ihacc  = 5  ! accretion radius'
-WRITE(*,*) 'allocate_part : integer(kind=8), allocatable :: iorig(:)'
-WRITE(*,*) 'allocate_part : integer, allocatable :: iwindorig(:)'
-WRITE(*,*) 'allocate_part -- KIND        for sample integer variables'
-WRITE(*,*) 'allocate_part : iphase    =',KIND(iphase)
-WRITE(*,*) 'allocate_part : ihacc     =',KIND(ihacc)
-WRITE(*,*) 'allocate_part : iorig     =',KIND(iorig)
-WRITE(*,*) 'allocate_part : iwindorig =',KIND(iwindorig)
+ write(*,*) 'allocate_part -- Precision Check'
+ write(*,*) 'allocate_part -- definitions for sample real variables'
+ write(*,*) 'allocate_part : real(kind=4), allocatable :: alphaind(:,:)'
+ write(*,*) 'allocate_part : real,         allocatable :: xyzh(:,:)'
+ write(*,*) 'allocate_part -- kind        for sample real variables'
+ write(*,*) 'allocate_part : alphaind  =',kind(alphaind)
+ write(*,*) 'allocate_part : xyzh      =',kind(xyzh)
+ write(*,*) 'allocate_part -- definitions for sample integer variables'
+ write(*,*) 'allocate_part : integer(kind=1), allocatable    :: iphase(:)'
+ write(*,*) 'allocate_part : integer, parameter :: ihacc  = 5  ! accretion radius'
+ write(*,*) 'allocate_part : integer(kind=8), allocatable :: iorig(:)'
+ write(*,*) 'allocate_part : integer, allocatable :: iwindorig(:)'
+ write(*,*) 'allocate_part -- kind        for sample integer variables'
+ write(*,*) 'allocate_part : iphase    =',kind(iphase)
+ write(*,*) 'allocate_part : ihacc     =',kind(ihacc)
+ write(*,*) 'allocate_part : iorig     =',kind(iorig)
+ write(*,*) 'allocate_part : iwindorig =',kind(iwindorig)
 
  call allocate_array('xyzh', xyzh, 4, maxp)
  call allocate_array('xyzh_soa', xyzh_soa, maxp, 4)

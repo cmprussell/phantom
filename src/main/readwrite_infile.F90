@@ -51,6 +51,7 @@ module readwrite_infile
 !   - nmax               : *maximum number of timesteps (0=just get derivs and stop)*
 !   - nmaxdumps          : *stop after n full dumps (-ve=ignore)*
 !   - nout               : *write dumpfile every n dtmax (-ve=ignore)*
+!   - num_var_comp       : *number of various compositions*
 !   - overcleanfac       : *factor to increase cleaning speed (decreases time step)*
 !   - psidecayfac        : *div B diffusion parameter*
 !   - ptol               : *tolerance on pmom iterations*
@@ -314,7 +315,7 @@ subroutine write_infile(infile,logfile,evfile,dumpfile,iwritein,iprint)
  !write(iwritein,*) 'use_var_comp = ',use_var_comp
  if (iwritein /= iprint) write(*,'(a,l)') ' write_infile: use_var_comp =',use_var_comp
  if (use_var_comp) then
-    call write_inopt(num_var_comp,'num_var_comp','number of variable compositions',iwritein)
+    call write_inopt(num_var_comp,'num_var_comp','number of various compositions',iwritein)
     if (iwritein /= iprint) write(*,'(a,i0)') ' write_infile: num_var_comp = ',num_var_comp
  endif
 

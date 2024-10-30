@@ -185,9 +185,9 @@ subroutine write_fulldump_fortran(t,dumpfile,ntotal,iorder,sphNG)
  else
     write_itype = any(npartoftypetot(2:) > 0)
  endif
-!if(id==master) write(*,*) 'write_fulldump_fortran : write_itype =',write_itype !note: this is false by default for galcen sims
-!write_itype=.true.
-!if(id==master) write(*,*) 'write_fulldump_fortran : now, write_itype =',write_itype,', ndatatypes =',ndatatypes
+ !if (id==master) write(*,*) 'write_fulldump_fortran : write_itype =',write_itype !note: this is false by default for galcen sims
+ !write_itype=.true.
+ !if (id==master) write(*,*) 'write_fulldump_fortran : now, write_itype =',write_itype,', ndatatypes =',ndatatypes
  do ipass=1,2
     do k=1,ndatatypes
        nerr = 0

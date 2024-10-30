@@ -452,7 +452,7 @@ subroutine substep(npart,ntypes,nptmass,dtsph,dtextforce,time,xyzh,vxyzu,fext, &
  integer :: force_count,nsubsteps
  real    :: timei,time_par,dt,t_end_step
  real    :: dtextforce_min
-!WRITE(*,*) 'use_regnbody =',use_regnbody,', use_fourthorder =',use_fourthorder !use_regnbody=false, use_fourthorder=true
+!write(*,*) 'use_regnbody =',use_regnbody,', use_fourthorder =',use_fourthorder !use_regnbody=false, use_fourthorder=true
 !
 ! determine whether or not to use substepping
 !
@@ -691,7 +691,7 @@ subroutine kick(dki,dt,npart,nptmass,ntypes,xyzh,vxyzu,xyzmh_ptmass,vxyz_ptmass,
  !itype = iphase(igas) !this is an error -- results in all accretion shutting off if the first particle no longer active
  !itype = iamtype(iphase(1)) !this works
  itype = igas !this works, as long as ntypes=1 sims are always gas-particle sims
-!WRITE(*,*) 'STARTING kick: ',itype,iphase(igas),igas
+!write(*,*) 'STARTING kick: ',itype,iphase(igas),igas
  pmassi = massoftype(igas)
 
  dkdt = dki*dt
@@ -753,18 +753,18 @@ subroutine kick(dki,dt,npart,nptmass,ntypes,xyzh,vxyzu,xyzmh_ptmass,vxyz_ptmass,
     !$omp reduction(+:nlive) &
     !$omp reduction(+:dptmass)
     accreteloop: do i=1,npart
-!IF(itype/=iphase(igas)) THEN
-!WRITE(*,*) 'UMM ',i,itype,iphase(igas),igas
-!ENDIF
+       !if (itype/=iphase(igas)) then
+       !write(*,*) 'UMM ',i,itype,iphase(igas),igas
+       !endif
        if (.not.isdead_or_accreted(xyzh(4,i))) then
           if (ntypes > 1 .and. maxphase==maxp) then
-WRITE(*,*) 'THIS IS RUNNING A' !should not be executed for galcen sims since ntypes=1
+             write(*,*) 'THIS IS RUNNING A' !should not be executed for galcen sims since ntypes=1
              itype = iamtype(iphase(i))
              pmassi = massoftype(itype)
              if (iamboundary(itype)) cycle accreteloop
-!ELSE !these 3 lines work if the incorrect original line of "itype = iphase(igas)" is used above
-!itype = iamtype(iphase(i))
-!pmassi = massoftype(itype)
+             !else !these 3 lines work if the incorrect original line of "itype = iphase(igas)" is used above
+             !itype = iamtype(iphase(i))
+             !pmassi = massoftype(itype)
           endif
           !
           ! correct v to the full step using only the external force
@@ -774,7 +774,7 @@ WRITE(*,*) 'THIS IS RUNNING A' !should not be executed for galcen sims since nty
           vxyzu(3,i) = vxyzu(3,i) + dkdt*fext(3,i)
 
           if (iexternalforce > 0) then
-WRITE(*,*) 'THIS IS RUNNING B' !should not be executed for galcen sims since iexternalforce=0
+             write(*,*) 'THIS IS RUNNING B' !should not be executed for galcen sims since iexternalforce=0
              call accrete_particles(iexternalforce,xyzh(1,i),xyzh(2,i), &
                                  xyzh(3,i),xyzh(4,i),pmassi,timei,accreted)
              if (accreted) accretedmass = accretedmass + pmassi
@@ -795,40 +795,40 @@ WRITE(*,*) 'THIS IS RUNNING B' !should not be executed for galcen sims since iex
              !   itype = iphase(i)
              !endif
 
-!IF(i==30001) THEN
-!WRITE(*,*) 'PreAccrete:  ',i,is_accretable(itype),itype,iphase(i),pmassi,xyzh(4,i),xyzmh_ptmass(5,1),f_acc,SQRT(xyzh(1,i)**2+xyzh(2,i)**2+xyzh(3,i)**2)
-!ENDIF
-!IF(SQRT(xyzh(1,i)**2+xyzh(2,i)**2+xyzh(3,i)**2) < xyzmh_ptmass(5,1)) THEN
-!WRITE(*,*) 'BefoAccrete: ',i,is_accretable(itype),itype,iphase(i),pmassi,xyzh(4,i),SQRT(xyzh(1,i)**2+xyzh(2,i)**2+xyzh(3,i)**2),accreted,nfaili,iexternalforce,ntypes,maxphase==maxp,maxphase,maxp
-!ENDIF
+             !if (i==30001) then
+             !   write(*,*) 'PreAccrete:  ',i,is_accretable(itype),itype,iphase(i),pmassi,xyzh(4,i),xyzmh_ptmass(5,1),f_acc,sqrt(xyzh(1,i)**2+xyzh(2,i)**2+xyzh(3,i)**2)
+             !endif
+             !if (sqrt(xyzh(1,i)**2+xyzh(2,i)**2+xyzh(3,i)**2) < xyzmh_ptmass(5,1)) then
+             !   write(*,*) 'BefoAccrete: ',i,is_accretable(itype),itype,iphase(i),pmassi,xyzh(4,i),sqrt(xyzh(1,i)**2+xyzh(2,i)**2+xyzh(3,i)**2),accreted,nfaili,iexternalforce,ntypes,maxphase==maxp,maxphase,maxp
+             !endif
              !call ptmass_accrete(1,nptmass,xyzh(1,i),xyzh(2,i),xyzh(3,i),xyzh(4,i),&
              call ptmass_accrete(1,      1,xyzh(1,i),xyzh(2,i),xyzh(3,i),xyzh(4,i),&
                               vxyzu(1,i),vxyzu(2,i),vxyzu(3,i),fxi,fyi,fzi,&
                               itype,pmassi,xyzmh_ptmass,vxyz_ptmass,accreted, &
                               dptmass,timei,f_acc,nbinmax,ibin_wakei,nfaili)
-!IF(i==30001) THEN
-!WRITE(*,*) 'PostAccrete: ',i,is_accretable(itype),itype,iphase(i),pmassi,xyzh(4,i),xyzmh_ptmass(5,1),f_acc,SQRT(xyzh(1,i)**2+xyzh(2,i)**2+xyzh(3,i)**2),accreted,nfaili
-!ENDIF
-!IF(SQRT(xyzh(1,i)**2+xyzh(2,i)**2+xyzh(3,i)**2) < xyzmh_ptmass(5,1)) THEN !these particles might not yet accrete is f_acc<1.0
-!WRITE(*,*) 'DoneAccrete: ',i,is_accretable(itype),itype,iphase(i),pmassi,xyzh(4,i),SQRT(xyzh(1,i)**2+xyzh(2,i)**2+xyzh(3,i)**2),accreted,nfaili,iwindorig(i)
-!ENDIF
-IF(SQRT(xyzh(1,i)**2+xyzh(2,i)**2+xyzh(3,i)**2) < xyzmh_ptmass(5,1) .AND. (.NOT.accreted)) THEN !these particles might not yet accrete is f_acc<1.0
-WRITE(*,*) 'SoonWillAccrete: ',i,timei,&
-xyzh(1,i),xyzh(2,i),xyzh(3,i),&
-vxyzu(1,i),vxyzu(2,i),vxyzu(3,i),&
-ABS(xyzh(4,i)),eos_vars(itemp,i),& !vxyzu(4,i)*TempConversionFactor,&
-pmassi,rhoh(ABS(xyzh(4,i)),pmassi),vxyzu(4,i),&
-nfaili,iwindorig(i)
-ENDIF
+             !if (i==30001) then
+             !   write(*,*) 'PostAccrete: ',i,is_accretable(itype),itype,iphase(i),pmassi,xyzh(4,i),xyzmh_ptmass(5,1),f_acc,sqrt(xyzh(1,i)**2+xyzh(2,i)**2+xyzh(3,i)**2),accreted,nfaili
+             !endif
+             !if (sqrt(xyzh(1,i)**2+xyzh(2,i)**2+xyzh(3,i)**2) < xyzmh_ptmass(5,1)) then !these particles might not yet accrete is f_acc<1.0
+             !   write(*,*) 'DoneAccrete: ',i,is_accretable(itype),itype,iphase(i),pmassi,xyzh(4,i),sqrt(xyzh(1,i)**2+xyzh(2,i)**2+xyzh(3,i)**2),accreted,nfaili,iwindorig(i)
+             !endif
+             if (sqrt(xyzh(1,i)**2+xyzh(2,i)**2+xyzh(3,i)**2) < xyzmh_ptmass(5,1) .AND. (.NOT.accreted)) then !these particles might not yet accrete is f_acc<1.0
+                write(*,*) 'SoonWillAccrete: ',i,timei,&
+                   xyzh(1,i),xyzh(2,i),xyzh(3,i),&
+                   vxyzu(1,i),vxyzu(2,i),vxyzu(3,i),&
+                   abs(xyzh(4,i)),eos_vars(itemp,i),& !vxyzu(4,i)*TempConversionFactor,&
+                   pmassi,rhoh(abs(xyzh(4,i)),pmassi),vxyzu(4,i),&
+                   nfaili,iwindorig(i)
+             endif
              if (accreted) then
-!WRITE(*,*) 'Yes Accrete: ',i,is_accretable(itype),itype,iphase(i),pmassi,xyzh(4,i),SQRT(xyzh(1,i)**2+xyzh(2,i)**2+xyzh(3,i)**2),accreted,nfaili,iwindorig(i)
-!write out the particle index, time, position, velocity, h, T, pmass, rho, u, accretion flag, and particle's wind origin
-WRITE(*,*) 'HereIsAnAccrete: ',i,timei,&
-xyzh(1,i),xyzh(2,i),xyzh(3,i),&
-vxyzu(1,i),vxyzu(2,i),vxyzu(3,i),&
--xyzh(4,i),eos_vars(itemp,i),& !vxyzu(4,i)*TempConversionFactor,&
-pmassi,rhoh(-xyzh(4,i),pmassi),vxyzu(4,i),&
-nfaili,iwindorig(i)
+                !write(*,*) 'Yes Accrete: ',i,is_accretable(itype),itype,iphase(i),pmassi,xyzh(4,i),sqrt(xyzh(1,i)**2+xyzh(2,i)**2+xyzh(3,i)**2),accreted,nfaili,iwindorig(i)
+                !write out the particle index, time, position, velocity, h, T, pmass, rho, u, accretion flag, and particle's wind origin
+                write(*,*) 'HereIsAnAccrete: ',i,timei,&
+                   xyzh(1,i),xyzh(2,i),xyzh(3,i),&
+                   vxyzu(1,i),vxyzu(2,i),vxyzu(3,i),&
+                   -xyzh(4,i),eos_vars(itemp,i),& !vxyzu(4,i)*TempConversionFactor,&
+                   pmassi,rhoh(-xyzh(4,i),pmassi),vxyzu(4,i),&
+                   nfaili,iwindorig(i)
                 naccreted = naccreted + 1
                 cycle accreteloop
              else
@@ -876,7 +876,7 @@ nfaili,iwindorig(i)
  endif
 
 
-!WRITE(*,*) 'ENDING   kick: ',itype,iphase(igas),igas
+!write(*,*) 'ENDING   kick: ',itype,iphase(igas),igas
 end subroutine kick
 
 !----------------------------------------------------------------
@@ -1256,8 +1256,8 @@ subroutine cooling_abundances_update(i,pmassi,xyzh,vxyzu,eos_vars,abundance,nucl
        !! cooling without stored dust temperature
        !call energ_cooling(xyzh(1,i),xyzh(2,i),xyzh(3,i),vxyzu(4,i),rhoi,dt,divcurlv(1,i),dudtcool)
        if (use_var_comp) then
-          !if(eos_vars(imu,i).ne.gmw) then
-             !if(mod(i,99)==0) WRITE(*,*) 'substepping: ',eos_vars(imu,i),', i =',i
+          !if (eos_vars(imu,i)/=gmw) then
+          !   if (mod(i,99)==0) write(*,*) 'substepping: ',eos_vars(imu,i),', i =',i
           !endif
           ! cooling without stored dust temperature
           call energ_cooling(xyzh(1,i),xyzh(2,i),xyzh(3,i),vxyzu(4,i),rhoi,dt,divcurlv(1,i),dudtcool,mu_in=eos_vars(imu,i))

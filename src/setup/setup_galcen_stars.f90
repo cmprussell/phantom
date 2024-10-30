@@ -19,8 +19,8 @@ module setup
 !   - h_sink             : *stellar wind injection radii (also sink particle radii for the stars) in arcsec at 8kpc*
 !   - m_SMBH             : *SMBH mass in solar masses*
 !   - m_gas              : *gas mass resolution in solar masses*
+!   - num_var_comp_local : *number of various compositions*
 !   - use_var_comp_local : *whether or not to use variable composition*
-!   - num_var_comp_local : *number of variable compositions to use*
 !
 ! :Dependencies: cooling, cooling_solver, datafiles, dim, eos,
 !   infile_utils, io, options, part, physcon, prompting, spherical,
@@ -40,7 +40,7 @@ module setup
  logical :: multiAbuTest=.true.
  logical :: use_var_comp_local=.false.  !whether or not to use variable composition
  integer :: num_var_comp_local=0        !set number of various compositions to zero with the hope of
-                                        !   causing an error if this variable is not initiailized properly
+ !                                      !   causing an error if this variable is not initiailized properly
 
  private
 
@@ -266,7 +266,7 @@ subroutine write_setupfile(filename,iprint)
     write(lu,"(/,a)") '# use variable composition'
     call write_inopt(use_var_comp_local, 'use_var_comp_local','whether or not to use variable composition',lu,ierr2)
     if (use_var_comp_local) then
-       call write_inopt(num_var_comp_local, 'num_var_comp_local','number of variable compositions to use',lu,ierr2)
+       call write_inopt(num_var_comp_local, 'num_var_comp_local','number of various compositions',lu,ierr2)
     endif
  endif
 
@@ -328,7 +328,7 @@ subroutine read_setupfile(filename,iprint,ierr)
     else
        write(*,'(a,l,a)') ' use_var_comp = ',use_var_comp,', so set_gmwArr() is not called from read_setupfile'
        if (size(gmwArr)>0) then
-       write(*,'(a)') '    Here is what is stored in gmwArr without initializationi:'
+          write(*,'(a)') '    Here is what is stored in gmwArr without initializationi:'
           do i=1,num_var_comp
              write(*,'(a,i0,a,g0)') 'gmwArr(',i,') = ',gmwArr(i)
           enddo
@@ -369,7 +369,7 @@ subroutine interactive_setup()
     call prompt('Enter logical value for use_var_comp',use_var_comp_local)
     use_var_comp = use_var_comp_local
     if (use_var_comp_local) then
-       call prompt('Enter number of different compositions, num_var_comp',num_var_comp_local)
+       call prompt('Enter number of various compositions, num_var_comp',num_var_comp_local)
        num_var_comp = num_var_comp_local
     endif
  endif

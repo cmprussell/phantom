@@ -448,9 +448,9 @@ subroutine testsuite(string,first,last,ntests,npass,nfail)
 
        write(*,"(a)") 'TEST SUITE PASSED'
        call system("say fantastic!")
-WRITE(*,"(A)")
-WRITE(*,"(A)") 'Test Skipped: radiation'
-WRITE(*,"(A)")
+       write(*,"(A)")
+       write(*,"(A)") 'Test Skipped: radiation'
+       write(*,"(A)")
     else
        write(*,"(5(a,/))") &
           " _____ _    ___ _     ", &

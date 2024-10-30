@@ -77,7 +77,7 @@ module eos
  real,    public :: X_in          = 0.74   ! default metallicities
  real,    public :: Z_in          = 0.02   ! default metallicities
  logical, public :: use_var_comp  = .false. ! use variable composition
- integer, public :: num_var_comp  = 0      ! number of different compositions
+ integer, public :: num_var_comp  = 0      ! number of various compositions
  real,    public :: temperature_coef
 
  logical, public :: done_init_eos = .false.
