@@ -30,14 +30,29 @@ module inject
 
  real :: outer_boundary = 20.
  character(len=120) :: datafile = 'winddata.txt'
+!integer:: asdf
 
- ! enumerated type for wind properties
- integer, parameter :: n_wind_prop = 2
- integer, parameter :: i_vel   = 1, &
-                       i_Mdot  = 2
+ ! enumerated type for wind properties that are reals
+ integer, parameter :: n_wind_prop = 3
+ integer, parameter :: i_vel  = 1, &
+                       i_Mdot = 2, &
+                       i_gmw  = 3
+ ! enumerated type for wind properties that are integers
+ integer, parameter :: n_wind_prop_int = 1
+ integer, parameter :: i_comp  = 1
+ integer, parameter :: i_comp_WN8     = 1, &
+                       i_comp_WN6     = 2, &
+                       i_comp_WC      = 3, &
+                       i_comp_Ostar   = 4, &
+                       i_comp_Unknown = 1
+ ! enumerated type for wind properties that are characters
+ integer, parameter :: n_wind_prop_char = 1
+ integer, parameter :: i_comp_char = 1
 
  ! array containing properties of the wind from each star
- real,    private :: wind(n_wind_prop,maxptmass)
+ real,              private :: wind(n_wind_prop,maxptmass)
+ integer,           private :: wind_int(n_wind_prop_int,maxptmass) = 2
+ character(len=20), private :: wind_char(maxptmass)
  integer, private :: total_particles_injected(maxptmass) = 0
  !integer, private :: total_particles_injected_actual(maxptmass) = 0
  integer, private :: iseed = -666
@@ -60,7 +75,7 @@ subroutine init_inject(ierr)
  use part,      only:massoftype,igas,xyzmh_ptmass
  use physcon,   only:solarm,seconds,years,km,kb_on_mH
  use units,     only:umass,udist,utime,unit_velocity
- use eos,       only:gmw,gamma
+ use eos,       only:gmw,gamma,gmwArr
  use timestep,  only:dtmax
  integer, intent(out) :: ierr
  integer :: i,j,j_corrupt
@@ -114,19 +129,21 @@ subroutine init_inject(ierr)
  print "(a)",  '    1. index, which is used in xyzmh_ptmass -- from position/velocity/mass table'
  print "(a)",  '    2. mass in a variety of units -- from position/velocity/mass table'
  print "(a)",  '    3. wind properties -- from wind table (which excludes entries for black holes)'
- print "(1x,90('-'))"
- print "(a)",  '  i |  M(code units)  |  M(g)           |  M(Msun)        |  Mdot(Msun/yr)  |  vinf(km/s) |'
- print "(1x,90('-'))"
+ print "(1x,105('-'))"
+ print "(a)",  '  i |  M(code units)  |  M(g)           |  M(Msun)        |  Mdot(Msun/yr)  |  vinf(km/s) |  composition |'
+ print "(1x,105('-'))"
  do i=1,nptmass
     if (i<=nskip_ptmass) then
        print "(i3,1x,'|',3(es16.8,1x,'|'),a)",              i,xyzmh_ptmass(4,i),xyzmh_ptmass(4,i)*umass, &
           xyzmh_ptmass(4,i)*umass/solarm,'  skipped -- no wind injection for this pointmass'
     else
-       print "(i3,1x,'|',4(es16.8,1x,'|'),3x,f9.1,1x,'|')", i,xyzmh_ptmass(4,i),xyzmh_ptmass(4,i)*umass, &
-          xyzmh_ptmass(4,i)*umass/solarm,wind(i_Mdot,i-nskip_ptmass),wind(i_vel,i-nskip_ptmass)
+       print "(i3,1x,'|',4(es16.8,1x,'|'),3x,f9.1,1x,'|',1x,i12,1x,'|')", i,xyzmh_ptmass(4,i),xyzmh_ptmass(4,i)*umass, &
+          xyzmh_ptmass(4,i)*umass/solarm,wind(i_Mdot,i-nskip_ptmass),wind(i_vel,i-nskip_ptmass),wind_int(i_comp,i-nskip_ptmass)
+       wind(i_gmw,i-nskip_ptmass) = gmwArr(wind_int(i_comp,i-nskip_ptmass))
+       !write(*,*) 'wind(i_gmw,i-nskip_ptmass) = ',wind(i_gmw,i-nskip_ptmass)
     endif
  enddo
- print "(1x,90('-'))"
+ print "(1x,105('-'))"
 
  !
  ! if this is a new simulation, create and populate total_particles_injected.dat
@@ -497,7 +514,10 @@ subroutine inject_particles(time,dtlast,xyzh,vxyzu,xyzmh_ptmass,vxyz_ptmass,&
           !set abundance of new particle based on origin-star's abundances, which is used in u and mu->eos_vars
           if (use_var_comp) then
              !mui = gmwArr(mod(i,5)+1) !for now, mu from each star is randomly assigned; eventually this will need to be based on each star's spectral type
-             mui = gmwArr(mod(i,3)+1) !for now, mu from each star is randomly assigned; eventually this will need to be based on each star's spectral type
+             !mui = gmwArr(mod(i,3)+1) !for now, mu from each star is randomly assigned; eventually this will need to be based on each star's spectral type
+             !mui = gmwArr(wind_int(i_comp,j)) !mu is based on the injecting star's spectral type
+             mui = wind(i_gmw,j) !mu is based on the injecting star's spectral type
+             !write(*,*) 'j, mui =',j,mui
           endif
 
           do k=1,ninject
@@ -537,7 +557,8 @@ subroutine inject_particles(time,dtlast,xyzh,vxyzu,xyzmh_ptmass,vxyz_ptmass,&
 
              ! add or update the particle via built-in method within partinject
              call add_or_update_particle(igas, xyzi, vxyz, h, u, i_part, npart, npartoftype, xyzh, vxyzu)
-             ! star from where this wind particle originated
+             ! point mass from where this wind particle originated
+             !    not the star indexing -- the full point-mass indexing, which includes non-stars as well
              iwindorig(i_part) = i
              !composition for this particular particle based on its origin-star's abundances
              if (use_var_comp) then
@@ -669,6 +690,7 @@ end subroutine read_options_inject
 !-----------------------------------------------------------------------
 subroutine read_wind_data(filename,nstars)
  use io, only:error
+ !use eos, only:gmwArr !Note: gmwArr is not yet defined -- can't use this variable here
  character(len=*), intent(in)  :: filename
  integer,          intent(out) :: nstars
  integer :: iunit,ierr,idum,i
@@ -679,19 +701,51 @@ subroutine read_wind_data(filename,nstars)
  do while(ierr == 0)
     nstars = nstars + 1
     if (nstars <= maxptmass) then
-       read(iunit,*,iostat=ierr) idum,wind(i_vel,nstars),wind(i_Mdot,nstars)
-       if (ierr /= 0) nstars = nstars - 1
+       read(iunit,*,iostat=ierr) idum,wind(i_vel,nstars),wind(i_Mdot,nstars),wind_char(nstars)
+       !if (ierr /= 0) nstars = nstars - 1
+       if (ierr /= 0) then
+          !entry for the next star was not read in properly, signaling the end of reading in star entries
+          nstars = nstars - 1
+       else
+          !a new star entry was successfully read in
+          write(*,*) trim(wind_char(nstars))
+          if (wind_char(nstars)(1:1)=='W') then
+             !write(*,'(a)') 'WR star detected'
+             if (wind_char(nstars)(2:2)=='C') then
+                wind_int(i_comp,nstars) = i_comp_WC
+                write(*,'(a)') 'WC star detected'
+                !write(*,'(a)') 'WC star detected, gmw = ',gmwArr(i_comp_WC)
+             elseif (wind_char(nstars)(2:2)=='N') then
+                if (wind_char(nstars)(3:3)=='6') then
+                   wind_int(i_comp,nstars) = i_comp_WN6
+                   write(*,'(a)') 'WN6 star detected'
+                elseif (wind_char(nstars)(3:3)=='8') then
+                   wind_int(i_comp,nstars) = i_comp_WN8
+                   write(*,'(a)') 'WN8 star detected'
+                else
+                   wind_int(i_comp,nstars) = i_comp_Unknown
+                   write(*,'(a)') 'UNKNOWN WN star detected'
+                endif
+             else
+                wind_int(i_comp,nstars) = i_comp_Unknown
+                write(*,'(a)') 'UNKNOWN WR star detected'
+             endif
+          else
+             wind_int(i_comp,nstars) = i_comp_Unknown
+             write(*,'(a)') 'UNKNOWN non-WR star detected'
+          endif
+       endif
     else
        call error('read_wind_data','array bounds exceeded')
     endif
  enddo
 
- if (nstars > 0) print "(1x,37('-'),/,1x,a,'|',2(a15,1x,'|'),/,1x,37('-'))",&
-                        'ID',' Wind Vel(km/s)',' Mdot(Msun/yr)'
+ if (nstars > 0) print "(1x,55('-'),/,1x,a3,'|',2(a15,1x,'|'),a15,1x,'|',/,1x,55('-'))",&
+                        'ID ',' Wind Vel(km/s)',' Mdot(Msun/yr)',' Composition'
  do i=1,nstars
-    print "(i3,'|',2(1pg15.4,1x,'|'))",i,wind(i_vel,i),wind(i_Mdot,i)
+    print "(i3,1x,'|',2(1pg15.4,1x,'|'),1x,i14,1x,'|')",i,wind(i_vel,i),wind(i_Mdot,i),wind_int(i_comp,i)
  enddo
- if (nstars > 0) print "(1x,37('-'))"
+ if (nstars > 0) print "(1x,55('-'))"
 
 end subroutine read_wind_data
 
