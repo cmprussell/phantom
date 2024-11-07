@@ -691,7 +691,6 @@ subroutine kick(dki,dt,npart,nptmass,ntypes,xyzh,vxyzu,xyzmh_ptmass,vxyz_ptmass,
  !itype = iphase(igas) !this is an error -- results in all accretion shutting off if the first particle no longer active
  !itype = iamtype(iphase(1)) !this works
  itype = igas !this works, as long as ntypes=1 sims are always gas-particle sims
-!write(*,*) 'STARTING kick: ',itype,iphase(igas),igas
  pmassi = massoftype(igas)
 
  dkdt = dki*dt
@@ -1175,7 +1174,7 @@ end subroutine get_force
 subroutine cooling_abundances_update(i,pmassi,xyzh,vxyzu,eos_vars,abundance,nucleation,dust_temp, &
                                      divcurlv,abundc,abunde,abundo,abundsi,dt,dphot0,isionisedi)
  use dim,             only:h2chemistry,do_nucleation,use_krome,update_muGamma,store_dust_temperature
- use part,            only:idK2,idmu,idkappa,idgamma,imu,igamma,nabundances
+ use part,            only:idK2,idmu,idkappa,idgamma,imu,igamma,nabundances,iwindorig,iwindorig_to_ict
  use cooling_ism,     only:nabn,dphotflag
  !use options,         only:icooling
  use options,         only:icooling,use_var_comp
@@ -1253,16 +1252,16 @@ subroutine cooling_abundances_update(i,pmassi,xyzh,vxyzu,eos_vars,abundance,nucl
           call energ_cooling(xyzh(1,i),xyzh(2,i),xyzh(3,i),vxyzu(4,i),rhoi,dt,divcurlv(1,i),dudtcool,dust_temp(i))
        endif
     else
-       !! cooling without stored dust temperature
-       !call energ_cooling(xyzh(1,i),xyzh(2,i),xyzh(3,i),vxyzu(4,i),rhoi,dt,divcurlv(1,i),dudtcool)
+       ! cooling without stored dust temperature
        if (use_var_comp) then
           !if (eos_vars(imu,i)/=gmw) then
           !   if (mod(i,99)==0) write(*,*) 'substepping: ',eos_vars(imu,i),', i =',i
           !endif
-          ! cooling without stored dust temperature
-          call energ_cooling(xyzh(1,i),xyzh(2,i),xyzh(3,i),vxyzu(4,i),rhoi,dt,divcurlv(1,i),dudtcool,mu_in=eos_vars(imu,i))
+          ! cooling with varying compositions
+          call energ_cooling(xyzh(1,i),xyzh(2,i),xyzh(3,i),vxyzu(4,i),rhoi,dt,divcurlv(1,i),dudtcool, &
+                             mu_in=eos_vars(imu,i),ict_in=iwindorig_to_ict(iwindorig(i)))
        else
-          ! cooling without stored dust temperature
+          ! cooling with a single composition
           call energ_cooling(xyzh(1,i),xyzh(2,i),xyzh(3,i),vxyzu(4,i),rhoi,dt,divcurlv(1,i),dudtcool)
        endif
     endif

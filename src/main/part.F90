@@ -375,6 +375,16 @@ module part
 !
  integer, allocatable :: iwindorig(:)
 !
+!--wind variables: number of different star types, their mu values, and their names
+!
+ integer :: n_startypes=0                   !these variables need to be allocated here -- not in allocate_part() -- so that
+ real :: mu_startypes(60)=0.                !   the results in inject_galcen_winds-->read_use_var_comp() can be used in
+ character(len=20) :: name_startypes(60)='' !   cooling_solver-->set_Tgrid_cooltable_Chris2(), which is called before allocate_part()
+!
+!--correlate each iwindorig value to a cooling table
+!
+ integer, allocatable :: iwindorig_to_ict(:) !need 0-index entry for unknown/init particles
+!
 !--super time stepping
 !
  integer(kind=1), allocatable :: istsactive(:)
@@ -438,23 +448,27 @@ contains
 subroutine allocate_part
  use allocutils, only:allocate_array
 
- write(*,*) 'allocate_part -- Precision Check'
- write(*,*) 'allocate_part -- definitions for sample real variables'
- write(*,*) 'allocate_part : real(kind=4), allocatable :: alphaind(:,:)'
- write(*,*) 'allocate_part : real,         allocatable :: xyzh(:,:)'
- write(*,*) 'allocate_part -- kind        for sample real variables'
- write(*,*) 'allocate_part : alphaind  =',kind(alphaind)
- write(*,*) 'allocate_part : xyzh      =',kind(xyzh)
- write(*,*) 'allocate_part -- definitions for sample integer variables'
- write(*,*) 'allocate_part : integer(kind=1), allocatable    :: iphase(:)'
- write(*,*) 'allocate_part : integer, parameter :: ihacc  = 5  ! accretion radius'
- write(*,*) 'allocate_part : integer(kind=8), allocatable :: iorig(:)'
- write(*,*) 'allocate_part : integer, allocatable :: iwindorig(:)'
- write(*,*) 'allocate_part -- kind        for sample integer variables'
- write(*,*) 'allocate_part : iphase    =',kind(iphase)
- write(*,*) 'allocate_part : ihacc     =',kind(ihacc)
- write(*,*) 'allocate_part : iorig     =',kind(iorig)
- write(*,*) 'allocate_part : iwindorig =',kind(iwindorig)
+ print "(a)", ' --------------------------------------------------------'
+ print "(a)", ' | Precision Check in allocate_part()                   |'
+ print "(a)", ' |------------------------------------------------------|'
+ print "(a)", ' | ------ sample real variables: definitions     ------ |'
+ print "(a)", ' | real(kind=4), allocatable :: alphaind(:,:)           |'
+ print "(a)", ' | real,         allocatable :: xyzh(:,:)               |'
+ print "(a)", ' | ------ sample real variables: kind results    ------ |'
+ print "(a,i0,a)", ' | alphaind  = ',kind(alphaind),'                                        |'
+ print "(a,i0,a)", ' | xyzh      = ',kind(xyzh),'                                        |'
+ print "(a)", ' |------------------------------------------------------|'
+ print "(a)", ' | ------ sample integer variables: definitions  ------ |'
+ print "(a)", ' | integer(kind=1), allocatable    :: iphase(:)         |'
+ print "(a)", ' | integer, parameter :: ihacc  = 5  ! accretion radius |'
+ print "(a)", ' | integer(kind=8), allocatable :: iorig(:)             |'
+ print "(a)", ' | integer, allocatable :: iwindorig(:)                 |'
+ print "(a)", ' | ------ sample integer variables: kind results ------ |'
+ print "(a,i0,a)", ' | iphase    = ',kind(iphase),'                                        |'
+ print "(a,i0,a)", ' | ihacc     = ',kind(ihacc),'                                        |'
+ print "(a,i0,a)", ' | iorig     = ',kind(iorig),'                                        |'
+ print "(a,i0,a)", ' | iwindorig = ',kind(iwindorig),'                                        |'
+ print "(a)", ' --------------------------------------------------------'
 
  call allocate_array('xyzh', xyzh, 4, maxp)
  call allocate_array('xyzh_soa', xyzh_soa, maxp, 4)
@@ -528,6 +542,7 @@ subroutine allocate_part
  call allocate_array('ll', ll, maxan)
  call allocate_array('ibelong', ibelong, maxp)
  call allocate_array('iwindorig', iwindorig, maxp)
+ call allocate_array('iwindorig_to_ict', iwindorig_to_ict, maxptmass,'startatzero') !need 0-index entry for unknown/init particles
  call allocate_array('istsactive', istsactive, maxsts)
  call allocate_array('ibin_sts', ibin_sts, maxsts)
  call allocate_array('nucleation', nucleation, n_nucleation, maxp_nucleation*inucleation)

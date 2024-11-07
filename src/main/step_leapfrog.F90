@@ -170,7 +170,7 @@ subroutine step(npart,nactive,t,dtsph,dtextforce,dtnew)
  ialphaloc = 2
  nvfloorp  = 0
 
- if (use_var_comp) ufloor_init = ufloor
+ if (use_var_comp) ufloor_init = ufloor !ufloor will be returned to this original value after the 3 all-particle loops finish
  !$omp parallel do default(none) &
  !$omp shared(npart,xyzh,vxyzu,fxyzu,iphase,hdtsph,store_itype) &
  !$omp shared(rad,drad,pxyzu) &
@@ -204,8 +204,8 @@ subroutine step(npart,nactive,t,dtsph,dtextforce,dtnew)
           vxyzu(:,i) = vxyzu(:,i) + hdti*fxyzu(:,i)
        endif
 
-       if (use_var_comp) ufloor = ufloor_init * gmw/eos_vars(imu,i)
        !--floor the thermal energy if requested and required
+       if (use_var_comp) ufloor = ufloor_init * gmw/eos_vars(imu,i)
        if (ufloor > 0.) then
           if (vxyzu(4,i) < ufloor) then
              vxyzu(4,i) = ufloor
@@ -331,8 +331,8 @@ subroutine step(npart,nactive,t,dtsph,dtextforce,dtnew)
           vpred(:,i) = vxyzu(:,i) + hdti*fxyzu(:,i)
        endif
 
-       if (use_var_comp) ufloor = ufloor_init * gmw/eos_vars(imu,i)
        !--floor the thermal energy if requested and required
+       if (use_var_comp) ufloor = ufloor_init * gmw/eos_vars(imu,i)
        if (ufloor > 0.) then
           if (vpred(4,i) < ufloor) then
              vpred(4,i) = ufloor
@@ -514,8 +514,8 @@ subroutine step(npart,nactive,t,dtsph,dtextforce,dtnew)
                 vxyzu(:,i) = vxyzu(:,i) + hdti*fxyzu(:,i)
              endif
 
-             if (use_var_comp) ufloor = ufloor_init * gmw/eos_vars(imu,i)
              !--floor the thermal energy if requested and required
+             if (use_var_comp) ufloor = ufloor_init * gmw/eos_vars(imu,i)
              if (ufloor > 0.) then
                 if (vxyzu(4,i) < ufloor) then
                    vxyzu(4,i) = ufloor
@@ -603,6 +603,7 @@ subroutine step(npart,nactive,t,dtsph,dtextforce,dtnew)
     enddo corrector
 !$omp enddo
 !$omp end parallel
+    if (use_var_comp) ufloor = ufloor_init !return ufloor to its original value for mu=gmw
     if (use_dustgrowth) then
        if (use_porosity) then
           call get_filfac(npart,xyzh,mprev,filfac,dustprop,dtsph)

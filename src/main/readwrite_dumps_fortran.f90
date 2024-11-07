@@ -90,6 +90,8 @@ subroutine write_fulldump_fortran(t,dumpfile,ntotal,iorder,sphNG)
  character(len=120)    :: blankarray
  type(dump_h)          :: hdr
  real, allocatable :: temparr(:)
+ real :: iwindorig_ptmass(nptmass)
+ integer :: iii
 !
 !--collect global information from MPI threads
 !
@@ -342,6 +344,18 @@ subroutine write_fulldump_fortran(t,dumpfile,ntotal,iorder,sphNG)
           call write_array(2,vxyz_ptmass,vxyz_ptmass_label,3,nptmass,k,ipass,idump,nums,nerr)
           if (store_ll_ptmass) then
              call write_array(2,linklist_ptmass,"linklist_ptmass",nptmass,k,ipass,idump,nums,nerr)
+          endif
+          do iii=1,nptmass
+             iwindorig_ptmass(iii) = iii
+          enddo
+          if (k==8) then !needed since we want to write as double precision reals
+             if (ipass==1) then
+                !nums(imatch,ib) = nums(imatch,ib) + 1
+                nums(8,2) = nums(8,2) + 1
+             elseif (ipass==2) then
+                write(idump,iostat=ierr) tag('iWindOrig')
+                write(idump,iostat=ierr) iwindorig_ptmass(1:nptmass)*1.d0
+             endif
           endif
           if (nerr > 0) call error('write_dump','error writing sink particle arrays')
        endif
@@ -1038,7 +1052,8 @@ subroutine read_phantom_arrays(i1,i2,noffset,narraylengths,nums,npartread,nparto
  character(len=lentag) :: tag,tagarr(64)
  integer :: k,i,iarr,ik,ndustfraci
  real, allocatable :: tmparray(:)
-
+ real :: iwindorig_ptmass(nptmass)
+ logical :: got_iwindorig_ptmass
 !
 !--read array type 1 arrays
 !
@@ -1072,6 +1087,7 @@ subroutine read_phantom_arrays(i1,i2,noffset,narraylengths,nums,npartread,nparto
  got_pxyzu       = .false.
  got_iorig       = .false.
  got_iwindorig   = .false.
+ got_iwindorig_ptmass   = .false.
 
  ndustfraci = 0
  if (use_dust) allocate(tmparray(size(dustfrac,2)))
@@ -1173,6 +1189,7 @@ subroutine read_phantom_arrays(i1,i2,noffset,narraylengths,nums,npartread,nparto
              if (store_ll_ptmass) then
                 call read_array(linklist_ptmass,'linklist_ptmass',got_sink_llist,ik,1,nptmass,0,idisk1,tag,match,ierr)
              endif
+             call read_array(iwindorig_ptmass,'iWindOrig',got_iwindorig_ptmass,ik,1,nptmass,0,idisk1,tag,match,ierr)
           end select
           select case(iarr)   ! MHD arrays can either be in block 1 or block 4
           case(1,4)

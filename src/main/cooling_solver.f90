@@ -26,7 +26,7 @@ module cooling_solver
 !   - relax_stefan   : *radiative relaxation (1=on/0=off)*
 !   - shock_problem  : *piecewise formulation for analytic shock solution (1=on/0=off)*
 !
-! :Dependencies: cooling_functions, eos, infile_utils, io, physcon,
+! :Dependencies: cooling_functions, eos, infile_utils, io, part, physcon,
 !   timestep, units
 !
 
@@ -79,6 +79,7 @@ subroutine init_cooling_solver(ierr)
  use io, only:error
  integer, intent(out) :: ierr
 
+ print*
  ierr = 0
  !you can't have cool_relaxation_Stefan and cool_relaxation_Bowen at the same time
  if (relax_Bowen == 1 .and. relax_Stefan == 1) then
@@ -89,29 +90,21 @@ subroutine init_cooling_solver(ierr)
  if ( (excitation_HI+relax_Bowen+dust_collision+relax_Stefan+shock_problem) == 0) then
     print *,'ERROR: no cooling prescription activated'
     ierr = 2
-    write(*,*) 'NOTE: above is not actually an error -- need to fix this...'
+    print*, 'NOTE: above is not actually an error -- need to fix this...'
     ierr=0
  endif
  !call set_Tgrid()
  cooltable_Chris=1
  if (cooltable_Chris==1) then
-    write(*,*) 'methodLong = ',methodLong
     if (methodLong) then
-       write(*,*)
-       write(*,*) 'call set_Tgrid_cooltable_Chris()'
        call set_Tgrid_cooltable_Chris()
-       write(*,*) 'end call set_Tgrid_cooltable_Chris()'
     else
-       write(*,*)
-       write(*,*) 'call set_Tgrid_cooltable_Chris2()'
        call set_Tgrid_cooltable_Chris2()
-       write(*,*) 'end call set_Tgrid_cooltable_Chris2()'
     endif
-    write(*,*)
-    write(*,*) 'mu_e, mu_H =',mu_e,mu_H
-    write(*,*)
+    print*
+    print*, 'mu_e, mu_H =',mu_e,mu_H
+    print*
  else
-    write(*,*) 'call set_Tgrid()'
     call set_Tgrid()
  endif
 
@@ -123,17 +116,18 @@ end subroutine init_cooling_solver
 !   cooling prescription and choice of solver
 !+
 !-----------------------------------------------------------------------
-subroutine energ_cooling_solver(ui,dudt,rho,dt,mu,gamma,Tdust,K2,kappa)
- real, intent(in)  :: ui,rho,dt                ! in code units
- real, intent(in)  :: Tdust,mu,gamma,K2,kappa  ! in cgs
- real, intent(out) :: dudt                     ! in code units
+subroutine energ_cooling_solver(ui,dudt,rho,dt,mu,gamma,Tdust,K2,kappa,ict)
+ real, intent(in)    :: ui,rho,dt                ! in code units
+ real, intent(in)    :: Tdust,mu,gamma,K2,kappa  ! in cgs
+ integer, intent(in) :: ict                      ! cooling table's integer value
+ real, intent(out)   :: dudt                     ! in code units
 
  if (icool_method == 2) then
     !call exact_cooling   (ui,dudt,rho,dt,mu,gamma,Tdust,K2,kappa)
     if (methodLong) then
        call exact_cooling_Chris(ui,dudt,rho,dt,mu,gamma,Tdust,K2,kappa)
     else
-       call exact_cooling_Chris2(ui,dudt,rho,dt,mu,gamma,Tdust,K2,kappa)
+       call exact_cooling_Chris2(ui,dudt,rho,dt,mu,gamma,Tdust,K2,kappa,ict)
     endif
  elseif (icool_method == 0) then
     call implicit_cooling(ui,dudt,rho,dt,mu,gamma,Tdust,K2,kappa)
@@ -344,7 +338,7 @@ subroutine exact_cooling(ui, dudt, rho, dt, mu, gamma, Tdust, K2, kappa)
  dudt = (Temp-T)/T_on_u/dt
  !note that u = Temp/T_on_u
 
- !write(*,*) ui,T,Temp,dudt,Q
+ !print*, ui,T,Temp,dudt,Q
 end subroutine exact_cooling
 
 !-----------------------------------------------------------------------
@@ -374,7 +368,7 @@ subroutine exact_cooling_Chris(ui, dudt, rho, dt, mu, gamma, Tdust, K2, kappa)
  real, parameter :: Tfloor=1.d4
  integer :: ksave
  real :: yksave,ysave
- integer :: ict
+ integer :: ict ! cooling table's integer value
 
  !Option 0: default calculation where ref=N
  opt0=.true.
@@ -397,12 +391,12 @@ subroutine exact_cooling_Chris(ui, dudt, rho, dt, mu, gamma, Tdust, K2, kappa)
 
  ict = 1
 
- !write(*,*) 'Rg, kB/amu, kB, amu =',Rg,kboltz/atomic_mass_unit,kboltz,atomic_mass_unit
+ !print*, 'Rg, kB/amu, kB, amu =',Rg,kboltz/atomic_mass_unit,kboltz,atomic_mass_unit
  rhocgsDivmueDivmuH = rho*unit_density/mu_e/mu_H
  !tcoolfac = kboltz*mu_e*mu_H / ((gamma-1.)*rho*unit_density*mu*atomic_mass_unit)
  tcoolfac = Rg*mu_e*mu_H / ((gamma-1.)*rho*unit_density*mu)
- !write(*,*) 'asdf: ',kboltz,mu_e,mu_H,gamma,rho,unit_density,mu,atomic_mass_unit,tcoolfac
- !write(*,*) 'asdf2:',ui, dudt, rho, dt, mu, gamma, Tdust, K2, kappa
+ !print*, 'asdf: ',kboltz,mu_e,mu_H,gamma,rho,unit_density,mu,atomic_mass_unit,tcoolfac
+ !print*, 'asdf2:',ui, dudt, rho, dt, mu, gamma, Tdust, K2, kappa
 
  if (Townsend_test) then
     T_floor = Tcap
@@ -412,22 +406,22 @@ subroutine exact_cooling_Chris(ui, dudt, rho, dt, mu, gamma, Tdust, K2, kappa)
  endif
  T_on_u = (gamma-1.)*mu*unit_ergg/Rg
  T      = T_on_u*ui
- !write(*,*) 'asdf3:',T_on_u,gamma,mu,unit_ergg,Rg
+ !print*, 'asdf3:',T_on_u,gamma,mu,unit_ergg,Rg
 
  if (T < T_floor) then
-    write(*,*) 'T < T_floor'
+    print*, 'T < T_floor'
     Temp = T_floor
  elseif (T > Tref_Chris(ict)) then
-    write(*,*) 'T > Tref_Chris'
+    print*, 'T > Tref_Chris'
     call calc_cooling_rate(Q, dlnQ_dlnT, rho, T, Tdust, mu, gamma, K2, kappa)
     Temp = T+T_on_u*Q*dt
  else
-    !write(*,*) 'else'
-    !write(*,*) 'else -- y=', y
-    !write(*,*) 'else -- mu=', mu
-    !write(*,*) 'else -- habund, mu_e, mu_h=', habund,mu_e, mu_h
-    !write(*,*) 'else -- rho, rho*unit_density, rhocgsDivmueDivmuH=',rho,rho*unit_density,rhocgsDivmueDivmuH,LambdaTable(nTg)
-    write(*,*) 'else -- opt0 =',opt0,', opt1 =',opt1,', opt2 =',opt2,', withCorrection =',withCorrection
+    !print*, 'else'
+    !print*, 'else -- y=', y
+    !print*, 'else -- mu=', mu
+    !print*, 'else -- habund, mu_e, mu_h=', habund,mu_e, mu_h
+    !print*, 'else -- rho, rho*unit_density, rhocgsDivmueDivmuH=',rho,rho*unit_density,rhocgsDivmueDivmuH,LambdaTable(nTg)
+    print*, 'else -- opt0 =',opt0,', opt1 =',opt1,', opt2 =',opt2,', withCorrection =',withCorrection
     if (opt0) then
        !call calc_cooling_rate(Qref,dlnQref_dlnT, rho, Tref_Chris, Tdust, mu, gamma, K2, kappa)
        !Qref=LambdaTable(nTg)*-2.e23
@@ -506,8 +500,8 @@ subroutine exact_cooling_Chris(ui, dudt, rho, dt, mu, gamma, Tdust, K2, kappa)
        y=0.
     endif
     tcool=tcoolfac*T/LambdaTable(k)
-    !write(*,*) 'tcool =',tcool,tcool/utime
-    write(*,*) 'tcool (s,yr,code) =',tcool,tcool/(365.25*24.*3600.),tcool/utime,k,LambdaTable(k),T,utime,dt,T_floor
+    !print*, 'tcool =',tcool,tcool/utime
+    print*, 'tcool (s,yr,code) =',tcool,tcool/(365.25*24.*3600.),tcool/utime,k,LambdaTable(k),T,utime,dt,T_floor
     if (opt0) then
        !eqs A5 for Y(T)
        yk = y
@@ -582,7 +576,7 @@ subroutine exact_cooling_Chris(ui, dudt, rho, dt, mu, gamma, Tdust, K2, kappa)
        enddo
     endif
     !New Part -- End
-    !write(*,*) 'asdf',k,y,yk,Tgrid(k)
+    !print*, 'asdf',k,y,yk,Tgrid(k)
 
     if (opt0) then
        !compute Yinv (eqs A7)
@@ -593,11 +587,11 @@ subroutine exact_cooling_Chris(ui, dudt, rho, dt, mu, gamma, Tdust, K2, kappa)
           if (Yinv > 0.) then
              !Temp = Tgrid(k)*(Yinv**(1./(1.-dlnQ_dlnT)))
              Temp = max(Tgrid(k)*(Yinv**(1./(1.-dlnQ_dlnT))),T_floor)
-             !write(*,*) 'hmm, Temp =',Temp,Tgrid(k),k,Yinv
-             !write(*,*) 'confused ',Temp<T_floor
+             !print*, 'hmm, Temp =',Temp,Tgrid(k),k,Yinv
+             !print*, 'confused ',Temp<T_floor
           else
              Temp = T_floor
-             !write(*,*) 'AtFloor',Temp,Yinv,k
+             !print*, 'AtFloor',Temp,Yinv,k
           endif
        endif
     elseif (opt1) then !Y_{k+1}=0, T_N=T_{k+1}, Lambda_N=Lambda_{k+1}
@@ -609,11 +603,11 @@ subroutine exact_cooling_Chris(ui, dudt, rho, dt, mu, gamma, Tdust, K2, kappa)
           if (Yinv > 0.) then
              !Temp = Tgrid(k)*(Yinv**(1./(1.-dlnQ_dlnT)))
              Temp = max(Tgrid(k)*(Yinv**(1./(1.-dlnQ_dlnT))),T_floor)
-             !write(*,*) 'hmm, Temp =',Temp,Tgrid(k),k,Yinv
-             !write(*,*) 'confused ',Temp<T_floor
+             !print*, 'hmm, Temp =',Temp,Tgrid(k),k,Yinv
+             !print*, 'confused ',Temp<T_floor
           else
              Temp = T_floor
-             !write(*,*) 'AtFloor',Temp,Yinv,k
+             !print*, 'AtFloor',Temp,Yinv,k
           endif
        endif
     else !Y_{k+1}=0, T_N=T_k, Lambda_N=Lambda_k
@@ -625,24 +619,24 @@ subroutine exact_cooling_Chris(ui, dudt, rho, dt, mu, gamma, Tdust, K2, kappa)
           if (Yinv > 0.) then
              !Temp = Tgrid(k)*(Yinv**(1./(1.-dlnQ_dlnT)))
              Temp = max(Tgrid(k)*(Yinv**(1./(1.-dlnQ_dlnT))),T_floor)
-             !write(*,*) 'hmm, Temp =',Temp,Tgrid(k),k,Yinv
-             !write(*,*) 'confused ',Temp<T_floor
+             !print*, 'hmm, Temp =',Temp,Tgrid(k),k,Yinv
+             !print*, 'confused ',Temp<T_floor
           else
              Temp = T_floor
-             !write(*,*) 'AtFloor',Temp,Yinv,k
+             !print*, 'AtFloor',Temp,Yinv,k
           endif
        endif
     endif
  endif
 
- if (Temp<T_floor) write(*,*) 'UH-HOH ',Temp,T_floor
- write(*,*) 'T, Temp =',T,Temp
+ if (Temp<T_floor) print*, 'UH-HOH ',Temp,T_floor
+ print*, 'T, Temp =',T,Temp
  dudt = (Temp-T)/T_on_u/dt
  !note that u = Temp/T_on_u
 
- !write(*,'(A,6(1PE14.6))') 'C',ui,T,Temp,dudt,Q,Tref_Chris
- !write(*,*) 'stuff: ',ksave,k,yksave,ysave,tcoolfac,dy,y,tcoolfac*T/(LambdaTable(ksave)*(T/Tgrid(ksave))**alphaTable(ksave)),tcoolfac*T/LambdaTable(ksave)
- !write(*,*) 'ffuts: ',dy,dt,utime,tcoolfac,T_on_u,Tref_Chris,-Qref
+ !print "(A,6(1PE14.6))", 'C',ui,T,Temp,dudt,Q,Tref_Chris
+ !print*, 'stuff: ',ksave,k,yksave,ysave,tcoolfac,dy,y,tcoolfac*T/(LambdaTable(ksave)*(T/Tgrid(ksave))**alphaTable(ksave)),tcoolfac*T/LambdaTable(ksave)
+ !print*, 'ffuts: ',dy,dt,utime,tcoolfac,T_on_u,Tref_Chris,-Qref
 end subroutine exact_cooling_Chris
 
 !-----------------------------------------------------------------------
@@ -651,19 +645,21 @@ end subroutine exact_cooling_Chris
 !   analytical cooling rate prescriptions
 !+
 !-----------------------------------------------------------------------
-subroutine exact_cooling_Chris2(ui, dudt, rho, dt, mu, gamma, Tdust, K2, kappa)
+subroutine exact_cooling_Chris2(ui, dudt, rho, dt, mu, gamma, Tdust, K2, kappa, ict)
 
  use physcon, only:Rg,kboltz
  use units,   only:unit_ergg,unit_density,utime
  !use cooling, only:Tfloor
- use eos, only:use_var_comp,num_var_comp,gmwArr
+ use eos,  only:use_var_comp,num_var_comp
+ use part, only:n_startypes,mu_startypes
+ use io,   only:fatal
 
- real, intent(in)  :: ui, rho, dt, Tdust, mu, gamma
- real, intent(in)  :: K2, kappa
- real, intent(out) :: dudt
+ real, intent(in)    :: ui, rho, dt, Tdust, mu, gamma
+ real, intent(in)    :: K2, kappa
+ integer, intent(in) :: ict ! cooling table's integer value
+ real, intent(out)   :: dudt
 
  real, parameter :: tol = 1.d-12
- !real            :: Qref,dlnQref_dlnT,Q,dlnQ_dlnT,Y,Yk,Yinv,Temp,dy,T,T_on_u,T_floor,Qi
  real            :: Yinv,Temp,T,T_on_u,T_floor
  integer         :: k
 
@@ -676,38 +672,28 @@ subroutine exact_cooling_Chris2(ui, dudt, rho, dt, mu, gamma, Tdust, K2, kappa)
  integer :: kl,km,ku,kk
  real :: YT
  !real :: YTsave
- integer :: ict
+ integer :: ict2
  real :: tolmu=1.d-6
 
- !ict = 1
- !ict = 2
- !ict = 3
- !ict = ict_ptmass(iwindorig(i))
  !determine which cooling table to use for this particular particle
+ !for now, this is just a consistency check. Eventually, this mu-dependent ict2 method will no longer be used
  if (use_var_comp) then
     !find the correct cooling table based on mu -- if the particle's mu is not found, default to the first cooling table, i.e. ict=1
     !   Note: It would be faster if iwindorig(i) was available to determine the cooling table, but this variable would need to
     !   be added to the calls of energ_cooling() to make it here, which involves making many modification to the code.
-    !   So for now, we will use the following mu-to-gmwArr comparison to determine which cooling table to use.
-    ict = num_var_comp
-    do while (abs(mu-gmwArr(ict))>tolmu .and. ict>1)
-       ict = ict-1
+    !   So for now, we will use the following mu-to-mu_startypes comparison to determine which cooling table to use.
+    ict2 = n_startypes
+    do while (abs(mu-mu_startypes(ict2))>tolmu .and. ict2>1)
+       ict2 = ict2-1
     enddo
-    !write(*,*) ict,mu
-    !if (ict==1 .and. abs(mu-gmwArr(ict))>tolmu) write(*,*) 'Huh? found particle not in gmwArr! mu =',mu
-    if (ict==1 .and. abs(mu-gmwArr(ict))>tolmu) then
-       write(*,*) 'Huh? found particle not in gmwArr! mu =',mu
-       stop
-    endif
- else
-    !single composition, so use the only cooling table available
-    ict = 1
+    !print*, ict2,mu
+    if (ict<=0) call fatal ('exact_cooling_Chris2','particle has undefined cooling table -- ict is too low',var='ict',ival=ict)
+    if (ict>n_startypes) call fatal ('exact_cooling_Chris2','particle has undefined cooling table -- ict is too high',var='ict',ival=ict)
+    if (ict/=ict2) print "(2(a,i0))", 'WEIRD: ict/=ict2 -- ict = ',ict,', ict2 = ',ict2
+    !else  !ict=1 is now the defualt option, so this isn't needed
+    !   single composition, so use the only cooling table available
+    !   ict = 1
  endif
-
- !The following 3 lines confirm that eos_vars(imu,i) is passed all the way to mu in this subroutine
- !if (mu/=gmw) then
- !   write(*,*) 'mu =',mu
- !endif
 
  !NOTE: When this cooling subroutine was written and tested,
  !      kboltz was not updated to enough sig figs, so computations using kboltz
@@ -734,12 +720,10 @@ subroutine exact_cooling_Chris2(ui, dudt, rho, dt, mu, gamma, Tdust, K2, kappa)
  !         = Rg*amu mu_e mu_H / ((gamma-1) rho_cgs mu_1*amu)
  !         = Rg mu_e mu_H / ((gamma-1) rho_cgs mu_1)
 
- !write(*,*) 'Rg, kB/amu, kB, amu =',Rg,kboltz/atomic_mass_unit,kboltz,atomic_mass_unit
+ !print*, 'Rg, kB/amu, kB, amu =',Rg,kboltz/atomic_mass_unit,kboltz,atomic_mass_unit
  !rhocgsDivmueDivmuH = rho*unit_density/mu_e/mu_H
  !tcoolfac = kboltz*mu_e*mu_H / ((gamma-1.)*rho*unit_density*mu*atomic_mass_unit) ! = tcool*Lambda(T)/T
  tcoolfac = Rg*mu_e*mu_H / ((gamma-1.)*rho*unit_density*mu) ! = tcool*Lambda(T)/T
- !write(*,*) 'asdf: ',kboltz,mu_e,mu_H,gamma,rho,unit_density,mu,atomic_mass_unit,tcoolfac
- !write(*,*) 'asdf2:',ui, dudt, rho, dt, mu, gamma, Tdust, K2, kappa
 
  if (Townsend_test) then
     T_floor = Tcap
@@ -749,20 +733,16 @@ subroutine exact_cooling_Chris2(ui, dudt, rho, dt, mu, gamma, Tdust, K2, kappa)
  endif
  T_on_u = (gamma-1.)*mu*unit_ergg/Rg ! = (gamma-1.)*mu*atomic_mass_unit/kB * unit_ergg = (gamma-1.)*mu_cgs/kB * unit_ergg
  T      = T_on_u*ui
- !write(*,*) 'asdf3:',T_on_u,gamma,mu,unit_ergg,Rg
 
  if (T < T_floor) then
-    !write(*,*) 'T < T_floor'
     Temp = T_floor
     !elseif (T > Tref_Chris) then
-    !   write(*,*) 'T > Tref_Chris'
+    !   print*, 'T > Tref_Chris'
     !   call calc_cooling_rate(Q, dlnQ_dlnT, rho, T, Tdust, mu, gamma, K2, kappa)
     !   Temp = T+T_on_u*Q*dt
     !elseif (.true.) then !these two lines cool all particles to the floor temperature
     !   Temp = T_floor
  else
-    !write(*,*) 'else'
-
     !bisector to find k in Eq. A5
     !c----    Locate the interval in which temp is found.
     !c        This part is taken from locate.f in Numerical Recipes.
@@ -786,7 +766,7 @@ subroutine exact_cooling_Chris2(ui, dudt, rho, dt, mu, gamma, Tdust, K2, kappa)
        enddo
        k = kl
     endif
-    !write(*,*) 'tcool = ',tcoolfac*T/(LambdaTable_Chris(k)*(T/Tgrid_Chris(k))**alphaTable_Chris(k)), &
+    !print*, 'tcool = ',tcoolfac*T/(LambdaTable_Chris(k)*(T/Tgrid_Chris(k))**alphaTable_Chris(k)), &
     !                      tcoolfac*T/(LambdaTable_Chris(k)*(T/Tgrid_Chris(k))**alphaTable_Chris(k)) / utime, &
     !                      k,nTg_Chris, &
     !                      T,Tgrid_Chris(k), &
@@ -800,7 +780,7 @@ subroutine exact_cooling_Chris2(ui, dudt, rho, dt, mu, gamma, Tdust, K2, kappa)
        YT = YkTable_Chris(k,ict) + YTsegAlphaNE1_Chris(k,ict)*(1.-(Tgrid_Chris(k,ict)/T)**(alphaTable_Chris(k,ict)-1.))
     endif
     !YTsave = YT
-    !write(*,*) 'YT1 =',YT,YkTable_Chris(k),YTsegAlphaNE1_Chris(k),Tgrid_Chris(k),T,alphaTable_Chris(k), &
+    !print*, 'YT1 =',YT,YkTable_Chris(k),YTsegAlphaNE1_Chris(k),Tgrid_Chris(k),T,alphaTable_Chris(k), &
     !                   1.-(Tgrid_Chris(k)/T)**(alphaTable_Chris(k)-1.), &
     !                   YTsegAlphaNE1_Chris(k)*(1.-(Tgrid_Chris(k)/T)**(alphaTable_Chris(k)-1.))
 
@@ -814,7 +794,7 @@ subroutine exact_cooling_Chris2(ui, dudt, rho, dt, mu, gamma, Tdust, K2, kappa)
     !dYT = 1./(tcoolfac*TNdivLN) * dt*utime
     !yT = yT + dyT
     YT = YT + 1./(tcoolfac*TNdivLN(ict)) * dt*utime
-    !write(*,*) 'YT2 =',YT,YkTable_Chris(1),YkTable_Chris(nTg_Chris), &
+    !print*, 'YT2 =',YT,YkTable_Chris(1),YkTable_Chris(nTg_Chris), &
     !                   tcoolfac,TNdivLN,dt,utime, &
     !                   1./(tcoolfac*TNdivLN),dt*utime, &
     !                   1./(tcoolfac*TNdivLN) * dt*utime
@@ -828,7 +808,6 @@ subroutine exact_cooling_Chris2(ui, dudt, rho, dt, mu, gamma, Tdust, K2, kappa)
     !c
     !ignoring the initial conditionals, the results will be kl_init <= kk <= ku_init-1
     !   therefore, choose kl_init = 1 and ku_init = nTg_Chris+1
-    !if (yfunx_v2b==yfunc_v2b(1)) then
     if (YT>YkTable_Chris(1,ict)) then
        kk = 0
     elseif (YT==YkTable_Chris(1,ict)) then
@@ -868,14 +847,13 @@ subroutine exact_cooling_Chris2(ui, dudt, rho, dt, mu, gamma, Tdust, K2, kappa)
     endif
  endif
 
- if (Temp<T_floor) write(*,*) 'UH-HOH ',Temp,T_floor
- !write(*,*) 'T, Temp =',T,Temp
+ if (Temp<T_floor) print*, 'UH-HOH ',Temp,T_floor
  dudt = (Temp-T)/T_on_u/dt
  !note that u = Temp/T_on_u
 
- !write(*,'(A,6(1PE14.6))') 'C',ui,T,Temp,dudt,Q,Tref_Chris
- !write(*,*) 'stuff: ',k,kk,YkTable_Chris(k),YTsave,tcoolfac,1./(tcoolfac*TNdivLN)*dt*utime,YT,tcoolfac*T/(LambdaTable_Chris(k)*(T/Tgrid_Chris(k))**alphaTable_Chris(k))
- !write(*,*) 'ffuts: ',1./(tcoolfac*TNdivLN)*dt*utime,dt,utime,tcoolfac,T_on_u,Tref_Chris,TNdivLN
+ !print "(a,6(es14.6))", 'C',ui,T,Temp,dudt,Q,Tref_Chris
+ !print* 'stuff: ',k,kk,YkTable_Chris(k),YTsave,tcoolfac,1./(tcoolfac*TNdivLN)*dt*utime,YT,tcoolfac*T/(LambdaTable_Chris(k)*(T/Tgrid_Chris(k))**alphaTable_Chris(k))
+ !print*, 'ffuts: ',1./(tcoolfac*TNdivLN)*dt*utime,dt,utime,tcoolfac,T_on_u,Tref_Chris,TNdivLN
 end subroutine exact_cooling_Chris2
 
 !-----------------------------------------------------------------------
@@ -1048,50 +1026,51 @@ subroutine set_Tgrid
 
 end subroutine set_Tgrid
 
+!-----------------------------------------------------------------------
+!+
+!  Read in cooling table for exact cooling
+!+
+!-----------------------------------------------------------------------
 subroutine set_Tgrid_cooltable_Chris
+ use io, only:fatal
  integer :: i,ierr,k
- real :: tol=1.d-12
+ real    :: tol=1.d-12
 
- !write(*,*) 'k, T(k), Lambda(k) in cgs'
+ print "(a)", ' k, T(k), Lambda(k) in cgs'
  i = 1
  open(UNIT=15,file='cooltable.dat',form='formatted',status='old',iostat=ierr)
  if (ierr/=0) then
-    write(*,*)
-    write(*,*) 'ERROR ERROR ERROR'
-    write(*,*) 'cooltable.dat is missing'
-    write(*,*) 'Stopping...'
-    stop
+    print "(/,a)", ' ERROR ERROR ERROR'
+    print "(a)", ' cooltable.dat is missing'
+    call fatal('cooling','cooltable.dat is missing')
  endif
  read(15,*,iostat=ierr) Tgrid(i), LambdaTable(i)
  if (ierr/=0) then
-    write(*,*)
-    write(*,*) 'ERROR ERROR ERROR'
-    write(*,*) 'cooltable.dat is not properly formatted -- error with the first entry'
-    write(*,*) 'Stopping...'
-    stop
+    print "(/,a)", ' ERROR ERROR ERROR'
+    print "(a)", ' cooltable.dat is not properly formatted -- error with the first entry'
+    call fatal('cooling','cooltable.dat is not properly formatted -- error with the first entry')
  endif
- write(*,*) i, Tgrid(i), LambdaTable(i)
+ print*, i, Tgrid(i), LambdaTable(i)
  do while(ierr==0 .AND. i<nTg)
     i = i+1
     read(15,*,iostat=ierr) Tgrid(i), LambdaTable(i)
-    if (ierr==0) write(*,*) i, Tgrid(i), LambdaTable(i)
+    if (ierr==0) print "(i6,2(es16.8))", i, Tgrid(i), LambdaTable(i)
  enddo
  close(15)
  if (ierr/=0) i = i-1
  if (i/=nTg) then
-    write(*,*)
-    write(*,*) 'ERROR ERROR ERROR'
+    print "(/,a)", ' ERROR ERROR ERROR'
     if (i<nTg) then
-       write(*,*) 'cooltable.dat is not properly formatted -- not enough entries'
+       print "(a,i0)", ' cooltable.dat is not properly formatted -- not enough entries for nTg = ',nTg
+       call fatal('cooling','cooltable.dat is not properly formatted -- not enough entries',var='i',ival=i)
     else
-       write(*,*) 'cooltable.dat is not properly formatted -- too many entries'
+       print "(a,i0)", ' cooltable.dat is not properly formatted -- too many entries for nTg = ',nTg
+       call fatal('cooling','cooltable.dat is not properly formatted -- too many entries',var='i',ival=i)
     endif
-    write(*,*) 'Stopping...'
-    stop
  endif
  Tref_Chris = Tgrid(i)
- write(*,*) 'set_Tgrid_cooltable_Chris: read in ',i,' temperatures and cooling values'
- write(*,*) 'query: ',nTg,Tref_Chris,LambdaTable(nTg),Tref_Chris/LambdaTable(nTg),i
+ print "(a,i0,a)", ' set_Tgrid_cooltable_Chris: read in ',i,' temperatures and cooling values'
+ print "(a,i0,a,2(es16.8,a),i0)", 'query: ',nTg,' ',Tref_Chris,' ',LambdaTable(nTg),' ',Tref_Chris/LambdaTable(nTg),' ',i
 
  do k=1,i-1
     alphaTable(k) = log10(LambdaTable(k+1)/LambdaTable(k)) / log10(Tgrid(k+1)/Tgrid(k))
@@ -1114,29 +1093,36 @@ subroutine set_Tgrid_cooltable_Chris
     endif
  enddo
 
- write(*,*) 'k, alpha(k), Y_k(k)'
+ print "(a)", ' k, alpha(k), Y_k(k)'
  do k=1,i
-    write(*,*) k,alphaTable(k),YkTable(k)
+    print "(i6,2(es16.8))", k,alphaTable(k),YkTable(k)
  enddo
 end subroutine set_Tgrid_cooltable_Chris
 
+!-----------------------------------------------------------------------
+!+
+!  Read in cooling table(s) for exact cooling
+!+
+!-----------------------------------------------------------------------
 subroutine set_Tgrid_cooltable_Chris2
- use eos, only:num_var_comp
- integer :: k,ierr,ict
- real :: tol=1.d-12
- real, allocatable :: dummy1(:,:),dummy2(:,:)
- integer :: nCoolTables=0,nTg_Chris_max=0
- character(LEN=2) :: ictchar
+ use io,   only:fatal
+ use eos,  only:num_var_comp
+ use part, only:name_startypes
+ integer            :: k,ierr,ict
+ integer, parameter :: max_ct_entries=10000
+ real               :: tol=1.d-12
+ real, allocatable  :: dummy1(:,:),dummy2(:,:)
+ integer            :: nCoolTables=0,nTg_Chris_max=0
+ character(len=2)   :: ictchar
 
- !nTg_Chris = 0 !initialize to be used in max statement for multiple coolingtables
- write(*,'(a,i0)') ' num_var_comp = ',num_var_comp
  nCoolTables = max(num_var_comp,1)
- allocate(dummy1(10000,nCoolTables))
- allocate(dummy2(10000,nCoolTables))
+ print "(2(a,i0))", ' set_Tgrid_cooltable_Chris2: num_var_comp = ',num_var_comp,', nCoolTables = ',nCoolTables
+ allocate(dummy1(max_ct_entries,nCoolTables))
+ allocate(dummy2(max_ct_entries,nCoolTables))
  dummy1 = 0.
  dummy2 = 0.
- allocate(nTg_Chris(nCoolTables))
- nTg_Chris = 0
+ allocate(nTg_Chris(nCoolTables)) !currently this variable in not deallocated -- should I just define it to be the same size as "mu_startypes"?
+ nTg_Chris = 0 !initialize to be used in max statement for multiple cooling tables
 
  !read in cooling tables -- first using dummy variables, then in correct-size allocated arrays
  do ict=1,nCoolTables
@@ -1144,55 +1130,67 @@ subroutine set_Tgrid_cooltable_Chris2
     if (nCoolTables==1) then
        open(unit=15,file='cooltable.dat',form='formatted',status='old',iostat=ierr)
        if (ierr/=0) then
-          write(*,'(a)')
-          write(*,'(a)') 'ERROR ERROR ERROR'
-          write(*,'(a)') 'cooltable.dat is missing'
-          write(*,'(a)') 'Stopping...'
-          stop
+          print "(/,a)", ' ERROR ERROR ERROR'
+          print "(a)", ' cooltable.dat is missing'
+          call fatal('cooling','cooltable.dat is missing',var='ict',ival=ict)
        endif
     else
        write(ictchar,'(i0.2)') ict
-       open(unit=15,file='cooltable'//trim(ictchar)//'.dat',form='formatted',status='old',iostat=ierr)
+       !open(unit=15,file='cooltable_'//trim(ictchar)//'.dat',form='formatted',status='old',iostat=ierr)
+       open(unit=15,file='cooltable_'//trim(name_startypes(ict))//'.dat',form='formatted',status='old',iostat=ierr)
+       !print "(a,i0,a)", ' opening cooling table ',ict,': cooltable_'//trim(ictchar)//'.dat'
+       print "(a,i0,a)", ' opening cooling table ',ict,': cooltable_'//trim(name_startypes(ict))//'.dat'
        if (ierr/=0) then
-          write(*,'(a)')
-          write(*,'(a)') 'ERROR ERROR ERROR'
-          write(*,'(a)') 'cooltable'//trim(ictchar)//'.dat is missing'
-          write(*,'(a)') 'Stopping...'
+          print "(/,a)", ' ERROR ERROR ERROR'
+          !print "(a)", ' cooltable_'//trim(ictchar)//'.dat is missing'
+          print "(a)", ' cooltable_'//trim(name_startypes(ict))//'.dat is missing'
+          !call fatal('cooling','cooltable_'//trim(ictchar)//'.dat is missing',var='ict',ival=ict)
+          call fatal('cooling','cooltable_'//trim(name_startypes(ict))//'.dat is missing',var='ict',ival=ict)
           stop
        endif
     endif
     read(15,*,iostat=ierr) dummy1(k,ict), dummy2(k,ict)
     if (ierr/=0) then
-       write(*,*)
-       write(*,*) 'ERROR ERROR ERROR'
-       write(*,*) 'cooltable.dat is not properly formatted -- error with the first entry'
-       write(*,*) 'Stopping...'
+       print "(/,a)", ' ERROR ERROR ERROR'
+       print "(a)", ' cooltable.dat is not properly formatted -- error with the first entry'
+       !call fatal('cooling','cooltable_'//trim(ictchar)//'.dat is not properly formatted -- error with the first entry',var='ict',ival=ict)
+       call fatal('cooling','cooltable_'//trim(name_startypes(ict))//'.dat is not properly formatted -- error with the first entry',var='ict',ival=ict)
        stop
     endif
     do while(ierr==0) ! .AND. k<nTg)
-       !write(*,'(a)') k, dummy1(k), dummy2(k) !now commented out -- cooling table is outputted later
        k = k+1
-       if (k>10000) then
-          write(*,'(a)') 'ERROR -- increase size of dummy1 and dummy2 in set_Tgrid_cooltable_Chris2'
-          stop
+       if (k>max_ct_entries) then
+          print "(/,a)", ' ERROR -- increase size of dummy1 and dummy2 in set_Tgrid_cooltable_Chris2'
+          print "(/,a,i0)", ' ERROR -- max_ct_entries = ',max_ct_entries
+          call fatal('cooling','increase size of dummy1 and dummy2 in set_Tgrid_cooltable_Chris2',var='ict',ival=ict)
        endif
        read(15,*,iostat=ierr) dummy1(k,ict), dummy2(k,ict)
+       if (ierr==0 .and. dummy1(k,ict)<=dummy1(k-1,ict)) then
+          !cooling table is not correct
+          print "(/,a,i0,a)", ' ERROR -- temperatures for cooling table ',ict,' need to be increasing'
+          print "(2(a,es22.14))", ' ERROR -- instead, T(k) = ',dummy1(k,ict),' <= T(k-1) = ',dummy1(k-1,ict)
+          print "(a,i0)", ' ERROR -- offending entry is k = ',k
+          call fatal('cooling','temperatures for cooling tables need to be increasing',var='ict',ival=ict)
+       endif
     enddo
     close(15)
     if (ierr/=0) k = k-1
     if (k<2) then
-       write(*,'(a)')
-       write(*,'(a)') 'ERROR ERROR ERROR'
-       write(*,'(a)') 'cooltable.dat is not properly formatted -- not enough entries'
-       write(*,'(a)') 'Stopping...'
+       print "(/,a)", ' ERROR ERROR ERROR'
+       print "(a)", ' cooltable.dat is not properly formatted -- not enough entries'
+       !call fatal('cooling','cooltable_'//trim(ictchar)//'.dat is not properly formatted -- not enough entries',var='ict',ival=ict)
+       call fatal('cooling','cooltable_'//trim(name_startypes(ict))//'.dat is not properly formatted -- not enough entries',var='ict',ival=ict)
        stop
     endif
     nTg_Chris(ict) = k
  enddo
 
+ do ict=1,nCoolTables
+    print "(2(a,i0),a)", ' set_Tgrid_cooltable_Chris2: cooling table ',ict,' -- read in ',nTg_Chris(ict),' temperatures and cooling values'
+ enddo
  nTg_Chris_max = maxval(nTg_Chris)
- write(*,*) 'nTg_Chris =',nTg_Chris
- write(*,'(2(a,i0),a)') 'allocated array size: (Tg_Chris_max, nCoolTables) = (',nTg_Chris_max,', ',nCoolTables,')'
+ !print "(a,1000(1x,i0))", ' nTg_Chris =',nTg_Chris
+ print "(2(a,i0),a)", ' allocated array size for various cooling variables: (nTg_Chris_max, nCoolTables) = (',nTg_Chris_max,', ',nCoolTables,')'
 
  if (allocated(Tgrid_Chris        )) deallocate(Tgrid_Chris        )
  allocate(     Tgrid_Chris(        nTg_Chris_max,nCoolTables))
@@ -1223,19 +1221,26 @@ subroutine set_Tgrid_cooltable_Chris2
  !reference temperature T_ref=T_N, which is the final entry in the cooling table
  do ict=1,nCoolTables
     Tref_Chris(ict) = Tgrid_Chris(nTg_Chris(ict),ict)
-    write(*,'(2(a,i0),a)') ' set_Tgrid_cooltable_Chris2: cooling table ',ict,' -- read in ',nTg_Chris(ict),' temperatures and cooling values'
  enddo
 
  !frequently needed quantity -- precompute for optimization
- write(*,'(a)') ' select quantities for each cooling table:'
+ print "(/,a)", ' select quantities for each cooling table:'
+ print "(1x,67('-'))"
  do ict=1,nCoolTables
     TNdivLN(ict) = Tgrid_Chris(nTg_Chris(ict),ict) / LambdaTable_Chris(nTg_Chris(ict),ict)
-    !write(*,*) 'query: ',nTg_Chris,Tref_Chris,LambdaTable_Chris(nTg_Chris),TNdivLN
-    write(*,'(a,i0)') ' cooling table ',ict
-    write(*,'(a,i0)') ' nTg_Chris                             : ',nTg_Chris(ict)
-    write(*,'(a,ES22.14)') ' Tref_Chris [= Tgrid_Chris(nTg_Chris)] : ',Tref_Chris(ict)
-    write(*,'(a,ES22.14)') ' LambdaTableref_Chris                  : ',LambdaTable_Chris(nTg_Chris(ict),ict)
-    write(*,'(a,ES22.14)') ' TNdivLN [= Tref / Lambdaref]          : ',TNdivLN(ict)
+    !print*, 'query: ',nTg_Chris,Tref_Chris,LambdaTable_Chris(nTg_Chris),TNdivLN
+    if (nCoolTables==1) then
+       print "(a,i0,a)", ' cooling table ',ict,': cooltable.dat'
+    else
+       write(ictchar,'(i0.2)') ict
+       !print "(a,i0,a)", ' cooling table ',ict,': cooltable'//trim(ictchar)//'.dat'
+       print "(a,i0,a)", ' cooling table ',ict,': cooltable_'//trim(name_startypes(ict))//'.dat'
+    endif
+    print "(a,i0,a,i0)",      ' nTg_Chris(',ict,')                             : ',nTg_Chris(ict)
+    print "(a,i0,a,es22.14)", ' Tref_Chris(',ict,') [= Tgrid_Chris(nTg_Chris)] : ',Tref_Chris(ict)
+    print "(a,i0,a,es22.14)", ' LambdaTableref_Chris(',ict,')                  : ',LambdaTable_Chris(nTg_Chris(ict),ict)
+    print "(a,i0,a,es22.14)", ' TNdivLN(',ict,') [= Tref / Lambdaref]          : ',TNdivLN(ict)
+    print "(1x,67('-'))"
  enddo
 
  !Eq. A4, piecewise power law
@@ -1280,24 +1285,29 @@ subroutine set_Tgrid_cooltable_Chris2
     enddo
  enddo
 
- write(*,'(a)') ' full cooling table(s) and computed quantities:'
+ print "(/,a)", ' cooling table(s) and computed quantities:'
+ print "(1x,99('-'))"
  do ict=1,nCoolTables
-    write(*,'(a,i0)') ' cooling table ',ict
-    write(*,'(a)') '     k   T_k (K)                Lambda_k (erg*cm^3/s)  alpha_k                Y_k'
+    print "(a,i0)", ' cooling table ',ict
+    print "(a)", '     k   T_k (K)                Lambda_k (erg*cm^3/s)  alpha_k                Y_k'
     if (nTg_Chris(ict)>30) then
        do k=1,10
-          write(*,'(i6,4(ES23.14))') k,Tgrid_Chris(k,ict),LambdaTable_Chris(k,ict),alphaTable_Chris(k,ict),YkTable_Chris(k,ict)
+          print "(i6,4(es23.14))", k,Tgrid_Chris(k,ict),LambdaTable_Chris(k,ict),alphaTable_Chris(k,ict),YkTable_Chris(k,ict)
        enddo
-       write(*,'(a)') ' ...'
+       print "(a)", '   ...'
        do k=nTg_Chris(ict)-9,nTg_Chris(ict)
-          write(*,'(i6,4(ES23.14))') k,Tgrid_Chris(k,ict),LambdaTable_Chris(k,ict),alphaTable_Chris(k,ict),YkTable_Chris(k,ict)
+          print "(i6,4(es23.14))", k,Tgrid_Chris(k,ict),LambdaTable_Chris(k,ict),alphaTable_Chris(k,ict),YkTable_Chris(k,ict)
        enddo
     else
        do k=1,nTg_Chris(ict)
-          write(*,'(i6,4(ES23.14))') k,Tgrid_Chris(k,ict),LambdaTable_Chris(k,ict),alphaTable_Chris(k,ict),YkTable_Chris(k,ict)
+          print "(i6,4(es23.14))", k,Tgrid_Chris(k,ict),LambdaTable_Chris(k,ict),alphaTable_Chris(k,ict),YkTable_Chris(k,ict)
        enddo
     endif
+    print "(1x,99('-'))"
  enddo
+
+ if (allocated(dummy1)) deallocate(dummy1)
+ if (allocated(dummy2)) deallocate(dummy2)
 end subroutine set_Tgrid_cooltable_Chris2
 
 !-----------------------------------------------------------------------
