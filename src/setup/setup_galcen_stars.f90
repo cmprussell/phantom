@@ -37,10 +37,7 @@ module setup
  real :: h_sink = 5.d-2 ! sink particle radii in arcsec at 8kpc
  real :: m_SMBH = 4.28d6 ! mass of supermassive black hole (SMBH) in Msun
  real :: h_SMBH = 0.1d0 ! accretion radius of SMBH in arcsec at 8kpc
- logical :: multiAbuTest=.true.
  logical :: use_var_comp_local=.false.  !whether or not to use variable composition
- !integer :: num_var_comp_local=0        !set number of various compositions to zero with the hope of
- !!                                      !   causing an error if this variable is not initiailized properly
  character(len=120) :: datafile_mu = 'mu_name.txt'
 
 contains
@@ -106,22 +103,7 @@ subroutine setpart(id,npart,npartoftype,xyzh,massoftype,vxyzu,polyk,gamma,hfact,
  hfact = 1.2
  polyk = 0.
  gamma = 5./3.
- !if (.not.use_var_comp) then
- !   gmw = 0.6  ! completely ionized, solar abu; eventually needs to be WR abu
- !else
- !   if (n_startypes>=1) then
- !      gmw = mu_startypes(n_startypes+1)
- !   else
- !      gmw = 0.6  ! completely ionized, solar abu; eventually needs to be WR abu
- !   endif
- !endif
- !if (gmw<1.) then
- !   print "(a,g0)", ' setpart: gmw = 0',gmw
- !else
- !   print "(a,g0)", ' setpart: gmw = ',gmw
- !endif
- !!dtmax = 0.01
- !dtmax = 0.1
+ if (n_startypes<=0) print*
  !
  ! read setup parameters from the .setup file
  ! if file does not exist, then ask for user input
@@ -153,7 +135,7 @@ subroutine setpart(id,npart,npartoftype,xyzh,massoftype,vxyzu,polyk,gamma,hfact,
 !
 ! Read positions, masses and velocities of stars from file
 !
- filename_mpv=find_phantom_datafile(datafile_mpv,'galcen')
+ filename_mpv = find_phantom_datafile(datafile_mpv,'galcen')
  call read_ptmass_data(filename_mpv,xyzmh_ptmass,vxyz_ptmass,nptmass,ierr)
  do i=2,nptmass
     xyzmh_ptmass(1:3,i)  = xyzmh_ptmass(1:3,i)
@@ -171,9 +153,8 @@ subroutine setpart(id,npart,npartoftype,xyzh,massoftype,vxyzu,polyk,gamma,hfact,
 !
  print "(a,l)", ' setpart: use_var_comp =',use_var_comp
  if (use_var_comp) then
-    !n_startypes = num_var_comp_local
-    !n_startypes = 0
-    filename_mu = datafile_mu
+    filename_mu = find_phantom_datafile(datafile_mu,'galcen')
+    !filename_mu = datafile_mu
     if (n_startypes<=0) then !if already called from inject_galcen_winds()-->read_use_var_comp_data(), then don't call this again
        call read_use_var_comp_data(filename_mu)
     endif
@@ -336,15 +317,11 @@ subroutine write_setupfile(filename,iprint)
  call write_inopt(m_SMBH, 'm_SMBH','SMBH mass in solar masses',lu,ierr2)
  call write_inopt(h_SMBH, 'h_SMBH','SMBH accretion radius in arcsec at 8kpc',lu,ierr2)
 
- if (multiAbuTest) then
-    write(lu,"(/,a)") '# use variable composition'
-    call write_inopt(use_var_comp_local, 'use_var_comp_local','whether or not to use variable composition',lu,ierr2)
-    if (use_var_comp_local) then
-       !call write_inopt(num_var_comp_local, 'num_var_comp_local','number of various compositions',lu,ierr2)
-
-       write(lu,"(/,a)") '# datafile for mu and stellar classification names'
-       call write_inopt(datafile_mu,'datafile_mu','filename for various compositions data (mu,name)',lu,ierr1)
-    endif
+ write(lu,"(/,a)") '# use variable composition'
+ call write_inopt(use_var_comp_local, 'use_var_comp_local','whether or not to use variable composition',lu,ierr2)
+ if (use_var_comp_local) then
+    write(lu,"(/,a)") '# datafile for mu and stellar classification names'
+    call write_inopt(datafile_mu,'datafile_mu','filename for various compositions data (mu,name)',lu,ierr1)
  endif
 
  close(lu)
@@ -388,24 +365,12 @@ subroutine read_setupfile(filename,iprint,ierr)
  call read_inopt(h_SMBH,'h_SMBH',db,errcount=nerr)
  print "(a,es21.14)", ' h_SMBH =',h_SMBH
 
- if (multiAbuTest) then
-    call read_inopt(use_var_comp_local,'use_var_comp_local',db,errcount=nerr)
-    print "(a,l)", ' use_var_comp_local =',use_var_comp_local
-    use_var_comp = use_var_comp_local
-    if (use_var_comp) then
-       !call read_inopt(num_var_comp_local,'num_var_comp_local',db,errcount=nerr)
-       !if (.false.) then
-       !   print "(a,i0)", ' num_var_comp_local = ',num_var_comp_local
-       !   num_var_comp = num_var_comp_local
-       !else
-       !   print "(2(a,i0))", ' num_var_comp_local = ',num_var_comp_local,', but it was not put into num_var_comp, which is num_var_comp = ',num_var_comp
-       !endif
-       !print "(a,i0)", ' read_setupfile: num_var_comp = ',num_var_comp
-       call read_inopt(datafile_mu,'datafile_mu',db,errcount=nerr)
-       print "(a)", ' datafile_mu = '//trim(datafile_mu)
-    endif
- else
-    print "(2(a,l))", 'use_var_comp =',use_var_comp,' because multiAbuTest =',multiAbuTest
+ call read_inopt(use_var_comp_local,'use_var_comp_local',db,errcount=nerr)
+ print "(a,l)", ' use_var_comp_local =',use_var_comp_local
+ use_var_comp = use_var_comp_local
+ if (use_var_comp) then
+    call read_inopt(datafile_mu,'datafile_mu',db,errcount=nerr)
+    print "(a)", ' datafile_mu = '//trim(datafile_mu)
  endif
  !print "(a)", ' Note: None of the above values read-in from '//trim(filename)//' during this setup process are stored anywhere, so either'
  !print "(a)", ' A. their data needs to be stored elsewhere in variables that are stored in output files (i.e. xyzmh_ptmass(4,1) for "m_SMBH"),'
@@ -437,14 +402,10 @@ subroutine interactive_setup()
  call prompt('Enter stellar wind injection radii for the stars (also their sink particle radii) in arcsec at 8kpc',h_sink,1.e-5,1.)
  call prompt('Enter SMBH mass in Msun',m_SMBH,1.e0,1.e12)
  call prompt('Enter SMBH accretion radius in arcsec at 8 kpc',h_SMBH,1.e-5,1.)
- if (multiAbuTest) then
-    call prompt('Enter logical value for use_var_comp',use_var_comp_local)
-    use_var_comp = use_var_comp_local
-    if (use_var_comp_local) then
-       !call prompt('Enter number of various compositions, num_var_comp',num_var_comp_local)
-       !num_var_comp = num_var_comp_local
-       call prompt('Enter filename for various compositions data',datafile_mu,noblank=.true.)
-    endif
+ call prompt('Enter logical value for use_var_comp',use_var_comp_local)
+ use_var_comp = use_var_comp_local
+ if (use_var_comp_local) then
+    call prompt('Enter filename for various compositions data',datafile_mu,noblank=.true.)
  endif
  print "(a)"
 
