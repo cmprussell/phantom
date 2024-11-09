@@ -377,9 +377,12 @@ module part
 !
 !--wind variables: number of different star types, their mu values, and their names
 !
- integer :: n_startypes = 0                   !these variables need to be allocated here -- not in allocate_part() -- so that
- real :: mu_startypes(60) = 0.                !   the results in inject_galcen_winds-->read_use_var_comp() can be used in
- character(len=20) :: name_startypes(60) = '' !   cooling_solver-->set_Tgrid_cooltable_Chris2(), which is called before allocate_part()
+! these variables need to be allocated here -- not in allocate_part() -- so that
+!    the results in inject_galcen_winds-->read_use_var_comp() can be used in
+!    cooling_solver-->set_Tgrid_cooltable_Chris2(), which is called before allocate_part()
+ integer :: n_startypes = 0                                !number of startypes
+ real :: mu_startypes(60) = 0., habund_startypes(60) = 0.  !mu and habund for each startype
+ character(len=20) :: name_startypes(60) = ''              !name of each startype -- also used for finding cooling tables
 !
 !--correlate each iwindorig value to a cooling table
 !

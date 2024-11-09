@@ -22,6 +22,7 @@ module cooling_solver
 !   - dust_collision : *dust collision (1=on/0=off)*
 !   - excitation_HI  : *cooling via electron excitation of HI (1=on/0=off)*
 !   - lambda_shock   : *Cooling rate parameter for analytic shock solution*
+!   - lambda_table   : *Lambda(T) cooling table (1=on/0=off)*
 !   - relax_bowen    : *Bowen (diffusive) relaxation (1=on/0=off)*
 !   - relax_stefan   : *radiative relaxation (1=on/0=off)*
 !   - shock_problem  : *piecewise formulation for analytic shock solution (1=on/0=off)*
@@ -34,8 +35,7 @@ module cooling_solver
  use physcon, only:atomic_mass_unit
  implicit none
  character(len=*), parameter :: label = 'cooling_library'
- integer, public :: excitation_HI = 0, relax_Bowen = 0, dust_collision = 0, relax_Stefan = 0, shock_problem = 0
- integer, public :: cooltable_Chris = 0
+ integer, public :: excitation_HI = 0, relax_Bowen = 0, dust_collision = 0, relax_Stefan = 0, lambda_table = 0, shock_problem = 0
  integer, public :: icool_method  = 0
  !integer, parameter :: nTg  = 64
  integer, parameter :: nTg  = 1000 ! cloudy
@@ -62,9 +62,10 @@ module cooling_solver
  private
  real,    parameter :: Tcap = 1.d3 !Townsend cap temperature
 
- real, parameter :: habund=0.7
- real, parameter :: mu_e=2.0*atomic_mass_unit/(1.0+habund)
- real, parameter :: mu_h=atomic_mass_unit/habund
+ real, parameter :: habund_solar = 0.7
+ real, parameter :: mu_e_solar = 2.0*atomic_mass_unit/(1.0+habund_solar)
+ real, parameter :: mu_H_solar = atomic_mass_unit/habund_solar
+ real :: mu_e_Arr(60),mu_H_Arr(60)
  !logical, parameter :: methodLong=.true. !Q-based method, native to Phantom
  logical, parameter :: methodLong=.false. !Lambda-based method, native to EIS algorithm
 
@@ -76,7 +77,7 @@ contains
 !+
 !-----------------------------------------------------------------------
 subroutine init_cooling_solver(ierr)
- use io, only:error
+ use io, only:error,fatal
  integer, intent(out) :: ierr
 
  print*
@@ -87,23 +88,27 @@ subroutine init_cooling_solver(ierr)
     ierr = 1
  endif
  !if no cooling flag activated, disable cooling
- if ( (excitation_HI+relax_Bowen+dust_collision+relax_Stefan+shock_problem) == 0) then
+ if ( (excitation_HI+relax_Bowen+dust_collision+relax_Stefan+lambda_table+shock_problem) == 0) then
     print *,'ERROR: no cooling prescription activated'
     ierr = 2
-    print*, 'NOTE: above is not actually an error -- need to fix this...'
-    ierr=0
  endif
  !call set_Tgrid()
- cooltable_Chris=1
- if (cooltable_Chris==1) then
+ if (lambda_table == 1) then
     if (methodLong) then
        call set_Tgrid_cooltable_Chris()
     else
        call set_Tgrid_cooltable_Chris2()
     endif
+    print "(/,a)", ' Important! Lambda(T) cooling curves are parameterized based on the solar value for mu_H=amu/X, so make sure that the'
+    print "(a,f11.9)", '   solar hydrogen abundance mass fraction (X) that was used for creating the cooling tables is the following value:'
+    print "(a,f11.9)", '   X = habund_solar = ',habund_solar
+    print "(a)", ' If this is not the hydrogen mass fraction used to create the cooling tables, update "habund_solar" in cooling_solver.f90.'
+    print "(a)", ' Using habund_solar, the solar value for mu_e and mu_H are:'
+    print "(a,es21.14,a)", ' mu_e_solar =',mu_e_solar,' g'
+    print "(a,es21.14,a)", ' mu_H_solar =',mu_H_solar,' g'
     print*
-    print*, 'mu_e, mu_H =',mu_e,mu_H
-    print*
+    !check for an invalid habund_solar -- if invalid, kill the sim after the above text appears in hopes that it will help solve the issue
+    if (habund_solar<tiny(habund_solar)) call fatal('cooling_solver','error with habund_solar value -- must be positive',var='habund_solar',val=habund_solar)
  else
     call set_Tgrid()
  endif
@@ -392,9 +397,9 @@ subroutine exact_cooling_Chris(ui, dudt, rho, dt, mu, gamma, Tdust, K2, kappa)
  ict = 1
 
  !print*, 'Rg, kB/amu, kB, amu =',Rg,kboltz/atomic_mass_unit,kboltz,atomic_mass_unit
- rhocgsDivmueDivmuH = rho*unit_density/mu_e/mu_H
- !tcoolfac = kboltz*mu_e*mu_H / ((gamma-1.)*rho*unit_density*mu*atomic_mass_unit)
- tcoolfac = Rg*mu_e*mu_H / ((gamma-1.)*rho*unit_density*mu)
+ rhocgsDivmueDivmuH = rho*unit_density/mu_e_solar/mu_H_solar
+ !tcoolfac = kboltz*mu_e_solar*mu_H_solar / ((gamma-1.)*rho*unit_density*mu*atomic_mass_unit)
+ tcoolfac = Rg*mu_e_solar*mu_H_solar / ((gamma-1.)*rho*unit_density*mu)
  !print*, 'asdf: ',kboltz,mu_e,mu_H,gamma,rho,unit_density,mu,atomic_mass_unit,tcoolfac
  !print*, 'asdf2:',ui, dudt, rho, dt, mu, gamma, Tdust, K2, kappa
 
@@ -419,7 +424,7 @@ subroutine exact_cooling_Chris(ui, dudt, rho, dt, mu, gamma, Tdust, K2, kappa)
     !print*, 'else'
     !print*, 'else -- y=', y
     !print*, 'else -- mu=', mu
-    !print*, 'else -- habund, mu_e, mu_h=', habund,mu_e, mu_h
+    !print*, 'else -- habund, mu_e_solar, mu_H_solar=', habund,mu_e_solar, mu_H_solar
     !print*, 'else -- rho, rho*unit_density, rhocgsDivmueDivmuH=',rho,rho*unit_density,rhocgsDivmueDivmuH,LambdaTable(nTg)
     print*, 'else -- opt0 =',opt0,', opt1 =',opt1,', opt2 =',opt2,', withCorrection =',withCorrection
     if (opt0) then
@@ -650,7 +655,7 @@ subroutine exact_cooling_Chris2(ui, dudt, rho, dt, mu, gamma, Tdust, K2, kappa, 
  use physcon, only:Rg,kboltz
  use units,   only:unit_ergg,unit_density,utime
  !use cooling, only:Tfloor
- use eos,  only:use_var_comp,num_var_comp
+ use eos,  only:use_var_comp
  use part, only:n_startypes,mu_startypes
  use io,   only:fatal
 
@@ -664,7 +669,7 @@ subroutine exact_cooling_Chris2(ui, dudt, rho, dt, mu, gamma, Tdust, K2, kappa, 
  integer         :: k
 
  !real :: rhocgsDivmueDivmuH
- real :: tcool,tcoolfac
+ real :: tcoolfac
  !real :: Tref_Chris2
  !logical :: opt0,opt1,opt2,withCorrection
  real, parameter :: Tfloor=1.d4
@@ -721,9 +726,14 @@ subroutine exact_cooling_Chris2(ui, dudt, rho, dt, mu, gamma, Tdust, K2, kappa, 
  !         = Rg mu_e mu_H / ((gamma-1) rho_cgs mu_1)
 
  !print*, 'Rg, kB/amu, kB, amu =',Rg,kboltz/atomic_mass_unit,kboltz,atomic_mass_unit
- !rhocgsDivmueDivmuH = rho*unit_density/mu_e/mu_H
- !tcoolfac = kboltz*mu_e*mu_H / ((gamma-1.)*rho*unit_density*mu*atomic_mass_unit) ! = tcool*Lambda(T)/T
- tcoolfac = Rg*mu_e*mu_H / ((gamma-1.)*rho*unit_density*mu) ! = tcool*Lambda(T)/T
+ !rhocgsDivmueDivmuH = rho*unit_density/mu_e_solar/mu_H_solar
+ !tcoolfac = kboltz*mu_e_solar*mu_H_solar / ((gamma-1.)*rho*unit_density*mu*atomic_mass_unit) ! = tcool*Lambda(T)/T
+ !tcoolfac = Rg*mu_e_solar*mu_H_solar / ((gamma-1.)*rho*unit_density*mu) ! = tcool*Lambda(T)/T
+ !if (use_var_comp) then
+ tcoolfac = Rg*mu_e_Arr(ict)*mu_H_solar / ((gamma-1.)*rho*unit_density*mu) ! = tcool*Lambda(T)/T
+ !else
+ !   tcoolfac = Rg*mu_e_solar*mu_H_solar / ((gamma-1.)*rho*unit_density*mu) ! = tcool*Lambda(T)/T
+ !endif
 
  if (Townsend_test) then
     T_floor = Tcap
@@ -1105,15 +1115,14 @@ end subroutine set_Tgrid_cooltable_Chris
 !+
 !-----------------------------------------------------------------------
 subroutine set_Tgrid_cooltable_Chris2
- use io,   only:fatal
- use eos,  only:num_var_comp
- use part, only:name_startypes
+ use io,   only:fatal,error
+ use eos,  only:use_var_comp,num_var_comp
+ use part, only:name_startypes,habund_startypes
  integer            :: k,ierr,ict
  integer, parameter :: max_ct_entries=10000
  real               :: tol=1.d-12
  real, allocatable  :: dummy1(:,:),dummy2(:,:)
  integer            :: nCoolTables=0,nTg_Chris_max=0
- character(len=2)   :: ictchar
 
  nCoolTables = max(num_var_comp,1)
  print "(2(a,i0))", ' set_Tgrid_cooltable_Chris2: num_var_comp = ',num_var_comp,', nCoolTables = ',nCoolTables
@@ -1135,25 +1144,18 @@ subroutine set_Tgrid_cooltable_Chris2
           call fatal('cooling','cooltable.dat is missing',var='ict',ival=ict)
        endif
     else
-       write(ictchar,'(i0.2)') ict
-       !open(unit=15,file='cooltable_'//trim(ictchar)//'.dat',form='formatted',status='old',iostat=ierr)
-       open(unit=15,file='cooltable_'//trim(name_startypes(ict))//'.dat',form='formatted',status='old',iostat=ierr)
-       !print "(a,i0,a)", ' opening cooling table ',ict,': cooltable_'//trim(ictchar)//'.dat'
        print "(a,i0,a)", ' opening cooling table ',ict,': cooltable_'//trim(name_startypes(ict))//'.dat'
+       open(unit=15,file='cooltable_'//trim(name_startypes(ict))//'.dat',form='formatted',status='old',iostat=ierr)
        if (ierr/=0) then
           print "(/,a)", ' ERROR ERROR ERROR'
-          !print "(a)", ' cooltable_'//trim(ictchar)//'.dat is missing'
           print "(a)", ' cooltable_'//trim(name_startypes(ict))//'.dat is missing'
-          !call fatal('cooling','cooltable_'//trim(ictchar)//'.dat is missing',var='ict',ival=ict)
           call fatal('cooling','cooltable_'//trim(name_startypes(ict))//'.dat is missing',var='ict',ival=ict)
-          stop
        endif
     endif
     read(15,*,iostat=ierr) dummy1(k,ict), dummy2(k,ict)
     if (ierr/=0) then
        print "(/,a)", ' ERROR ERROR ERROR'
        print "(a)", ' cooltable.dat is not properly formatted -- error with the first entry'
-       !call fatal('cooling','cooltable_'//trim(ictchar)//'.dat is not properly formatted -- error with the first entry',var='ict',ival=ict)
        call fatal('cooling','cooltable_'//trim(name_startypes(ict))//'.dat is not properly formatted -- error with the first entry',var='ict',ival=ict)
        stop
     endif
@@ -1178,7 +1180,6 @@ subroutine set_Tgrid_cooltable_Chris2
     if (k<2) then
        print "(/,a)", ' ERROR ERROR ERROR'
        print "(a)", ' cooltable.dat is not properly formatted -- not enough entries'
-       !call fatal('cooling','cooltable_'//trim(ictchar)//'.dat is not properly formatted -- not enough entries',var='ict',ival=ict)
        call fatal('cooling','cooltable_'//trim(name_startypes(ict))//'.dat is not properly formatted -- not enough entries',var='ict',ival=ict)
        stop
     endif
@@ -1223,6 +1224,26 @@ subroutine set_Tgrid_cooltable_Chris2
     Tref_Chris(ict) = Tgrid_Chris(nTg_Chris(ict),ict)
  enddo
 
+ !mean molecular weights for electrons and hydrogen atoms
+ if (use_var_comp) then
+    do ict=1,nCoolTables
+       mu_e_Arr(ict) = 2.0*atomic_mass_unit/(1.0+habund_startypes(ict))
+       if (habund_startypes(ict)>tiny(habund_startypes)) then
+          mu_H_Arr(ict) = atomic_mass_unit/habund_startypes(ict)
+       else
+          mu_H_Arr(ict) = 0.
+       endif
+    enddo
+ else
+    mu_e_Arr(1) = 2.0*atomic_mass_unit/(1.0+habund_solar)
+    if (habund_solar>tiny(habund_startypes)) then
+       mu_H_Arr(1) = atomic_mass_unit/habund_solar
+    else
+       mu_H_Arr(1) = 0
+       call error('cooling_solver','incorrect value for habund_solar',var='habund_solar',val=habund_solar)
+    endif
+ endif
+
  !frequently needed quantity -- precompute for optimization
  print "(/,a)", ' select quantities for each cooling table:'
  print "(1x,67('-'))"
@@ -1232,14 +1253,14 @@ subroutine set_Tgrid_cooltable_Chris2
     if (nCoolTables==1) then
        print "(a,i0,a)", ' cooling table ',ict,': cooltable.dat'
     else
-       write(ictchar,'(i0.2)') ict
-       !print "(a,i0,a)", ' cooling table ',ict,': cooltable'//trim(ictchar)//'.dat'
        print "(a,i0,a)", ' cooling table ',ict,': cooltable_'//trim(name_startypes(ict))//'.dat'
     endif
     print "(a,i0,a,i0)",      ' nTg_Chris(',ict,')                             : ',nTg_Chris(ict)
     print "(a,i0,a,es22.14)", ' Tref_Chris(',ict,') [= Tgrid_Chris(nTg_Chris)] : ',Tref_Chris(ict)
     print "(a,i0,a,es22.14)", ' LambdaTableref_Chris(',ict,')                  : ',LambdaTable_Chris(nTg_Chris(ict),ict)
     print "(a,i0,a,es22.14)", ' TNdivLN(',ict,') [= Tref / Lambdaref]          : ',TNdivLN(ict)
+    print "(a,i0,a,es22.14)", ' mu_e_Arr(',ict,') (grams)                      : ',mu_e_Arr(ict)
+    print "(a,i0,a,es22.14)", ' mu_H_Arr(',ict,') (grams)                      : ',mu_H_Arr(ict)
     print "(1x,67('-'))"
  enddo
 
@@ -1295,6 +1316,10 @@ subroutine set_Tgrid_cooltable_Chris2
           print "(i6,4(es23.14))", k,Tgrid_Chris(k,ict),LambdaTable_Chris(k,ict),alphaTable_Chris(k,ict),YkTable_Chris(k,ict)
        enddo
        print "(a)", '   ...'
+       do k=100,nTg_Chris(ict)-10,100
+          print "(i6,4(es23.14))", k,Tgrid_Chris(k,ict),LambdaTable_Chris(k,ict),alphaTable_Chris(k,ict),YkTable_Chris(k,ict)
+       enddo
+       print "(a)", '   ...'
        do k=nTg_Chris(ict)-9,nTg_Chris(ict)
           print "(i6,4(es23.14))", k,Tgrid_Chris(k,ict),LambdaTable_Chris(k,ict),alphaTable_Chris(k,ict),YkTable_Chris(k,ict)
        enddo
@@ -1326,6 +1351,7 @@ subroutine write_options_cooling_solver(iunit)
  call write_inopt(relax_bowen,'relax_bowen','Bowen (diffusive) relaxation (1=on/0=off)',iunit)
  call write_inopt(relax_stefan,'relax_stefan','radiative relaxation (1=on/0=off)',iunit)
  call write_inopt(dust_collision,'dust_collision','dust collision (1=on/0=off)',iunit)
+ call write_inopt(lambda_table,'lambda_table','Lambda(T) cooling table (1=on/0=off)',iunit)
  call write_inopt(shock_problem,'shock_problem','piecewise formulation for analytic shock solution (1=on/0=off)',iunit)
  if (shock_problem == 1) then
     call write_inopt(lambda_shock_cgs,'lambda_shock','Cooling rate parameter for analytic shock solution',iunit)
@@ -1366,6 +1392,9 @@ subroutine read_options_cooling_solver(name,valstring,imatch,igotall,ierr)
     ngot = ngot + 1
  case('dust_collision')
     read(valstring,*,iostat=ierr) dust_collision
+    ngot = ngot + 1
+ case('lambda_table')
+    read(valstring,*,iostat=ierr) lambda_table
     ngot = ngot + 1
  case('shock_problem')
     read(valstring,*,iostat=ierr) shock_problem

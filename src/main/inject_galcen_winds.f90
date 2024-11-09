@@ -14,7 +14,7 @@ module inject
 ! :Owner: Christopher Russell
 !
 ! :Runtime parameters:
-!   - datafile_mu    : *filename for wind composition (mu,name)*
+!   - datafile_mhn   : *filename for wind composition (mu,habund,name)*
 !   - datafile_wind  : *filename for wind injection (m,x,y,z,vx,vy,vz)*
 !   - outer_boundary : *kill gas particles outside this radius*
 !
@@ -31,7 +31,7 @@ module inject
 
  real :: outer_boundary = 20.
  character(len=120) :: datafile_wind = 'winddata.txt'
- character(len=120) :: datafile_mu   = 'mu_name.txt'
+ character(len=120) :: datafile_mhn  = 'mu_habund_name.txt'
 
  ! enumerated type for wind properties that are reals
  integer, parameter :: n_wind_prop = 3
@@ -55,11 +55,10 @@ module inject
  !integer, private :: total_particles_injected_actual(maxptmass) = 0
  integer, private :: iseed = -666
  integer, private :: nskip_ptmass
- real,    private :: temp_inject=0. !set to value that should cause an error if value in init_inject() is not run properly
- real,    private :: uu_inject=0.   !set to value that should cause an error if value in init_inject() is not run properly
- real,    private :: Mdot_fac=0.    !set to value that should cause an error if value in init_inject() is not run properly
- real,    private :: vel_fac=0.     !set to value that should cause an error if value in init_inject() is not run properly
- integer, private :: iunit_tpi=99   !for reading in total_particles_injected.dat -- value not in io-->set_io_unit_numbers
+ real,    private :: temp_inject = 0. !set to value that should cause an error if value in init_inject() is not run properly
+ real,    private :: uu_inject = 0.   !set to value that should cause an error if value in init_inject() is not run properly
+ real,    private :: Mdot_fac = 0.    !set to value that should cause an error if value in init_inject() is not run properly
+ real,    private :: vel_fac = 0.     !set to value that should cause an error if value in init_inject() is not run properly
  integer, private :: i_unknowninit_startypes !index in the mu/name table of the startype for unknown and initialization particles
 
 contains
@@ -71,10 +70,10 @@ contains
 subroutine init_inject(ierr)
  use io,        only:fatal
  use timestep,  only:time
- use part,      only:massoftype,igas,xyzmh_ptmass,n_startypes,mu_startypes,name_startypes,iwindorig_to_ict
+ use part,      only:massoftype,igas,xyzmh_ptmass,iwindorig_to_ict,mu_startypes
  use physcon,   only:solarm,seconds,years,km,kb_on_mH
  use units,     only:umass,udist,utime,unit_velocity
- use eos,       only:gmw,gamma,use_var_comp
+ use eos,       only:gmw,gamma
  use timestep,  only:dtmax
  integer, intent(out) :: ierr
  integer :: i,j,j_corrupt
@@ -94,6 +93,7 @@ subroutine init_inject(ierr)
  logical :: tpi_file_rewrite_add = .false.
  logical :: tpi_file_rewrite_delete = .false.
  logical :: tpi_file_rewrite_reorder = .false.
+ integer :: iunit_tpi
 
  !
  ! initialize to return without error
@@ -127,7 +127,7 @@ subroutine init_inject(ierr)
  ! convert mass loss rate from Msun/yr to code units
  Mdot_fac = (solarm/umass)*(utime/years)
  vel_fac  = (km/udist)*(utime/seconds)
- ! make able that correclate iwindorig to ict (i.e. cooling tables)
+ ! make table that correlates iwindorig to ict (i.e. originating star to cooling tables)
  if (allocated(iwindorig_to_ict)) deallocate(iwindorig_to_ict)
  allocate(iwindorig_to_ict(0:nptmass)) !indez zero is for unknown/init particles
  ! verification of Mdots and vinfs
@@ -173,7 +173,7 @@ subroutine init_inject(ierr)
     print "(/,a)", ' New simulation: Creating total_particles_injected.dat to track total_particles_injected,'
     print "(a)", '     which will negate any injected-particle errors upon restarting.'
     total_particles_injected(1:nptmass) = 0
-    open(file='total_particles_injected.dat',unit=iunit_tpi,form='formatted')
+    open(newunit=iunit_tpi,file='total_particles_injected.dat',form='formatted')
     write(iunit_tpi,*) time,nptmass,total_particles_injected(1:nptmass)
     close(iunit_tpi)
  else
@@ -189,7 +189,7 @@ subroutine init_inject(ierr)
     inquire(file='total_particles_injected.dat',exist=iexist)
     if (iexist) then
        ! read-in total_particles_injected
-       open(file='total_particles_injected.dat',unit=iunit_tpi,form='formatted',status='old')
+       open(newunit=iunit_tpi,file='total_particles_injected.dat',form='formatted',status='old')
        ierr_tpi=0
        j_corrupt = 0
        j = 0
@@ -265,7 +265,7 @@ subroutine init_inject(ierr)
                    ! rewrite total_particles_injected.dat
                    print "(/,a)", ' total_particles_injected.dat seems to have irregular entries given this simulation''s restart variable "time".'
                    print "(a)", ' Rewrite this file with only the correct entries, which are values less than "time" and in sequential order.'
-                   open(file='total_particles_injected.dat',unit=iunit_tpi,form='formatted')
+                   open(newunit=iunit_tpi,file='total_particles_injected.dat',form='formatted')
                    write(iunit_tpi,*,iostat=ierr_tpi) time_tpi(i_first),nptmass_tpi(i_first),total_particles_injected_tpi(1:nptmass,i_first)
                    i_curr2 = i_first
                    do i = i_first+1,j
@@ -285,7 +285,7 @@ subroutine init_inject(ierr)
                 print "(/,a)", ' total_particles_injected.dat seems to have no relevant entries given this simulation''s restart variable "time".'
                 print "(a)", ' Rewrite this file with only the correct entry for the start of the simulation.'
                 total_particles_injected_tpi(1:nptmass,1) = 0
-                open(file='total_particles_injected.dat',unit=iunit_tpi,form='formatted')
+                open(newunit=iunit_tpi,file='total_particles_injected.dat',form='formatted')
                 write(iunit_tpi,*,iostat=ierr_tpi) 0.0d0,nptmass,total_particles_injected_tpi(1:nptmass,1)
                 close(iunit_tpi)
              endif
@@ -333,7 +333,7 @@ subroutine init_inject(ierr)
                 print "(/,a)", ' Rewriting total_particles_injected.dat to remove unnecessary entries'
                 print "(a)", '    from times that are after this current sim''s restart time,'
                 print "(a)", '    to reorder the entries so they are in sequential order, or both.'
-                open(file='total_particles_injected.dat',unit=iunit_tpi,form='formatted')
+                open(newunit=iunit_tpi,file='total_particles_injected.dat',form='formatted')
                 ! find the first entry to write
                 i_first = 1
                 do while (time_tpi(i_first)>time)
@@ -359,7 +359,7 @@ subroutine init_inject(ierr)
           print "(/,a)", ' Rewriting total_particles_injected.dat to include the'
           print "(a)", '    entry for the start of the simulation.'
           total_particles_injected_tpi(1:nptmass,1) = 0
-          open(file='total_particles_injected.dat',unit=iunit_tpi,form='formatted')
+          open(newunit=iunit_tpi,file='total_particles_injected.dat',form='formatted')
           write(iunit_tpi,*,iostat=ierr_tpi) 0.0d0,nptmass,total_particles_injected_tpi(1:nptmass,1)
           close(iunit_tpi)
        endif
@@ -449,7 +449,7 @@ subroutine inject_particles(time,dtlast,xyzh,vxyzu,xyzmh_ptmass,vxyz_ptmass,&
  use partinject,only:add_or_update_particle,updated_particle
  use physcon,   only:pi,solarm,seconds,years,km,kb_on_mH
  use random,    only:ran2
- use eos,       only:gmw,gamma
+ use eos,       only:gmw
  use options,   only:use_var_comp
  real,    intent(in)    :: time, dtlast
  real,    intent(inout) :: xyzh(:,:), vxyzu(:,:), xyzmh_ptmass(:,:), vxyz_ptmass(:,:)
@@ -483,15 +483,6 @@ subroutine inject_particles(time,dtlast,xyzh,vxyzu,xyzmh_ptmass,vxyz_ptmass,&
  !$omp end parallel do
 
  if (iverbose >= 2) print*,' skipping ',nskip_ptmass,' point masses'
-
- !! Verification of Mdots and vinfs
- !do i=1,nptmass
- !   if (i<=nskip_ptmass) then
- !      print*, 'm(',i,') = ',xyzmh_ptmass(4,i),xyzmh_ptmass(4,i)*umass,xyzmh_ptmass(4,i)*umass/solarm
- !   else
- !      print*, 'm(',i,') = ',xyzmh_ptmass(4,i),xyzmh_ptmass(4,i)*umass,xyzmh_ptmass(4,i)*umass/solarm,wind(i_Mdot,i-nskip_ptmass),wind(i_vel,i-nskip_ptmass)
- !   endif
- !enddo
 
  ! for reusing particles
  i_part = 1
@@ -646,9 +637,10 @@ subroutine write_options_inject(iunit)
  use timestep,     only:time
  use options,      only:use_var_comp
  integer, intent(in) :: iunit
+ integer             :: iunit_tpi
 
  if (use_var_comp) then
-    call write_inopt(trim(datafile_mu),'datafile_mu','filename for wind composition (mu,name)',iunit)
+    call write_inopt(trim(datafile_mhn),'datafile_mhn','filename for wind composition (mu,habund,name)',iunit)
  endif
  call write_inopt(trim(datafile_wind),'datafile_wind','filename for wind injection (m,x,y,z,vx,vy,vz)',iunit)
  call write_inopt(outer_boundary,'outer_boundary','kill gas particles outside this radius',iunit)
@@ -659,7 +651,7 @@ subroutine write_options_inject(iunit)
        ! write new entry in total_particles_injected.dat when each full dump is written,
        !    which is needed for eliminating discrepancies in injected-particle numbers when restarting
        !
-       open(file='total_particles_injected.dat',unit=iunit_tpi,form='formatted',position='append')
+       open(newunit=iunit_tpi,file='total_particles_injected.dat',form='formatted',position='append')
        write(iunit_tpi,*) time,nptmass,total_particles_injected(1:nptmass)
        close(iunit_tpi)
     endif
@@ -684,9 +676,9 @@ subroutine read_options_inject(name,valstring,imatch,igotall,ierr)
 
  imatch  = .true.
  select case(trim(name))
- case('datafile_mu')
-    read(valstring,*,iostat=ierr) datafile_mu
-    call read_use_var_comp_data(datafile_mu)
+ case('datafile_mhn')
+    read(valstring,*,iostat=ierr) datafile_mhn
+    call read_use_var_comp_data(datafile_mhn)
  case('datafile_wind')
     read(valstring,*,iostat=ierr) datafile_wind
     call read_wind_data(datafile_wind,nstars)
@@ -713,10 +705,9 @@ end subroutine read_options_inject
 subroutine read_wind_data(filename_wind,nstars)
  use io,      only:error
  use options, only:use_var_comp
- use part,    only:n_startypes,mu_startypes,name_startypes
+ use part,    only:n_startypes,mu_startypes,habund_startypes,name_startypes
  character(len=*), intent(in)  :: filename_wind
  integer,          intent(out) :: nstars
- !integer :: iunit,ierr,idum,i
  integer :: iunit,ierr,i,j
 
  nstars = 0
@@ -753,8 +744,7 @@ subroutine read_wind_data(filename_wind,nstars)
        do i=1,nstars
           j = 1
           !print "(a)", trim(name_startypes(j))//' -- '//trim(wind_char(i_comp_char,i))
-          do while (j<=n_startypes .and. (index(trim(wind_char(i_comp_char,i)),trim(name_startypes(j)))/=1 .or. &
-                                          index(trim(name_startypes(j)),trim(wind_char(i_comp_char,i)))/=1))
+          do while (trim(wind_char(i_comp_char,i))/=trim(name_startypes(j)) .and. j<=n_startypes)
              j = j+1
              !print "(a)", trim(name_startypes(j))//' -- '//trim(wind_char(i_comp_char,i))
           enddo
@@ -772,65 +762,31 @@ subroutine read_wind_data(filename_wind,nstars)
        wind_int(i_comp,i) = i_unknowninit_startypes
        wind_char(i_comp_char,i) = trim(name_startypes(wind_int(i_comp,i)))
 
-       print "(1x,116('-'))"
-       print "(a)", ' | ID           | ID       | Wind Vel | Mdot          | Composition | Composition | mu                | Spec type   |'
-       print "(a)", ' | (sequential) | (astro)  | (km/s)   | (Msun/yr)     | (code ID)   | (name)      | (amu)             | (full name) |'
-       print "(a)", ' |--------------|----------|----------|---------------|-------------|-------------|-------------------|-------------|'
+       print "(1x,124('-'))"
+       print "(a)", ' | ID           | ID       | Wind Vel | Mdot          | Composition | Composition | mu          | habund      | Spec type   |'
+       print "(a)", ' | (sequential) | (astro)  | (km/s)   | (Msun/yr)     | (code ID)   | (name)      | (amu)       | (mass frac) | (full name) |'
+       print "(a)", ' |--------------|----------|----------|---------------|-------------|-------------|-------------|-------------|-------------|'
        do i=1,nstars
-          if (len(trim(wind_char(i_comp_char,i)))==1) then
-             print "(1x,'|',5x,i8,1x,'|',1x,i8,1x,'|',1x,f8.2,1x,'|',1x,es13.6,1x,'|',1x,3x,i8,1x,'|',1x,a1,10x,1x,'|',1x,g0,1x,'|',1x,a)", &
-                i,wind_int(i_astroID,i),wind(i_vel,i),wind(i_Mdot,i),wind_int(i_comp,i),trim(wind_char(i_comp_char,i)),mu_startypes(wind_int(i_comp,i)),wind_char(i_fulltype_char,i)
-          elseif (len(trim(wind_char(i_comp_char,i)))==2) then
-             print "(1x,'|',5x,i8,1x,'|',1x,i8,1x,'|',1x,f8.2,1x,'|',1x,es13.6,1x,'|',1x,3x,i8,1x,'|',1x,a2, 9x,1x,'|',1x,g0,1x,'|',1x,a)", &
-                i,wind_int(i_astroID,i),wind(i_vel,i),wind(i_Mdot,i),wind_int(i_comp,i),trim(wind_char(i_comp_char,i)),mu_startypes(wind_int(i_comp,i)),wind_char(i_fulltype_char,i)
-          elseif (len(trim(wind_char(i_comp_char,i)))==3) then
-             print "(1x,'|',5x,i8,1x,'|',1x,i8,1x,'|',1x,f8.2,1x,'|',1x,es13.6,1x,'|',1x,3x,i8,1x,'|',1x,a3, 8x,1x,'|',1x,g0,1x,'|',1x,a)", &
-                i,wind_int(i_astroID,i),wind(i_vel,i),wind(i_Mdot,i),wind_int(i_comp,i),trim(wind_char(i_comp_char,i)),mu_startypes(wind_int(i_comp,i)),wind_char(i_fulltype_char,i)
-          elseif (len(trim(wind_char(i_comp_char,i)))==4) then
-             print "(1x,'|',5x,i8,1x,'|',1x,i8,1x,'|',1x,f8.2,1x,'|',1x,es13.6,1x,'|',1x,3x,i8,1x,'|',1x,a4, 7x,1x,'|',1x,g0,1x,'|',1x,a)", &
-                i,wind_int(i_astroID,i),wind(i_vel,i),wind(i_Mdot,i),wind_int(i_comp,i),trim(wind_char(i_comp_char,i)),mu_startypes(wind_int(i_comp,i)),wind_char(i_fulltype_char,i)
-          elseif (len(trim(wind_char(i_comp_char,i)))==5) then
-             print "(1x,'|',5x,i8,1x,'|',1x,i8,1x,'|',1x,f8.2,1x,'|',1x,es13.6,1x,'|',1x,3x,i8,1x,'|',1x,a5, 6x,1x,'|',1x,g0,1x,'|',1x,a)", &
-                i,wind_int(i_astroID,i),wind(i_vel,i),wind(i_Mdot,i),wind_int(i_comp,i),trim(wind_char(i_comp_char,i)),mu_startypes(wind_int(i_comp,i)),wind_char(i_fulltype_char,i)
-          elseif (len(trim(wind_char(i_comp_char,i)))==6) then
-             print "(1x,'|',5x,i8,1x,'|',1x,i8,1x,'|',1x,f8.2,1x,'|',1x,es13.6,1x,'|',1x,3x,i8,1x,'|',1x,a6, 5x,1x,'|',1x,g0,1x,'|',1x,a)", &
-                i,wind_int(i_astroID,i),wind(i_vel,i),wind(i_Mdot,i),wind_int(i_comp,i),trim(wind_char(i_comp_char,i)),mu_startypes(wind_int(i_comp,i)),wind_char(i_fulltype_char,i)
-          elseif (len(trim(wind_char(i_comp_char,i)))==7) then
-             print "(1x,'|',5x,i8,1x,'|',1x,i8,1x,'|',1x,f8.2,1x,'|',1x,es13.6,1x,'|',1x,3x,i8,1x,'|',1x,a7, 4x,1x,'|',1x,g0,1x,'|',1x,a)", &
-                i,wind_int(i_astroID,i),wind(i_vel,i),wind(i_Mdot,i),wind_int(i_comp,i),trim(wind_char(i_comp_char,i)),mu_startypes(wind_int(i_comp,i)),wind_char(i_fulltype_char,i)
-          else!if (len(trim(wind_char(i_comp_char,i)))==8) then
-             print "(1x,'|',5x,i8,1x,'|',1x,i8,1x,'|',1x,f8.2,1x,'|',1x,es13.6,1x,'|',1x,3x,i8,1x,'|',1x,a8, 3x,1x,'|',1x,g0,1x,'|',1x,a)", &
-                i,wind_int(i_astroID,i),wind(i_vel,i),wind(i_Mdot,i),wind_int(i_comp,i),trim(wind_char(i_comp_char,i)),mu_startypes(wind_int(i_comp,i)),wind_char(i_fulltype_char,i)
-          endif
+          write(*,'(1x,"|",5x,i8,1x,"|",1x,i8,1x,"|",1x,f8.2,1x,"|",1x,es13.6,1x,"|",1x,3x,i8,1x,"|",1x,a)',advance='no') &
+             i,wind_int(i_astroID,i),wind(i_vel,i),wind(i_Mdot,i),wind_int(i_comp,i),trim(wind_char(i_comp_char,i))
+          do j=10,len(trim(wind_char(i_comp_char,i))),-1
+             write(*,'(a)',advance='no') ' '
+          enddo
+          write(*,'(1x,2("|",1x,f11.9,1x),"|",1x,a)',advance='no') mu_startypes(wind_int(i_comp,i)),habund_startypes(wind_int(i_comp,i)),trim(wind_char(i_fulltype_char,i))
+          do j=10,len(trim(wind_char(i_fulltype_char,i))),-1
+             write(*,'(a)',advance='no') ' '
+          enddo
+          write(*,'(1x,"|")')
        enddo
-       print "(a)", ' |--------------|-------------------------------------|-------------|-------------|-------------------|-------------|'
+       print "(a)", ' |--------------|-------------------------------------|-------------|-------------|-------------|-------------|-------------|'
        i = nstars+1
-       if (len(trim(name_startypes(wind_int(i_comp,i))))==1) then
-          print "(1x,'|',5x,i8,1x,'|',1x,a,1x,'|',1x,3x,i8,1x,'|',1x,a1,10x,1x,'|',1x,g0,1x,'| N/A         |')", &
-             i,'unknown & initialization particles ',wind_int(i_comp,i),trim(name_startypes(wind_int(i_comp,i))),mu_startypes(wind_int(i_comp,i))
-       elseif (len(trim(name_startypes(wind_int(i_comp,i))))==2) then
-          print "(1x,'|',5x,i8,1x,'|',1x,a,1x,'|',1x,3x,i8,1x,'|',1x,a2,9x,1x,'|',1x,g0,1x,'| N/A         |')", &
-             i,'unknown & initialization particles ',wind_int(i_comp,i),trim(name_startypes(wind_int(i_comp,i))),mu_startypes(wind_int(i_comp,i))
-       elseif (len(trim(name_startypes(wind_int(i_comp,i))))==3) then
-          print "(1x,'|',5x,i8,1x,'|',1x,a,1x,'|',1x,3x,i8,1x,'|',1x,a3,8x,1x,'|',1x,g0,1x,'| N/A         |')", &
-             i,'unknown & initialization particles ',wind_int(i_comp,i),trim(name_startypes(wind_int(i_comp,i))),mu_startypes(wind_int(i_comp,i))
-       elseif (len(trim(name_startypes(wind_int(i_comp,i))))==4) then
-          print "(1x,'|',5x,i8,1x,'|',1x,a,1x,'|',1x,3x,i8,1x,'|',1x,a4,7x,1x,'|',1x,g0,1x,'| N/A         |')", &
-             i,'unknown & initialization particles ',wind_int(i_comp,i),trim(name_startypes(wind_int(i_comp,i))),mu_startypes(wind_int(i_comp,i))
-       elseif (len(trim(name_startypes(wind_int(i_comp,i))))==5) then
-          print "(1x,'|',5x,i8,1x,'|',1x,a,1x,'|',1x,3x,i8,1x,'|',1x,a5,6x,1x,'|',1x,g0,1x,'| N/A         |')", &
-             i,'unknown & initialization particles ',wind_int(i_comp,i),trim(name_startypes(wind_int(i_comp,i))),mu_startypes(wind_int(i_comp,i))
-       elseif (len(trim(name_startypes(wind_int(i_comp,i))))==6) then
-          print "(1x,'|',5x,i8,1x,'|',1x,a,1x,'|',1x,3x,i8,1x,'|',1x,a6,5x,1x,'|',1x,g0,1x,'| N/A         |')", &
-             i,'unknown & initialization particles ',wind_int(i_comp,i),trim(name_startypes(wind_int(i_comp,i))),mu_startypes(wind_int(i_comp,i))
-       elseif (len(trim(name_startypes(wind_int(i_comp,i))))==7) then
-          print "(1x,'|',5x,i8,1x,'|',1x,a,1x,'|',1x,3x,i8,1x,'|',1x,a7,4x,1x,'|',1x,g0,1x,'| N/A         |')", &
-             i,'unknown & initialization particles ',wind_int(i_comp,i),trim(name_startypes(wind_int(i_comp,i))),mu_startypes(wind_int(i_comp,i))
-       else!if (len(trim(name_startypes(wind_int(i_comp,i))))==8) then
-          print "(1x,'|',5x,i8,1x,'|',1x,a,1x,'|',1x,3x,i8,1x,'|',1x,a8,3x,1x,'|',1x,g0,1x,'| N/A         |')", &
-             i,'unknown & initialization particles ',wind_int(i_comp,i),trim(name_startypes(wind_int(i_comp,i))),mu_startypes(wind_int(i_comp,i))
-       endif
-       print "(1x,116('-'))"
+       write(*,'(1x,"|",5x,i8,1x,"|",1x,a,1x,"|",1x,3x,i8,1x,"|",1x,a)',advance='no') &
+          i,'unknown & initialization particles ',wind_int(i_comp,i),trim(name_startypes(wind_int(i_comp,i)))
+       do j=10,len(trim(wind_char(i_comp_char,i))),-1
+          write(*,'(a)',advance='no') ' '
+       enddo
+       write(*,'(1x,2("|",1x,f11.9,1x),"| N/A         |")') mu_startypes(wind_int(i_comp,i)),habund_startypes(wind_int(i_comp,i))
+       print "(1x,124('-'))"
     else
        print "(a)", ' *******************************************'
        print "(a)", ' * No wind data read in from '//trim(filename_wind)//'  *'
@@ -885,6 +841,7 @@ subroutine read_wind_data(filename_wind,nstars)
     endif
 
  endif
+ close(iunit)
 
  print*
 end subroutine read_wind_data
@@ -894,11 +851,11 @@ end subroutine read_wind_data
 !  read various composition data for stars from file
 !+
 !----------------------------------------------------------------
-subroutine read_use_var_comp_data(filename_mu)
- use io,   only:error
- use part, only:n_startypes,mu_startypes,name_startypes
+subroutine read_use_var_comp_data(filename_mhn)
+ use io,   only:error,warning
+ use part, only:n_startypes,mu_startypes,habund_startypes,name_startypes
  use eos,  only:gmw,num_var_comp
- character(len=*), intent(in) :: filename_mu
+ character(len=*), intent(in) :: filename_mhn
  integer :: iunit,ierr
  integer :: i,j
  character(len=12) :: unknown_init_char
@@ -907,17 +864,19 @@ subroutine read_use_var_comp_data(filename_mu)
  real :: tol_mu = 1.d-6
 
  n_startypes = 0
- open(newunit=iunit,file=filename_mu,status='old',action='read',iostat=ierr)
+ open(newunit=iunit,file=filename_mhn,status='old',action='read',iostat=ierr)
  if (ierr /= 0) then
-    print "(2(/,a))",' ERROR opening "'//trim(filename_mu)//'" for read of various composition data', &
+    print "(2(/,a))",' ERROR opening "'//trim(filename_mhn)//'" for read of various composition data', &
                        ' -> this file should contain mu,name for each point mass, one per line'
-    print "(a)", ' no startypes were read in from '//trim(filename_mu)
+    print "(a)", ' no startypes were read in from '//trim(filename_mhn)
     print "(a,g0)", ' --> mu for all particles will come from module eos-->gmw, which is ',gmw
     name_startypes(1) = ''
     mu_startypes(1) = gmw
+    habund_startypes(1) = 0.7
     num_var_comp = 1
     i_unknowninit_startypes = 1
-    call error('read_use_var_comp_data','no startypes were read in -- create '//trim(filename_mu))
+    close(iunit)
+    call error('read_use_var_comp_data','no startypes were read in -- create '//trim(filename_mhn))
     return
  endif
 
@@ -930,16 +889,16 @@ subroutine read_use_var_comp_data(filename_mu)
     print "(a)", ' startype for unknown and initialization particles is startype = '//trim(unknown_init_name_startypes)
     read_unknown_startypes =.true.
  else
-    print "(a)", ' error reading startype for unknown and initialization particles -- first line of '//trim(filename_mu)//' should be "unknown_init <startype>"'
-    print "(a)", ' --> setting startype for unknown and initialization particles to be the first correct entry of '//trim(filename_mu)
+    print "(a)", ' error reading startype for unknown and initialization particles -- first line of '//trim(filename_mhn)//' should be "unknown_init <startype>"'
+    print "(a)", ' --> setting startype for unknown and initialization particles to be the first correct entry of '//trim(filename_mhn)
     rewind(iunit)
-    read(iunit,*,iostat=ierr) mu_startypes(1),name_startypes(1)
+    read(iunit,*,iostat=ierr) mu_startypes(1),habund_startypes(1),name_startypes(1)
     if (ierr==0) then
        rewind(iunit) !first entry is likely a mu/startype combination, so it seems like the "unknown_init" line was skipped
     else
        ierr = 0 !reset ierr in hopes that the rest of the file is correct even though the "unknown_init" line was not correct
     endif
-    call error('read_use_var_comp_data','startype for unknown and initialization particles not found -- fix '//trim(filename_mu))
+    call error('read_use_var_comp_data','startype for unknown and initialization particles not found -- fix '//trim(filename_mhn))
  endif
 
  !read mu and startype entries for each type of stellar wind; check for uniqueness
@@ -948,51 +907,53 @@ subroutine read_use_var_comp_data(filename_mu)
     if (n_startypes > size(mu_startypes)) then
        ierr = 66
     else
-       read(iunit,*,iostat=ierr) mu_startypes(n_startypes),name_startypes(n_startypes)
+       read(iunit,*,iostat=ierr) mu_startypes(n_startypes),habund_startypes(n_startypes),name_startypes(n_startypes)
        if (ierr==0) then
           !new startype entry was read in
           do j=1,n_startypes-1
-             !check for uniqueness among mu_startypes
+             !check for uniqueness among name_startypes
+             if (trim(name_startypes(n_startypes))==trim(name_startypes(j))) then
+                print "(a)", ' *****************************************************************************'
+                print "(2(a,i0),a)", ' * duplicate name entry found in '//trim(filename_mhn)//': entry ',n_startypes,' is the same as entry ',j
+                print "(a,i0,a,g0,a)", ' * entry ',n_startypes,': mu = ',mu_startypes(n_startypes),' and name = '//name_startypes(n_startypes)
+                print "(a,i0,a,g0,a)", ' * entry ',j,': mu = ',mu_startypes(j),' and name = '//name_startypes(j)
+                print "(a)", ' *****************************************************************************'
+                call error('read_use_var_comp_data','duplication of name for startypes -- fix '//trim(filename_mhn))
+             endif
+             !check for uniqueness among mu_startypes -- not always an error, but could be, so make a warning
              if (abs(mu_startypes(n_startypes)-mu_startypes(j))<tol_mu) then
                 print "(a)", ' ***************************************************************************'
-                print "(2(a,i0),a)", ' * duplicate mu entry found in '//trim(filename_mu)//': entry ',n_startypes,' is the same as entry ',j
+                print "(2(a,i0),a)", ' * duplicate mu entry found in '//trim(filename_mhn)//': entry ',n_startypes,' is the same as entry ',j
                 print "(a,i0,a,g0,a)", ' * entry ',n_startypes,': mu = ',mu_startypes(n_startypes),' and name = '//name_startypes(n_startypes)
                 print "(a,i0,a,g0,a)", ' * entry ',j,': mu = ',mu_startypes(j),' and name = '//name_startypes(j)
                 print "(a)", ' ***************************************************************************'
-                call error('read_use_var_comp_data','duplication of mu for startypes -- fix '//trim(filename_mu))
-             endif
-             !check for uniqueness among name_startypes
-             if (index(trim(name_startypes(n_startypes)),trim(name_startypes(          j)))==1 .and. &
-                 index(trim(name_startypes(          j)),trim(name_startypes(n_startypes)))==1) then
-                print "(a)", ' *****************************************************************************'
-                print "(2(a,i0),a)", ' * duplicate name entry found in '//trim(filename_mu)//': entry ',n_startypes,' is the same as entry ',j
-                print "(a,i0,a,g0,a)", ' * entry ',n_startypes,': mu = ',mu_startypes(n_startypes),' and name = '//name_startypes(n_startypes)
-                print "(a,i0,a,g0,a)", ' * entry ',j,': mu = ',mu_startypes(j),' and name = '//name_startypes(j)
-                print "(a)", ' *****************************************************************************'
-                call error('read_use_var_comp_data','duplication of name for startypes -- fix '//trim(filename_mu))
+                call warning('read_use_var_comp_data','duplication of mu for startypes -- might need to  fix '//trim(filename_mhn))
              endif
           enddo
        else
           !entry for this startype was not read in properly, signaling the end of reading in startype entries
           !reset entries in the startype arrays that were unsuccessfully read in
-          mu_startypes(n_startypes) = 0
+          mu_startypes(n_startypes) = 0.
+          habund_startypes(n_startypes) = 0.
           name_startypes(n_startypes) = ''
           !decrement startypes so it corresponds to the number of startypes successfully read-in
           n_startypes = n_startypes - 1
        endif
     endif
  enddo
- print "(a,i0,a)",' read ',n_startypes,' various compositions for point masses from '//trim(filename_mu)
+ print "(a,i0,a)",' read ',n_startypes,' various compositions for point masses from '//trim(filename_mhn)
  if (ierr==66) then
     call error('read_use_var_comp_data','array size exceeded in read_use_var_comp_data, increase size of mu_startypes',var='n_startypes',ival=n_startypes+1)
  endif
+ close(iunit)
 
  if (n_startypes>0) then
     !at least one startype was read in
     if (n_startypes==1) then
        !one startype was read in, so that will become the unknown type
-       name_startypes(n_startypes+1) = name_startypes(1)
        mu_startypes(n_startypes+1) = mu_startypes(1)
+       habund_startypes(n_startypes+1) = habund_startypes(1)
+       name_startypes(n_startypes+1) = name_startypes(1)
        i_unknowninit_startypes = 1
     else
        !multiple startypes were read-in, so determining the unknown type is more involved
@@ -1002,12 +963,13 @@ subroutine read_use_var_comp_data(filename_mu)
              if (index(trim(unknown_init_name_startypes),trim(name_startypes(i)))==1 .and. &
                  index(trim(name_startypes(i)),trim(unknown_init_name_startypes))==1) then
                 if (.not.found_unknown_startypes) then
-                   name_startypes(n_startypes+1) = name_startypes(i)
                    mu_startypes(n_startypes+1) = mu_startypes(i)
+                   habund_startypes(n_startypes+1) = habund_startypes(i)
+                   name_startypes(n_startypes+1) = name_startypes(i)
                    i_unknowninit_startypes = i
                    found_unknown_startypes = .true.
                 else
-                   print "(a)", ' ERROR: multiple startypes match the startype for unknown and initialization particles -- rewrite '//trim(filename_mu)//' to make sure this isn''t happening'
+                   print "(a)", ' ERROR: multiple startypes match the startype for unknown and initialization particles -- rewrite '//trim(filename_mhn)//' to make sure this isn''t happening'
                 endif
              endif
           enddo
@@ -1020,35 +982,43 @@ subroutine read_use_var_comp_data(filename_mu)
              print "(a)", ' startype for unknown and initialization particles was not read in'
           endif
           print "(a)", ' --> setting startype for unknown and initialization particles to be the first read-in startype'
-          name_startypes(n_startypes+1) = name_startypes(1)
           mu_startypes(n_startypes+1) = mu_startypes(1)
+          habund_startypes(n_startypes+1) = habund_startypes(1)
+          name_startypes(n_startypes+1) = name_startypes(1)
           i_unknowninit_startypes = 1
        endif
     endif
 
-    print "(1x,42('-'))"
-    print "(a)", ' | n_startype | mu                | name'
-    print "(a)", ' |------------|-------------------|--------'
+    print "(1x,56('-'))"
+    print "(a)", ' | n_startype | mu          | habund      | name        |'
+    print "(a)", ' |            | (amu)       | (mass frac) |             |'
+    print "(a)", ' |------------|-------------|-------------|-------------|'
     do i=1,n_startypes
+       write(*,'(1x,"|",1x,i10,1x,"|",2(1x,f11.9,1x,"|"),1x,a)',advance='no') i,mu_startypes(i),habund_startypes(i),'"'//trim(name_startypes(i))//'"'
+       do j=8,len(trim(name_startypes(i))),-1
+          write(*,'(a)',advance='no') ' '
+       enddo
        if (abs(mu_startypes(n_startypes+1)-mu_startypes(i))<tol_mu .and. &
-           index(trim(name_startypes(n_startypes+1)),trim(name_startypes(i)))==1 .and. &
-           index(trim(name_startypes(i)),trim(name_startypes(n_startypes+1)))==1) then
-          print "(1x,'|',1x,i0,10(1x),'|',1x,g0,1x,'|',1x,a)", i,mu_startypes(i),'"'//trim(name_startypes(i))//'" <-- unknown/init startype'
+           abs(habund_startypes(n_startypes+1)-habund_startypes(i))<tol_mu .and. &
+           trim(name_startypes(n_startypes+1))==trim(name_startypes(i))) then
+          write(*,'(1x,"|",a)')  '  <-- unknown/init startype'
        else
-          print "(1x,'|',1x,i0,10(1x),'|',1x,g0,1x,'|',1x,a)", i,mu_startypes(i),'"'//trim(name_startypes(i))//'"'
+          write(*,'(1x,"|")')
        endif
     enddo
-    print "(1x,42('-'))"
+    print "(1x,56('-'))"
     num_var_comp = n_startypes
     print "(a,i0)", ' num_var_comp has been set to n_startypes -- num_var_comp = ',num_var_comp
  else
-    print "(a)", ' no startypes were read in from '//trim(filename_mu)
+    print "(a)", ' no startypes were read in from '//trim(filename_mhn)
     print "(a,g0)", ' --> mu for all particles will come from module eos-->gmw, which is ',gmw
-    name_startypes(1) = ''
+    print "(a,g0)", ' --> habund for all particles will be 0.7'
     mu_startypes(1) = gmw
+    habund_startypes(1) = 0.7
+    name_startypes(1) = ''
     num_var_comp = 1
     i_unknowninit_startypes = 1
-    call error('read_use_var_comp_data','no startypes were read in -- fix '//trim(filename_mu))
+    call error('read_use_var_comp_data','no startypes were read in -- fix '//trim(filename_mhn))
  endif
 
  ! end of file error is OK

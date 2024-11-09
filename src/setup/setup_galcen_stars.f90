@@ -14,13 +14,13 @@ module setup
 ! :Owner: Daniel Price
 !
 ! :Runtime parameters:
+!   - datafile_mhn       : *filename for various-compositions data (mu,habund,name)*
 !   - datafile_mpv       : *filename for non-SMBH point-mass data (m,x,y,z,vx,vy,vz)*
-!   - datafile_mu        : *filename for various compositions data (mu,name)*
 !   - h_SMBH             : *SMBH accretion radius in arcsec at 8kpc*
 !   - h_sink             : *stellar wind injection radii (also sink particle radii for the stars) in arcsec at 8kpc*
 !   - m_SMBH             : *SMBH mass in solar masses*
 !   - m_gas              : *gas mass resolution in solar masses*
-!   - use_var_comp_local : *whether or not to use variable composition*
+!   - use_var_comp_local : *whether or not to use various compositions*
 !
 ! :Dependencies: cooling, cooling_solver, datafiles, dim, eos,
 !   infile_utils, inject, io, options, part, physcon, prompting, spherical,
@@ -37,8 +37,8 @@ module setup
  real :: h_sink = 5.d-2 ! sink particle radii in arcsec at 8kpc
  real :: m_SMBH = 4.28d6 ! mass of supermassive black hole (SMBH) in Msun
  real :: h_SMBH = 0.1d0 ! accretion radius of SMBH in arcsec at 8kpc
- logical :: use_var_comp_local=.false.  !whether or not to use variable composition
- character(len=120) :: datafile_mu = 'mu_name.txt'
+ logical :: use_var_comp_local=.false.  !whether or not to use various compositions
+ character(len=120) :: datafile_mhn = 'mu_habund_name.txt'
 
 contains
 
@@ -51,15 +51,15 @@ subroutine setpart(id,npart,npartoftype,xyzh,massoftype,vxyzu,polyk,gamma,hfact,
  use part,           only:nptmass,xyzmh_ptmass,vxyz_ptmass,ihacc,ihsoft,igas,iwindorig,eos_vars,imu
  use units,          only:set_units,umass
  use physcon,        only:solarm,kpc,pi,au
- use io,             only:fatal,iprint,master
- use eos,            only:gmw,use_var_comp,num_var_comp
+ use io,             only:fatal,master
+ use eos,            only:gmw,use_var_comp
  use timestep,       only:dtmax,tmax
  use spherical,      only:set_sphere
  use datafiles,      only:find_phantom_datafile
  use options,        only:icooling,nfulldump
- use cooling_solver, only:icool_method
+ use cooling_solver, only:icool_method,lambda_table
  use cooling,        only:Tfloor
- use part,           only:mu_startypes,name_startypes,n_startypes
+ use part,           only:mu_startypes,n_startypes
  use inject,         only:read_use_var_comp_data
 
  integer,           intent(in)    :: id
@@ -73,10 +73,10 @@ subroutine setpart(id,npart,npartoftype,xyzh,massoftype,vxyzu,polyk,gamma,hfact,
  real,              intent(out)   :: vxyzu(:,:)
  character(len=len(fileprefix)+6) :: setupfile
  character(len=len(datafile_mpv)) :: filename_mpv
- character(len=len(datafile_mu))  :: filename_mu
+ character(len=len(datafile_mhn)) :: filename_mhn
  integer :: ierr,i
  real    :: scale,psep
- integer :: ierr_Tinit
+ !integer :: ierr_Tinit
  integer :: iexist
 !
 !set some GC-specific parameters in case galcen.in does not exist
@@ -86,6 +86,7 @@ subroutine setpart(id,npart,npartoftype,xyzh,massoftype,vxyzu,polyk,gamma,hfact,
     tmax      = 0.2
     dtmax     = 0.1
     nfulldump = 1
+    lambda_table = 1 !use Lambda(T) cooling table for radiative cooling
  endif
 !
 ! units (mass = mass of black hole, length = 1 arcsec at 8kpc)
@@ -109,10 +110,10 @@ subroutine setpart(id,npart,npartoftype,xyzh,massoftype,vxyzu,polyk,gamma,hfact,
  ! if file does not exist, then ask for user input
  !
  setupfile = trim(fileprefix)//'.setup'
- call read_setupfile(setupfile,iprint,ierr)
+ call read_setupfile(setupfile,ierr)
  if (ierr /= 0 .and. id==master) then
-    call interactive_setup()               ! read setup options from user
-    call write_setupfile(setupfile,iprint) ! write .setup file with defaults
+    call interactive_setup()           ! read setup options from user
+    call write_setupfile(setupfile)    ! write .setup file with defaults
  endif
 !
 ! space available for injected gas particles
@@ -153,10 +154,9 @@ subroutine setpart(id,npart,npartoftype,xyzh,massoftype,vxyzu,polyk,gamma,hfact,
 !
  print "(a,l)", ' setpart: use_var_comp =',use_var_comp
  if (use_var_comp) then
-    filename_mu = find_phantom_datafile(datafile_mu,'galcen')
-    !filename_mu = datafile_mu
+    filename_mhn = find_phantom_datafile(datafile_mhn,'galcen')
     if (n_startypes<=0) then !if already called from inject_galcen_winds()-->read_use_var_comp_data(), then don't call this again
-       call read_use_var_comp_data(filename_mu)
+       call read_use_var_comp_data(filename_mhn)
     endif
     if (n_startypes>=1) then
        gmw = mu_startypes(n_startypes+1)
@@ -294,11 +294,10 @@ end subroutine read_ptmass_data
 !  Write setup parameters to .setup file
 !+
 !------------------------------------------
-subroutine write_setupfile(filename,iprint)
+subroutine write_setupfile(filename)
  use infile_utils, only:write_inopt
  use dim,          only:tagline
  character(len=*), intent(in) :: filename
- integer,          intent(in) :: iprint
  integer                      :: lu,ierr1,ierr2
 
  print "(a)", ' Writing '//trim(filename)//' with setup options'
@@ -317,11 +316,11 @@ subroutine write_setupfile(filename,iprint)
  call write_inopt(m_SMBH, 'm_SMBH','SMBH mass in solar masses',lu,ierr2)
  call write_inopt(h_SMBH, 'h_SMBH','SMBH accretion radius in arcsec at 8kpc',lu,ierr2)
 
- write(lu,"(/,a)") '# use variable composition'
- call write_inopt(use_var_comp_local, 'use_var_comp_local','whether or not to use variable composition',lu,ierr2)
+ write(lu,"(/,a)") '# use various compositions'
+ call write_inopt(use_var_comp_local, 'use_var_comp_local','whether or not to use various compositions',lu,ierr2)
  if (use_var_comp_local) then
     write(lu,"(/,a)") '# datafile for mu and stellar classification names'
-    call write_inopt(datafile_mu,'datafile_mu','filename for various compositions data (mu,name)',lu,ierr1)
+    call write_inopt(datafile_mhn,'datafile_mhn','filename for various-compositions data (mu,habund,name)',lu,ierr1)
  endif
 
  close(lu)
@@ -333,13 +332,12 @@ end subroutine write_setupfile
 !  Read setup parameters from input file
 !+
 !------------------------------------------
-subroutine read_setupfile(filename,iprint,ierr)
+subroutine read_setupfile(filename,ierr)
  use infile_utils, only:open_db_from_file,inopts,close_db,read_inopt
  use dim,          only:maxvxyzu
- use eos,          only:use_var_comp,num_var_comp
+ use eos,          only:use_var_comp
  character(len=*), intent(in)  :: filename
  integer,          parameter   :: lu = 21
- integer,          intent(in)  :: iprint
  integer,          intent(out) :: ierr
  integer                       :: nerr
  type(inopts), allocatable     :: db(:)
@@ -369,13 +367,13 @@ subroutine read_setupfile(filename,iprint,ierr)
  print "(a,l)", ' use_var_comp_local =',use_var_comp_local
  use_var_comp = use_var_comp_local
  if (use_var_comp) then
-    call read_inopt(datafile_mu,'datafile_mu',db,errcount=nerr)
-    print "(a)", ' datafile_mu = '//trim(datafile_mu)
+    call read_inopt(datafile_mhn,'datafile_mhn',db,errcount=nerr)
+    print "(a)", ' datafile_mhn = '//trim(datafile_mhn)
  endif
  !print "(a)", ' Note: None of the above values read-in from '//trim(filename)//' during this setup process are stored anywhere, so either'
  !print "(a)", ' A. their data needs to be stored elsewhere in variables that are stored in output files (i.e. xyzmh_ptmass(4,1) for "m_SMBH"),'
  !print "(a)", ' B. their files needs to be read in and their contents stored in variables that are stored in output files (i.e. xyzmh_pmass(1:3,2:nstars+1) for "datafile_mpv" positions), or '
- !print "(a)", ' C. their values need to be stored in the *.in input file for reaing in when the simulation starts (i.e. as is done for datafile_mu for various compositions).'
+ !print "(a)", ' C. their values need to be stored in the *.in input file for reaing in when the simulation starts (i.e. as is done for datafile_mhn for various compositions).'
 
  if (nerr > 0) then
     print "(1x,a,i2,a)",'Setup_galcen: ',nerr,' error(s) during read of setup file'
@@ -393,7 +391,7 @@ end subroutine read_setupfile
 !------------------------------------------
 subroutine interactive_setup()
  use prompting, only:prompt
- use eos,       only:use_var_comp,num_var_comp
+ use eos,       only:use_var_comp
 
  print "(2(/,a),/)",'*** Welcome to your friendly neighbourhood Galactic Centre setup',&
                  '    ...where the black hole is supermassive and the stars are strange ***'
@@ -405,7 +403,7 @@ subroutine interactive_setup()
  call prompt('Enter logical value for use_var_comp',use_var_comp_local)
  use_var_comp = use_var_comp_local
  if (use_var_comp_local) then
-    call prompt('Enter filename for various compositions data',datafile_mu,noblank=.true.)
+    call prompt('Enter filename for various compositions data',datafile_mhn,noblank=.true.)
  endif
  print "(a)"
 
