@@ -1236,7 +1236,7 @@ subroutine set_Tgrid_cooltable_Chris2
     enddo
  else
     mu_e_Arr(1) = 2.0*atomic_mass_unit/(1.0+habund_solar)
-    if (habund_solar>tiny(habund_startypes)) then
+    if (habund_solar>tiny(habund_solar)) then
        mu_H_Arr(1) = atomic_mass_unit/habund_solar
     else
        mu_H_Arr(1) = 0
