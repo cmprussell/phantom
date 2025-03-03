@@ -1261,6 +1261,7 @@ subroutine set_Tgrid_cooltable_Chris2
     print "(a,i0,a,es22.14)", ' TNdivLN(',ict,') [= Tref / Lambdaref]          : ',TNdivLN(ict)
     print "(a,i0,a,es22.14)", ' mu_e_Arr(',ict,') (grams)                      : ',mu_e_Arr(ict)
     print "(a,i0,a,es22.14)", ' mu_H_Arr(',ict,') (grams)                      : ',mu_H_Arr(ict)
+    print "(a,i0,a,es22.14)", ' habund_startypes(',ict,') [=X_H] (mass frac)   : ',habund_startypes(ict)
     print "(1x,67('-'))"
  enddo
 
