@@ -83,6 +83,16 @@ Pull in changes to a specific non-main branch once a pull request has updated a 
 1. git pull origin multiAbu
 
 
+Pull in changes to a specific non-main branch once a pull request has updated the main branch (in this case, branch multiAbu is the one to be updated from main)
+1. git checkout multiAbu
+2. git pull origin main
+[(phys:crussell)@login01.caviness phantom]$ git status
+# On branch multiAbu
+# Your branch is ahead of 'origin/multiAbu' by 3 commits.
+#   (use "git push" to publish your local commits)
+#
+nothing to commit, working directory clean
+3. git push
 
 
 
