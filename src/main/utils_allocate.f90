@@ -45,7 +45,8 @@ module allocutils
       allocate_array_integer1_3d, &
       allocate_array_kdnode_1d, &
       allocate_array_kdnode_1d_long, &
-      allocate_array_logical
+      allocate_array_logical, &
+      allocate_array_integer4_1d_startatzero
  end interface allocate_array
 
  private
@@ -278,6 +279,24 @@ subroutine allocate_array_logical(name, x, n1)
  call print_allocation_stats(name, int((/n1/),kind=8), 'integer(4)')
 
 end subroutine allocate_array_logical
+
+subroutine allocate_array_integer4_1d_startatzero(name, x, n1, startatzero)
+ character(len=*),               intent(in)     :: name
+ integer(kind=4), allocatable,   intent(inout)  :: x(:)
+ integer,                        intent(in)     :: n1
+ character(len=*),               intent(in)     :: startatzero
+ integer                                        :: allocstat
+
+ if (trim(startatzero)/='startatzero') then
+    write(*,'(a)') ' ERROR: failure for writing an integer array that starts with index 0!'
+    write(*,'(a)') ' ERROR (cont): name = "'//trim(name)//'", startatzero = "'//trim(startatzero)//'"'
+    call fatal('memory', 'invalid character string -- startatzero variable must be "startatzero"')
+ endif
+ allocate(x(0:n1), stat = allocstat)
+ call check_allocate(name, allocstat)
+ call print_allocation_stats(name, int((/n1/),kind=8), 'integer(4)')
+
+end subroutine allocate_array_integer4_1d_startatzero
 
 subroutine check_allocate(name, allocstat)
  character(len=*),   intent(in) :: name

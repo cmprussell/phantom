@@ -51,6 +51,7 @@ module readwrite_infile
 !   - nmax               : *maximum number of timesteps (0=just get derivs and stop)*
 !   - nmaxdumps          : *stop after n full dumps (-ve=ignore)*
 !   - nout               : *write dumpfile every n dtmax (-ve=ignore)*
+!   - num_var_comp       : *number of various compositions*
 !   - overcleanfac       : *factor to increase cleaning speed (decreases time step)*
 !   - psidecayfac        : *div B diffusion parameter*
 !   - ptol               : *tolerance on pmom iterations*
@@ -63,6 +64,7 @@ module readwrite_infile
 !   - tolv               : *tolerance on v iterations in timestepping*
 !   - twallmax           : *maximum wall time (hhh:mm, 000:00=ignore)*
 !   - use_mcfost         : *use the mcfost library*
+!   - use_var_comp       : *whether gas particles have different mean molecular weights*
 !   - xtol               : *tolerance on xyz iterations*
 !
 ! :Dependencies: HIIRegion, boundary_dyn, cooling, damping, dim, dust,
@@ -113,7 +115,7 @@ subroutine write_infile(infile,logfile,evfile,dumpfile,iwritein,iprint)
  use dust_formation,  only:write_options_dust_formation
  use nicil_sup,       only:write_options_nicil
  use metric,          only:write_options_metric
- use eos,             only:write_options_eos,ieos,X_in,Z_in
+ use eos,             only:write_options_eos,ieos,X_in,Z_in,use_var_comp,num_var_comp
  use ptmass,          only:write_options_ptmass
  use ptmass_radiation,only:write_options_ptmass_radiation
  use cooling,         only:write_options_cooling
@@ -268,6 +270,15 @@ subroutine write_infile(infile,logfile,evfile,dumpfile,iwritein,iprint)
     call write_options_porosity(iwritein)
  endif
 
+ !Presently, these lines mean that use_var_comp is written every input file.  If this is not desirabale, then these statements need to be conditionalized.
+ write(iwritein,'(/,a)') '# variable composition'
+ call write_inopt(use_var_comp,'use_var_comp','whether gas particles have different mean molecular weights',iwritein)
+ !if (iwritein /= iprint) print "(a,l)", ' write_infile: use_var_comp =',use_var_comp
+ if (use_var_comp) then
+    call write_inopt(num_var_comp,'num_var_comp','number of various compositions',iwritein)
+    !if (iwritein /= iprint) print "(a,i0)", ' write_infile: num_var_comp = ',num_var_comp
+ endif
+
  write(iwritein,"(/,a)") '# options for injecting/removing particles'
 #ifdef INJECT_PARTICLES
  call write_options_inject(iwritein)
@@ -321,7 +332,7 @@ subroutine read_infile(infile,logfile,evfile,dumpfile)
  use dim,             only:maxvxyzu,maxptmass,gravity,sink_radiation,nucleation,&
                            itau_alloc,store_dust_temperature,gr,do_nucleation
  use timestep,        only:tmax,dtmax,nmax,nout,C_cour,C_force,C_ent
- use eos,             only:read_options_eos,ieos
+ use eos,             only:read_options_eos,ieos,use_var_comp,num_var_comp
  use io,              only:ireadin,iwritein,iprint,warn,die,error,fatal,id,master,fileprefix
  use infile_utils,    only:read_next_inopt,contains_loop,write_infile_series
 #ifdef DRIVING
@@ -365,6 +376,7 @@ subroutine read_infile(infile,logfile,evfile,dumpfile)
  logical :: igotallprad,igotalldustform,igotallgw,igotallgr,igotallbdy,igotallH2R
  integer, parameter :: nrequired = 1
 
+ print "(/,a)", ' read_infile() with infile = '//trim(infile)
  ireaderr = 0
  ierr     = 0
  line     = 0
@@ -541,6 +553,13 @@ subroutine read_infile(infile,logfile,evfile,dumpfile)
        read(valstring,*,iostat=ierr) tol_rad
     case('itsmax_rad')
        read(valstring,*,iostat=ierr) itsmax_rad
+    case('use_var_comp')
+       read(valstring,*,iostat=ierr) use_var_comp
+       !print "(a,l)", ' read_infile: use_var_comp =',use_var_comp
+    case('num_var_comp')
+       read(valstring,*,iostat=ierr) num_var_comp
+       !print "(a,i0)", ' read_infile: num_var_comp = ',num_var_comp
+       if (use_var_comp) print "(a)", ' num_var_comp will be overwritten in read_use_var_comp_data()'
     case default
        imatch = .false.
        if (.not.imatch) call read_options_externalforces(name,valstring,imatch,igotallextern,ierr,iexternalforce)
@@ -554,7 +573,11 @@ subroutine read_infile(infile,logfile,evfile,dumpfile)
        if (.not.imatch .and. use_porosity) call read_options_porosity(name,valstring,imatch,igotallporosity,ierr)
        if (.not.imatch .and. gr) call read_options_metric(name,valstring,imatch,igotallgr,ierr)
 #ifdef INJECT_PARTICLES
-       if (.not.imatch) call read_options_inject(name,valstring,imatch,igotallinject,ierr)
+       !if (.not.imatch) call read_options_inject(name,valstring,imatch,igotallinject,ierr)
+       if (.not.imatch) then
+          !print "(a)", 'read_infile: name = "'//trim(name)//'"'
+          call read_options_inject(name,valstring,imatch,igotallinject,ierr)
+       endif
 #endif
        if (.not.imatch .and. nucleation) call read_options_dust_formation(name,valstring,imatch,igotalldustform,ierr)
        if (.not.imatch .and. sink_radiation) then
@@ -563,7 +586,7 @@ subroutine read_infile(infile,logfile,evfile,dumpfile)
        if (.not.imatch .and. mhd_nonideal) call read_options_nicil(name,valstring,imatch,igotallnonideal,ierr)
        if (.not.imatch) call read_options_eos(name,valstring,imatch,igotalleos,ierr)
        if (.not.imatch .and. maxvxyzu >= 4) call read_options_cooling(name,valstring,imatch,igotallcooling,ierr)
-WRITE(*,*) 'igotallcooling =',igotallcooling,', name =',TRIM(name)
+       !print*, 'igotallcooling =',igotallcooling,', name =',trim(name)
        if (.not.imatch) call read_options_damping(name,valstring,imatch,igotalldamping,ierr)
        if (maxptmass > 0) then
           if (.not.imatch) call read_options_ptmass(name,valstring,imatch,igotallptmass,ierr)

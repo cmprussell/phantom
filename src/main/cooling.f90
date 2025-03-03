@@ -113,7 +113,7 @@ end subroutine init_cooling
 !   this routine returns the effective cooling rate du/dt
 !
 !-----------------------------------------------------------------------
-subroutine energ_cooling(xi,yi,zi,ui,rho,dt,divv,dudt,Tdust_in,mu_in,gamma_in,K2_in,kappa_in,abund_in)
+subroutine energ_cooling(xi,yi,zi,ui,rho,dt,divv,dudt,Tdust_in,mu_in,gamma_in,K2_in,kappa_in,abund_in,ict_in)
  use io,      only:fatal
  use dim,     only:nabundances
  use eos,     only:gmw,gamma,ieos,get_temperature_from_u
@@ -125,19 +125,22 @@ subroutine energ_cooling(xi,yi,zi,ui,rho,dt,divv,dudt,Tdust_in,mu_in,gamma_in,K2
  use cooling_koyamainutsuka, only:cooling_KoyamaInutsuka_explicit,&
                                   cooling_KoyamaInutsuka_implicit
 
- real(kind=4), intent(in)   :: divv               ! in code units
- real, intent(in)           :: xi,yi,zi,ui,rho,dt                      ! in code units
- real, intent(in), optional :: Tdust_in,mu_in,gamma_in,K2_in,kappa_in   ! in cgs
- real, intent(in), optional :: abund_in(nabn)
- real, intent(out)          :: dudt                                ! in code units
- real                       :: mui,gammai,Tgas,Tdust,K2,kappa
- real :: abundi(nabn)
+ real(kind=4), intent(in)      :: divv                                   ! in code units
+ real, intent(in)              :: xi,yi,zi,ui,rho,dt                     ! in code units
+ real, intent(in), optional    :: Tdust_in,mu_in,gamma_in,K2_in,kappa_in ! in cgs
+ real, intent(in), optional    :: abund_in(nabn)
+ integer, intent(in), optional :: ict_in                                 ! cooling table's integer value
+ real, intent(out)             :: dudt                                   ! in code units
+ real                          :: mui,gammai,Tgas,Tdust,K2,kappa
+ real                          :: abundi(nabn)
+ integer                       :: ict                                    ! cooling table's integer value
 
  dudt   = 0.
  mui    = gmw
  gammai = gamma
  kappa  = 0.
  K2     = 0.
+ ict    = 1 !default value for single composition
  if (present(gamma_in)) gammai = gamma_in
  if (present(mu_in))    mui        = mu_in
  if (present(K2_in))    K2        = K2_in
@@ -149,6 +152,7 @@ subroutine energ_cooling(xi,yi,zi,ui,rho,dt,divv,dudt,Tdust_in,mu_in,gamma_in,K2
     call get_extra_abundances(abund_default,nabundances,abundi,nabn,mui,&
          abundc,abunde,abundo,abundsi)
  endif
+ if (present(ict_in)) ict = ict_in
 
  Tgas  = get_temperature_from_u(ieos,xi,yi,zi,rho,ui,gammai,mui)
  Tdust = Tgas
@@ -166,7 +170,7 @@ subroutine energ_cooling(xi,yi,zi,ui,rho,dt,divv,dudt,Tdust_in,mu_in,gamma_in,K2
  case (7)
     call cooling_Gammie_PL_explicit(xi,yi,zi,ui,dudt)
  case default
-    call energ_cooling_solver(ui,dudt,rho,dt,mui,gammai,Tdust,K2,kappa)
+    call energ_cooling_solver(ui,dudt,rho,dt,mui,gammai,Tdust,K2,kappa,ict)
  end select
 
 end subroutine energ_cooling
@@ -253,16 +257,16 @@ subroutine read_options_cooling(name,valstring,imatch,igotall,ierr)
        call read_options_cooling_gammie_PL(name,valstring,imatch,igotallgammiePL,ierr)
     case default
        call read_options_cooling_solver(name,valstring,imatch,igotallfunc,ierr)
-WRITE(*,*) 'igotallfunc =',igotallfunc
+       !print*, 'igotallfunc =',igotallfunc
     end select
  end select
  ierr = 0
  if (icooling >= 0 .and. ngot >= 2 .and. igotallgammie .and. igotallfunc .and. igotallism) then
     igotall = .true.
-WRITE(*,*) 'Setting igotall 1, igotall = ',igotall,', ngot =',ngot,', name =',TRIM(name)
+    !print*, 'Setting igotall 1, igotall = ',igotall,', ngot =',ngot,', name =',trim(name)
  else
     igotall = .false.
-WRITE(*,*) 'Setting igotall 2, igotall = ',igotall,', ngot =',ngot,', name =',TRIM(name)
+    !print*, 'Setting igotall 2, igotall = ',igotall,', ngot =',ngot,', name =',trim(name)
  endif
 
 end subroutine read_options_cooling

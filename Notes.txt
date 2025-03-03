@@ -82,3 +82,176 @@ Investigate changes among branches (here between branch main and branch multiAbu
 Pull in changes to a specific non-main branch once a pull request has updated a non-main branch (in this case, branch multiAbu)
 1. git pull origin multiAbu
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+Note from pull request #11, which had merge conflicts:
+
+Note: I tried this #10 first, but it seemed like I was going to modify main, which is not what I wanted to do. I wanted to changes from main (via reuseParticles and initInject) to be a part of multiAbu; I didn't want to change main. I thought that this might have had something to do with main being the default branch, so I made main2, which is an identical branch to main, and then tried this pull request again (that is #10, this is #11). The same thing happened, however; the CLI method for merging (and the non-CLI method) seemed like I was modifying main2.
+
+What follows is what ended up working for me to properly bring the changes from main into multiAbu.
+
+Create main2 (which I didn't actually need to do):
+
+[(phys:crussell)@login00.caviness phantom]$ git checkout main
+[(phys:crussell)@login00.caviness phantom]$ git checkout -b main2
+Switched to a new branch 'main2'
+[(phys:crussell)@login00.caviness phantom]$ git branch
+  afterFullSimRun
+  firstFullSimRun
+  forpullrequests
+  initInject
+  main
+* main2
+  mainRedo
+  multiAbu
+  reuseParticles
+  reuseParticles2
+[(phys:crussell)@login00.caviness phantom]$ git push origin main2
+Total 0 (delta 0), reused 0 (delta 0)
+remote: 
+remote: Create a pull request for 'main2' on GitHub by visiting:
+remote:      https://github.com/cmprussell/phantom/pull/new/main2
+remote: 
+remote: To https://github.com/cmprussell/phantom.git
+ * [new branch]      main2 -> main2
+[(phys:crussell)@login00.caviness phantom]$ 
+Now that main2 is created, here is how I solved the merge/only-update-multiAbu issue:
+
+[(phys:crussell)@login00.caviness phantom]$ git checkout multiAbu 
+Switched to branch 'multiAbu'
+[(phys:crussell)@login00.caviness phantom]$ git merge main2
+Auto-merging src/setup/setup_galcen_stars.f90
+CONFLICT (content): Merge conflict in src/setup/setup_galcen_stars.f90
+Auto-merging src/main/readwrite_infile.F90
+CONFLICT (content): Merge conflict in src/main/readwrite_infile.F90
+Auto-merging src/main/readwrite_dumps_fortran.f90
+Auto-merging src/main/readwrite_dumps_common.f90
+CONFLICT (content): Merge conflict in src/main/readwrite_dumps_common.f90
+Auto-merging src/main/inject_galcen_winds.f90
+CONFLICT (content): Merge conflict in src/main/inject_galcen_winds.f90
+Auto-merging src/main/eos.f90
+CONFLICT (content): Merge conflict in src/main/eos.f90
+Auto-merging .gitignore
+CONFLICT (content): Merge conflict in .gitignore
+Automatic merge failed; fix conflicts and then commit the result.
+[(phys:crussell)@login00.caviness phantom]$ git branch
+  afterFullSimRun
+  firstFullSimRun
+  forpullrequests
+  initInject
+  main
+  main2
+  mainRedo
+* multiAbu
+  reuseParticles
+  reuseParticles2
+[(phys:crussell)@login00.caviness phantom]$ git status
+# On branch multiAbu
+# You have unmerged paths.
+#   (fix conflicts and run "git commit")
+#
+# Changes to be committed:
+#
+#       modified:   src/main/evolve.F90
+#       modified:   src/main/initial.F90
+#       modified:   src/main/options.f90
+#       modified:   src/main/readwrite_dumps_fortran.f90
+#
+# Unmerged paths:
+#   (use "git add <file>..." to mark resolution)
+#
+#       both modified:      .gitignore
+#       both modified:      src/main/eos.f90
+#       both modified:      src/main/inject_galcen_winds.f90
+#       both modified:      src/main/readwrite_dumps_common.f90
+#       both modified:      src/main/readwrite_infile.F90
+#       both modified:      src/setup/setup_galcen_stars.f90
+#
+[(phys:crussell)@login00.caviness phantom]$ vi src/setup/setup_galcen_stars.f90
+[(phys:crussell)@login00.caviness phantom]$ vi src/main/readwrite_infile.F90
+[(phys:crussell)@login00.caviness phantom]$ vi src/main/readwrite_dumps_common.f90
+[(phys:crussell)@login00.caviness phantom]$ vi src/main/inject_galcen_winds.f90
+[(phys:crussell)@login00.caviness phantom]$ vi src/main/eos.f90
+[(phys:crussell)@login00.caviness phantom]$ vi .gitignore 
+These vi commands are fixing the merge issues with the files.
+
+Now I make the commit and push the changes.
+
+[(phys:crussell)@login00.caviness phantom]$ git status
+# On branch multiAbu
+# You have unmerged paths.
+#   (fix conflicts and run "git commit")
+#
+# Changes to be committed:
+#
+#       modified:   src/main/evolve.F90
+#       modified:   src/main/initial.F90
+#       modified:   src/main/options.f90
+#       modified:   src/main/readwrite_dumps_fortran.f90
+#
+# Unmerged paths:
+#   (use "git add <file>..." to mark resolution)
+#
+#       both modified:      .gitignore
+#       both modified:      src/main/eos.f90
+#       both modified:      src/main/inject_galcen_winds.f90
+#       both modified:      src/main/readwrite_dumps_common.f90
+#       both modified:      src/main/readwrite_infile.F90
+#       both modified:      src/setup/setup_galcen_stars.f90
+#
+[(phys:crussell)@login00.caviness phantom]$ git add .
+[(phys:crussell)@login00.caviness phantom]$ git status
+# On branch multiAbu
+# All conflicts fixed but you are still merging.
+#   (use "git commit" to conclude merge)
+#
+# Changes to be committed:
+#
+#       modified:   .gitignore
+#       modified:   src/main/evolve.F90
+#       modified:   src/main/initial.F90
+#       modified:   src/main/inject_galcen_winds.f90
+#       modified:   src/main/options.f90
+#       modified:   src/main/readwrite_dumps_common.f90
+#       modified:   src/main/readwrite_dumps_fortran.f90
+#       modified:   src/main/readwrite_infile.F90
+#       modified:   src/setup/setup_galcen_stars.f90
+#
+[(phys:crussell)@login00.caviness phantom]$ git commit -m "pulled in changes from main (or main2, which is the same thing), which is updates via reuseParticles and initInject; fixed merge conflicts via command line"
+[multiAbu 3358437] pulled in changes from main (or main2, which is the same thing), which is updates via reuseParticles and initInject; fixed merge conflicts via command line
+[(phys:crussell)@login00.caviness phantom]$ git push
+warning: push.default is unset; its implicit value is changing in
+Git 2.0 from 'matching' to 'simple'. To squelch this message
+and maintain the current behavior after the default changes, use:
+
+  git config --global push.default matching
+
+To squelch this message and adopt the new behavior now, use:
+
+  git config --global push.default simple
+
+See 'git help config' and search for 'push.default' for further information.
+(the 'simple' mode was introduced in Git 1.7.11. Use the similar mode
+'current' instead of 'simple' if you sometimes use older versions of Git)
+
+Counting objects: 28, done.
+Delta compression using up to 36 threads.
+Compressing objects: 100% (10/10), done.
+Writing objects: 100% (10/10), 2.08 KiB | 0 bytes/s, done.
+Total 10 (delta 8), reused 0 (delta 0)
+remote: Resolving deltas: 100% (8/8), completed with 8 local objects.
+remote: To https://github.com/cmprussell/phantom.git
+   190992b..3358437  multiAbu -> multiAbu
+[(phys:crussell)@login00.caviness phantom]$ 
+
