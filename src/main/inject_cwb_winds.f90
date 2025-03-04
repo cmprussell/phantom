@@ -2,22 +2,22 @@
 ! The Phantom Smoothed Particle Hydrodynamics code, by Daniel Price et al. !
 ! Copyright (c) 2007-2025 The Authors (see AUTHORS)                        !
 ! See LICENCE file for usage and distribution conditions                   !
-! http://phantomsph.bitbucket.io/                                          !
+! http://phantomsph.github.io/                                             !
 !--------------------------------------------------------------------------!
 module inject
 !
-!!!!! Wind injection from galactic centre stars
-!!!!!   Written by Daniel Price, Jorge Cuadra, and Christopher Russell
 ! Wind injection from colliding wind binary stars
 !   Written by Christopher Russell, which is based on the Galactic Center code that was
 !   Written by Daniel Price, Jorge Cuadra, and Christopher Russell
 !
 ! :References: Cuadra et al. (2008), MNRAS 383, 458
 !
-! :Owner: Daniel Price and Christopher Russell
+! :Owner: Christopher Russell
 !
 ! :Runtime parameters:
 !   - datafile       : *name of data file for wind injection*
+!   - dtinject_cwb   : *timestep limit based on number of particles injected per timestep*
+!   - ninjectmax_cwb : *max particles to inject per timestep per star*
 !   - outer_boundary : *kill gas particles outside this radius*
 !
 ! :Dependencies: dim, eos, infile_utils, io, part, partinject, physcon,
@@ -38,8 +38,8 @@ module inject
  integer, parameter :: i_vel   = 1, &
                        i_Mdot  = 2
 
- REAL :: dtinject_cwb = MIN(1.e99,0.1*HUGE(dtinject_cwb)) !prevents 3-digit exponents, which fortran writes weirdly
- INTEGER :: ninjectmax_cwb = 100
+ real :: dtinject_cwb = min(1.e99,0.1*huge(dtinject_cwb)) !prevents 3-digit exponents, which fortran writes weirdly
+ integer :: ninjectmax_cwb = 100
 
  ! array containing properties of the wind from each star
  real,    private :: wind(n_wind_prop,maxptmass)
@@ -54,23 +54,23 @@ contains
 !+
 !-----------------------------------------------------------------------
 subroutine init_inject(ierr)
-use part, only:massoftype,igas
-use units, only:umass,utime
-use physcon, only:solarm,years
+ use part, only:massoftype,igas
+ use units, only:umass,utime
+ use physcon, only:solarm,years
  integer, intent(out) :: ierr
  !
  ! return without error
  !
  ierr = 0
 
- !limit the max number of particles injected per timestep per star to ninjectmax_cwb by specifiying idtinject_cwb, 
+ !limit the max number of particles injected per timestep per star to ninjectmax_cwb by specifiying idtinject_cwb,
  !   the time interval it takes to inject ninjectmax_cwb particles for the wind with the highest Mdot
  !dtinject_cwb is written to cwb.in
  !dtinject_cwb becomes dtinject in the evol(...) subroutine
  !time interval = max mass to inject per timestep / max mass-loss rate [in code units]
- dtinject_cwb = ninjectmax_cwb*massoftype(igas) / (MAXVAL(wind(i_Mdot,1:nptmass)) * (solarm/umass)*(utime/years))
-WRITE(*,*) 'CWB-specific code: ninjectmax_cwb =',ninjectmax_cwb
-WRITE(*,*) 'CWB-specific code: dtinject_cwb =',dtinject_cwb
+ dtinject_cwb = ninjectmax_cwb*massoftype(igas) / (maxval(wind(i_Mdot,1:nptmass)) * (solarm/umass)*(utime/years))
+ print*, 'CWB-specific code: ninjectmax_cwb =',ninjectmax_cwb
+ print*, 'CWB-specific code: dtinject_cwb =',dtinject_cwb
 
 end subroutine init_inject
 
@@ -118,7 +118,7 @@ subroutine inject_particles(time,dtlast,xyzh,vxyzu,xyzmh_ptmass,vxyz_ptmass,&
     nskip = nskip + 1
  enddo
  if (iverbose >= 2) print*,' skipping ',nskip,' point masses'
-!WRITE(*,*) "nskip = ",nskip
+ !print*, "nskip = ",nskip
 !
 ! convert mass loss rate from Msun/yr to code units
 !
@@ -189,11 +189,11 @@ subroutine inject_particles(time,dtlast,xyzh,vxyzu,xyzmh_ptmass,vxyz_ptmass,&
     ninject = int(Minject/massoftype(igas))-total_particles_injected(i)
     if (iverbose >= 2) print*,' point mass ',i,j,' injecting ',&
                        ninject,Minject-total_particles_injected(i)*massoftype(igas),massoftype(igas),time,tlast
-!WRITE(*,*) 'Mdot, Mdot_code =',wind(i_Mdot,j), Mdot_code
-!WRITE(*,*) 'v, vinject =',wind(i_vel,j), vinject
-!WRITE(*,*) 'time, tlast =',time,tlast
-!WRITE(*,*) 'point mass ',i,j,' injecting ',ninject,' -- total_particles_injected(',i,') = ',total_particles_injected(i)
-!WRITE(*,'(4(A,I0))') 'point mass ',j,' injecting ',ninject,' -- total_particles_injected(',i,') = ',total_particles_injected(i)
+    !print* 'Mdot, Mdot_code =',wind(i_Mdot,j), Mdot_code
+    !print*, 'v, vinject =',wind(i_vel,j), vinject
+    !print*, 'time, tlast =',time,tlast
+    !print*, 'point mass ',i,j,' injecting ',ninject,' -- total_particles_injected(',i,') = ',total_particles_injected(i)
+    !write(*,'(4(a,i0))') 'point mass ',j,' injecting ',ninject,' -- total_particles_injected(',i,') = ',total_particles_injected(i)
 
     !
     ! this if statement is no longer essential for more accurate mass-loss rates,
@@ -204,7 +204,7 @@ subroutine inject_particles(time,dtlast,xyzh,vxyzu,xyzmh_ptmass,vxyz_ptmass,&
     !    accumulate and eventually inject a particle, making Mdot more accurate
     !
     if (ninject > 0) then
-!WRITE(*,'(4(A,I0),A,1PE15.8)') 'point mass ',j,' injecting ',ninject,' -- total_particles_injected(',i,')+ninject = ',total_particles_injected(i)+ninject,', time = ',time
+       !write(*,'(4(a,i0),a,1pe15.8)') 'point mass ',j,' injecting ',ninject,' -- total_particles_injected(',i,')+ninject = ',total_particles_injected(i)+ninject,', time = ',time
 !i_part=1
        do k=1,ninject
           !
@@ -227,10 +227,10 @@ subroutine inject_particles(time,dtlast,xyzh,vxyzu,xyzmh_ptmass,vxyz_ptmass,&
           u = uu_inject
 
           i_part = npart + 1 ! all particles are new
-!DO WHILE(xyzh(4,i_part)>0 .AND. i_part<npart+1)
-!i_part=i_part+1
-!ENDDO
-!WRITE(*,*) 'i_part = ',i_part,', npart = ',npart
+          !do while(xyzh(4,i_part)>0 .and. i_part<npart+1)
+          !   i_part=i_part+1
+          !enddo
+          !print*, 'i_part = ',i_part,', npart = ',npart
           call add_or_update_particle(igas, xyzi, vxyz, h, u, i_part, npart, npartoftype, xyzh, vxyzu)
        enddo
        !
@@ -251,14 +251,14 @@ subroutine inject_particles(time,dtlast,xyzh,vxyzu,xyzmh_ptmass,vxyz_ptmass,&
  !-- no constraint on timestep
  !
  !dtinject = huge(dtinject)
-!WRITE(*,*) 'CWB-specific code: Did not write dtinject here; dtinject = ',dtinject
+ !print*, 'CWB-specific code: Did not write dtinject here; dtinject = ',dtinject
 
 end subroutine inject_particles
 
 subroutine update_injected_par
  ! -- placeholder function
  ! -- does not do anything and will never be used
-end subroutine
+end subroutine update_injected_par
 
 !-----------------------------------------------------------------------
 !+
@@ -269,13 +269,13 @@ subroutine write_options_inject(iunit)
  use infile_utils, only:write_inopt
  integer, intent(in) :: iunit
 
-!WRITE(*,*) 'Started write_options_inject'
+ !print*, 'Started write_options_inject'
  write(iunit,"(/,a)") '# options controlling particle injection'
  call write_inopt(trim(datafile),'datafile','name of data file for wind injection',iunit)
  call write_inopt(outer_boundary,'outer_boundary','kill gas particles outside this radius',iunit)
  call write_inopt(dtinject_cwb,'dtinject_cwb','timestep limit based on number of particles injected per timestep',iunit)
  call write_inopt(ninjectmax_cwb,'ninjectmax_cwb','max particles to inject per timestep per star',iunit)
-!WRITE(*,*) 'Ended   write_options_inject'
+ !print*, 'Ended   write_options_inject'
 
 end subroutine write_options_inject
 
@@ -294,7 +294,7 @@ subroutine read_options_inject(name,valstring,imatch,igotall,ierr)
  character(len=30), parameter :: label = 'read_options_inject'
  integer :: nstars
 
-!WRITE(*,*) 'Started read_options_inject'
+ !print*, 'Started read_options_inject'
  imatch  = .true.
  select case(trim(name))
  case('outer_boundary')
@@ -307,24 +307,24 @@ subroutine read_options_inject(name,valstring,imatch,igotall,ierr)
     !so since nptmass has not been defined yet, comparing it to nstars is pointless
     !if (nstars /= nptmass) then
     !   call warning('read_options_inject','number of stars /= number of wind sources')
-    !    WRITE(*,*) 'nstars  =',nstars,', nptmass =',nptmass
+    !   print*, 'nstars  =',nstars,', nptmass =',nptmass
     !endif
     ngot = ngot + 1
  case('dtinject_cwb')
-    WRITE(*,*) 'CWB-specific code: pre-read  dtinject_cwb = ',dtinject_cwb
+    print*, 'CWB-specific code: pre-read  dtinject_cwb = ',dtinject_cwb
     read(valstring,*,iostat=ierr) dtinject_cwb
-    WRITE(*,*) 'CWB-specific code: post-read dtinject_cwb = ',dtinject_cwb
+    print*, 'CWB-specific code: post-read dtinject_cwb = ',dtinject_cwb
  case('ninjectmax_cwb')
-    WRITE(*,*) 'CWB-specific code: pre-read  ninjectmax_cwb = ',ninjectmax_cwb
+    print*, 'CWB-specific code: pre-read  ninjectmax_cwb = ',ninjectmax_cwb
     read(valstring,*,iostat=ierr) ninjectmax_cwb
-    WRITE(*,*) 'CWB-specific code: post-read ninjectmax_cwb = ',ninjectmax_cwb
+    print*, 'CWB-specific code: post-read ninjectmax_cwb = ',ninjectmax_cwb
  case default
     imatch = .false.
  end select
 
  igotall = (ngot >= 1)
 
-!WRITE(*,*) 'Ended   read_options_inject'
+ !print*, 'Ended   read_options_inject'
 end subroutine read_options_inject
 
 !-----------------------------------------------------------------------

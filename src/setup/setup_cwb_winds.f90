@@ -2,28 +2,26 @@
 ! The Phantom Smoothed Particle Hydrodynamics code, by Daniel Price et al. !
 ! Copyright (c) 2007-2025 The Authors (see AUTHORS)                        !
 ! See LICENCE file for usage and distribution conditions                   !
-! http://phantomsph.bitbucket.io/                                          !
+! http://phantomsph.github.io/                                             !
 !--------------------------------------------------------------------------!
 module setup
 !
-!!!! Setup for simulations of the Galactic Centre
-!!!!    Adapted by Daniel Price in collaboration with Jorge Cuadra
 ! Setup for simulations of Collidinw Wind Binaries (CWBs)
 !    Done by Christopher Russell via adaptinge the Galactic Center setup, which was
 !    Adapted by Daniel Price in collaboration with Jorge Cuadra
 !
 ! :References: Paumard et al. (2006)
 !
-! :Owner: Daniel Price, Christopher Russell
+! :Owner: Christopher Russell
 !
 ! :Runtime parameters:
-!   - datafile : *filename for star data (m,x,y,z,vx,vy,vz)*
-!   - h_sink   : *sink particle radii in Rsun*
-!   - m_gas    : *gas mass resolution in solar masses*
+!   - datafile   : *filename for star data (m,x,y,z,vx,vy,vz)*
+!   - h_sink     : *sink particle radii in Rsun*
+!   - m_gas      : *gas mass resolution in solar masses*
 !   - ninjectmax : *max number of particles to inject in a single timestep per star (0=no limit)*
 !
-! :Dependencies: datafiles, dim, eos, infile_utils, io, part, physcon,
-!   prompting, spherical, timestep, units
+! :Dependencies: datafiles, dim, eos, infile_utils, inject, io, part,
+!   physcon, prompting, spherical, timestep, units
 !
  implicit none
  public :: setpart
@@ -34,7 +32,7 @@ module setup
  character(len=120) :: datafile = 'stars_mass_pos_vel.txt'
  real :: m_gas = 1.e-6 ! gas mass resolution in Msun
  real :: h_sink = 10. ! sink particle radii in Rsun
- INTEGER :: ninjectmax = 0 ! max number of particles to inject in a single timestep per star (0=no limit)
+ integer :: ninjectmax = 0 ! max number of particles to inject in a single timestep per star (0=no limit)
 
  private
 
@@ -54,7 +52,7 @@ subroutine setpart(id,npart,npartoftype,xyzh,massoftype,vxyzu,polyk,gamma,hfact,
  use timestep,  only:dtmax
  use spherical, only:set_sphere
  use datafiles, only:find_phantom_datafile
- USE inject,    ONLY:ninjectmax_cwb
+ use inject,    only:ninjectmax_cwb
  integer,           intent(in)    :: id
  integer,           intent(inout) :: npart
  integer,           intent(out)   :: npartoftype(:)
@@ -68,9 +66,9 @@ subroutine setpart(id,npart,npartoftype,xyzh,massoftype,vxyzu,polyk,gamma,hfact,
  character(len=len(datafile)) :: filename
  integer :: ierr,i
  real    :: scale,psep
- INTEGER :: j,nTooClose
- REAL    :: dis1,dis2,dis,vinit
- INTEGER :: iclo
+ integer :: j,nTooClose
+ real    :: dis1,dis2,dis,vinit
+ integer :: iclo
 !
 ! units (mass = mass of black hole, length = 1 arcsec at 8kpc)
 !
@@ -107,10 +105,10 @@ subroutine setpart(id,npart,npartoftype,xyzh,massoftype,vxyzu,polyk,gamma,hfact,
 !
 ! Read positions, masses and velocities of stars from file
 !
-WRITE(*,*) 'filename =',TRIM(filename)
+ print*, 'filename =',trim(filename)
  filename=find_phantom_datafile(datafile,'cwb') !will this work? does search in curent directory
-WRITE(*,*) 'filename =',TRIM(filename)
-WRITE(*,'(A,I0)') 'nptmass E = ',nptmass
+ print*, 'filename =',trim(filename)
+ write(*,'(A,I0)') 'nptmass E = ',nptmass
  call read_ptmass_data(filename,xyzmh_ptmass,vxyz_ptmass,nptmass,ierr) !nptmass is determined in this subroutine
  do i=1,nptmass
     xyzmh_ptmass(1:3,i)  = xyzmh_ptmass(1:3,i)
@@ -119,15 +117,15 @@ WRITE(*,'(A,I0)') 'nptmass E = ',nptmass
     xyzmh_ptmass(ihsoft,i) = h_sink*solarr/au
     vxyz_ptmass(1:3,i)  = vxyz_ptmass(1:3,i)*1.e5*utime/udist
  enddo
-WRITE(*,'(A,I0)') 'nptmass = ',nptmass
-DO i=1,nptmass
-WRITE(*,*) i
-WRITE(*,*) xyzmh_ptmass(:,i)
-WRITE(*,*) vxyz_ptmass(:,i)
-ENDDO
-WRITE(*,*) 'h_sink (Rsun) =',h_sink
-WRITE(*,*) 'h_sink (AU) =',h_sink*solarr/au
-WRITE(*,*) 'umass, udist, utime =',umass,udist,utime
+ write(*,'(A,I0)') 'nptmass = ',nptmass
+ do i=1,nptmass
+    print*, i
+    print*, xyzmh_ptmass(:,i)
+    print*, vxyz_ptmass(:,i)
+ enddo
+ print*, 'h_sink (Rsun) =',h_sink
+ print*, 'h_sink (AU) =',h_sink*solarr/au
+ print*, 'umass, udist, utime =',umass,udist,utime
 !
 ! setup initial sphere of particles to prevent initialisation problems
 !
@@ -135,36 +133,36 @@ WRITE(*,*) 'umass, udist, utime =',umass,udist,utime
  call set_sphere('cubic',id,master,0.,20.,psep,hfact,npart,xyzh)
  vxyzu(4,:) = 5.317e-4
  npartoftype(igas) = npart
-!!! Radial flow away from nearest star
- DO i=1,npart
+
+ ! Radial flow away from nearest star
+ do i=1,npart
     dis1=(xyzh(1,i)-xyzmh_ptmass(1,1))**2+(xyzh(2,i)-xyzmh_ptmass(2,1))**2+(xyzh(3,i)-xyzmh_ptmass(3,1))**2
     dis2=(xyzh(1,i)-xyzmh_ptmass(1,2))**2+(xyzh(2,i)-xyzmh_ptmass(2,2))**2+(xyzh(3,i)-xyzmh_ptmass(3,2))**2
     iclo=1
-    IF(dis2<dis1) iclo=2
-    dis=SQRT(MIN(dis1,dis2))
+    if (dis2<dis1) iclo=2
+    dis=sqrt(min(dis1,dis2))
     vinit=1000*1.e5/(udist/utime)
     !vxyzu(1,i)=(xyzh(1,i)-xyzmh_ptmass(1,iclo))/dis*vinit
     vxyzu(1:3,i)=(xyzh(1:3,i)-xyzmh_ptmass(1:3,iclo))/dis*vinit
- ENDDO
-!!! Radial flow away from nearest star
-!!! Remove particles near star
+ enddo
+
+ ! Remove particles near stars
  nTooClose=0
- DO i=1,npart
-    DO j=1,nptmass
-       IF(SQRT((xyzh(1,i)-xyzmh_ptmass(1,j))**2+(xyzh(2,i)-xyzmh_ptmass(2,j))**2+(xyzh(3,i)-xyzmh_ptmass(3,j))**2) < 3.*xyzmh_ptmass(5,j)) THEN
+ do i=1,npart
+    do j=1,nptmass
+       if (sqrt((xyzh(1,i)-xyzmh_ptmass(1,j))**2+(xyzh(2,i)-xyzmh_ptmass(2,j))**2+(xyzh(3,i)-xyzmh_ptmass(3,j))**2) < 3.*xyzmh_ptmass(5,j)) then
           !xyzh(4,i) = -xyzh(4,i) !causes an error since the setup procedure shouldn't yield any particle with h<0
           xyzh(3,i) = 100.+nTooClose !instead, move the particle way out of the domain -- eventually the simulation boundary should be incorporated into this computation
           nTooClose=nTooClose+1
-WRITE(*,*) i,j,xyzh(1,i),xyzmh_ptmass(1,j),xyzh(2,i),xyzmh_ptmass(2,j),xyzh(3,i),xyzmh_ptmass(3,j),SQRT((xyzh(1,i)-xyzmh_ptmass(1,j))**2+(xyzh(2,i)-xyzmh_ptmass(2,j))**2+(xyzh(3,i)-xyzmh_ptmass(3,j))**2),xyzmh_ptmass(5,j)
-       ENDIF
-    ENDDO
- ENDDO
-WRITE(*,*) 'Particle Removal near stars: nTooClose =',nTooClose
+          print*, i,j,xyzh(1,i),xyzmh_ptmass(1,j),xyzh(2,i),xyzmh_ptmass(2,j),xyzh(3,i),xyzmh_ptmass(3,j),sqrt((xyzh(1,i)-xyzmh_ptmass(1,j))**2+(xyzh(2,i)-xyzmh_ptmass(2,j))**2+(xyzh(3,i)-xyzmh_ptmass(3,j))**2),xyzmh_ptmass(5,j)
+       endif
+    enddo
+ enddo
+ print*, 'Particle Removal near stars: nTooClose =',nTooClose
  !npartoftype(igas) = npart-nTooClose
-!!! Remove particles near star
 
  ninjectmax_cwb = ninjectmax
-WRITE(*,*) 'ninjectmax, ninjectmax_cwb =',ninjectmax,ninjectmax_cwb
+ print*, 'ninjectmax, ninjectmax_cwb =',ninjectmax,ninjectmax_cwb
 
  if (nptmass == 0) call fatal('setup','no particles setup')
  if (ierr /= 0) call fatal('setup','ERROR during setup')
@@ -184,8 +182,8 @@ subroutine read_ptmass_data(filename,xyzmh_ptmass,vxyz_ptmass,n,ierr)
  integer, intent(out)   :: ierr
  integer :: iunit,n_input
 
-WRITE(*,*) 'n_input =',n_input
-WRITE(*,*) 'n A =',n
+ print*, 'n_input =',n_input
+ print*, 'n A =',n
  n_input = n
  open(newunit=iunit,file=filename,status='old',action='read',iostat=ierr)
  if (ierr /= 0) then
@@ -208,7 +206,7 @@ WRITE(*,*) 'n A =',n
 
  ! end of file error is OK
  if (ierr < 0) ierr = 0
-WRITE(*,*) 'n B =',n
+ print*, 'n B =',n
 
 end subroutine read_ptmass_data
 
@@ -235,6 +233,7 @@ subroutine write_setupfile(filename,iprint)
  write(lu,"(/,a)") '# resolution'
  call write_inopt(m_gas, 'm_gas','gas mass resolution in solar masses',lu,ierr2)
  call write_inopt(h_sink, 'h_sink','sink particle radii in Rsun',lu,ierr2)
+ call write_inopt(ninjectmax, 'ninjectmax','max number of particles to inject in a single timestep per star (0=no limit)',lu,ierr2)
  close(lu)
 
 end subroutine write_setupfile
