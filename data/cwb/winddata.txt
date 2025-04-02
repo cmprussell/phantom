@@ -1,0 +1,4 @@
+1        3000.       1.e-5          10.      1.e4  1     30.39371    10.10235   1.e6     O         OMainSequence
+2        3000.       1.e-5          10.      1.e4  1     30.39371    10.10235   1.e6     O         OMainSequence WC        WolfRayetCarbon
+
+astroID  vinf(km/s)  Mdot(Msun/yr)  R(Rsun)  T(K)  beta  vinj(km/s)  Rinj(Rsun) L(Lsun)  StarType  StarTypeFullName
