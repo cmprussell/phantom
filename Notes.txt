@@ -1,4 +1,4 @@
-adCoolTest_v1:
+RadCoolTest_v1:
 -- galcen setup
 -- cooling values chosen such that only one hydro timestep should occur per output time
 -- various output durations (varying dtmax) so that cooling to the floor temperature is done over a varying number of steps
