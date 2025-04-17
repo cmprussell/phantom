@@ -1,4 +1,4 @@
-RadCoolTest_v1:
+adCoolTest_v1:
 -- galcen setup
 -- cooling values chosen such that only one hydro timestep should occur per output time
 -- various output durations (varying dtmax) so that cooling to the floor temperature is done over a varying number of steps
@@ -266,3 +266,8 @@ remote: To https://github.com/cmprussell/phantom.git
 [(phys:crussell)@login00.caviness phantom]$ 
 
 git reset --hard 8b18a3a && git push origin main --force
+
+Tell phantom where to look for files needed for a specific type of job
+If the files are not in the pwd, which is searched first, then the code looks in the .../phantom/data/<type_of_job> directory, which depends on the environment variable PHANTOM_DIR
+export PHANTOM_DIR=/work/phys/crussell/phantom_cmprussellFork/phantom
+

@@ -38,6 +38,7 @@ scripts/output_*bots*.sh
 scripts/output_*bots*.txt
 src/*/*90_Orig*
 src/*/*90_Debug*
+src/*/*90_Save*
 src/main/cooling_solver.f90_PleaseDontLoseThisVersion
 src/main/force.F90_BeforeMajorDebug
 src/main/substepping.F90_TestOptions
