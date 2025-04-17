@@ -33,7 +33,7 @@ module part
                maxphase,maxgradh,maxan,maxdustan,maxmhdan,maxneigh,maxprad,maxp_nucleation,&
                maxTdust,store_dust_temperature,use_krome,maxp_krome, &
                do_radiation,gr,maxgr,maxgran,n_nden_phantom,do_nucleation,&
-               inucleation,itau_alloc,itauL_alloc
+               inucleation,itau_alloc,itauL_alloc,maxwindaccel
  use dtypekdtree, only:kdnode
 #ifdef KROME
  use krome_user, only: krome_nmols
@@ -388,6 +388,14 @@ module part
 !
  integer, allocatable :: iwindorig_to_ict(:) !need 0-index entry for unknown/init particles
 !
+!--wind acceleration
+!
+ real, allocatable :: windaccel(:,:)
+ integer, parameter:: ixantgrav = 1
+ integer, parameter:: ikappac   = 2
+ integer, parameter:: ikappar   = 3
+ integer, parameter:: ivbeta    = 4
+!
 !--super time stepping
 !
  integer(kind=1), allocatable :: istsactive(:)
@@ -546,6 +554,7 @@ subroutine allocate_part
  call allocate_array('ibelong', ibelong, maxp)
  call allocate_array('iwindorig', iwindorig, maxp)
  call allocate_array('iwindorig_to_ict', iwindorig_to_ict, maxptmass,'startatzero') !need 0-index entry for unknown/init particles
+ call allocate_array('windaccel', windaccel, maxwindaccel, maxptmass)
  call allocate_array('istsactive', istsactive, maxsts)
  call allocate_array('ibin_sts', ibin_sts, maxsts)
  call allocate_array('nucleation', nucleation, n_nucleation, maxp_nucleation*inucleation)

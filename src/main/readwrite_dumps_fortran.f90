@@ -323,7 +323,7 @@ subroutine write_fulldump_fortran(t,dumpfile,ntotal,iorder,sphNG)
              nums(8,1) = nums(8,1) + 1
           elseif (ipass==2) then
              write(idump,iostat=ierr) tag('iWindOrig')
-             write(idump,iostat=ierr) iwindorig(1:npart)*1.d0
+             write(idump,iostat=ierr) (iwindorig(iii)*1.d0,iii=1,npart)
           endif
        endif
        !!!!!!!!!!!!!!!

@@ -12,9 +12,9 @@ module extern_windaccel
 !
 ! :Owner: Christopher Russell
 !
-! :Runtime parameters:
+! :Runtime parameters: None
 !
-! :Dependencies: infile_utils, io
+! :Dependencies: kernel, part
 !
  implicit none
  !
@@ -44,7 +44,7 @@ subroutine get_windaccel_force(xi,yi,zi,hi,fxi,fyi,fzi,phi,iwindorigj)!,jj)
  real, intent(inout) :: phi
  integer, intent(in) :: iwindorigj!,jj
 
- real :: ddinv,xantigr,kappa_windaccel 
+ real :: ddinv,xantigr,kappa_windaccel
  integer :: iorder(2),k
 
  real                             :: ftmpxi,ftmpyi,ftmpzi
@@ -80,8 +80,8 @@ subroutine get_windaccel_force(xi,yi,zi,hi,fxi,fyi,fzi,phi,iwindorigj)!,jj)
  !order in which ptmass computations are performed, which is the order in which kappa computations are performed
  !   needed when kappa is tied to gas, so only kappa(iwindorigi) needs to be computed
  !   not needed when kappa is tied to radiation field, in which kappa(1) and kappa(2) need to be computed
- !if(.TRUE.) then
- !if(.FALSE.) then
+ !if (.TRUE.) then
+ !if (.FALSE.) then
  if (iwindorigj==1) then
     iorder(1) = 1
     iorder(2) = 2
@@ -95,7 +95,7 @@ subroutine get_windaccel_force(xi,yi,zi,hi,fxi,fyi,fzi,phi,iwindorigj)!,jj)
  else
     print*, 'Fatal Error --> extern_windaccel.f90 --> get_windaccel_force() --> iwindorigj =',iwindorigj, &
             iwindorigj==1, iwindorigj==2, iwindorigj==0 !,jj
-    print*, KIND(iwindorigj),KIND(2),KIND(iorder)
+    print*, kind(iwindorigj),kind(2),kind(iorder)
     stop
  endif
  !else !this case statement was made when the above nested if statements were behaving unpredictably
@@ -113,7 +113,7 @@ subroutine get_windaccel_force(xi,yi,zi,hi,fxi,fyi,fzi,phi,iwindorigj)!,jj)
  !   case default
  !      print*, 'Fatal Error --> extern_windaccel.f90 --> get_windaccel_force() --> iwindorigj =',iwindorigj, &
  !              iwindorigj==1, iwindorigj==2, iwindorigj==0 !,jj
- !      print*, KIND(iwindorigj),KIND(2),KIND(iorder)
+ !      print*, kind(iwindorigj),kind(2),kind(iorder)
  !      stop
  !end select
  !endif
@@ -129,7 +129,7 @@ subroutine get_windaccel_force(xi,yi,zi,hi,fxi,fyi,fzi,phi,iwindorigj)!,jj)
  do k=1,nptmass
     !if (k>1) cycle !turn off wind accel on gas particles from non-originating (i.e. companion) star
     j = iorder(k)
-    !if(j == iwindorigj) cycle !used for gravity/gravity-canceling tests
+    !if (j == iwindorigj) cycle !used for gravity/gravity-canceling tests
     !if (extrap) then
     !   dx     = xi - (xyzmh_ptmass(1,j) + extrapfac*fsink_old(1,j))
     !   dy     = yi - (xyzmh_ptmass(2,j) + extrapfac*fsink_old(2,j))
@@ -193,31 +193,32 @@ subroutine get_windaccel_force(xi,yi,zi,hi,fxi,fyi,fzi,phi,iwindorigj)!,jj)
     endif
 
     !wind acceleration
-    !if (k==1) then !use this if statement for no radiative inhibition; comment out this if statement for using radiative inhibition
+    !!!!if (k==1) then !use this if statement for no radiative inhibition; comment out this if statement for using radiative inhibition
+    if (k==1) then !use this if statement for radiative inhibition where kappa follows the gas
        !kappa follows gas
-       !ddinv = xyzmh_ptmass(ihacc,iwindorigj) * ddr ! Radius/distance = R/r
-       !!kappa follows radiation field
-       ddinv = xyzmh_ptmass(ihacc,j) * ddr ! Radius/distance = R/r
+       ddinv = xyzmh_ptmass(ihacc,iwindorigj) * ddr ! Radius/distance = R/r
+       !kappa follows radiation field
+       !ddinv = xyzmh_ptmass(ihacc,j) * ddr ! Radius/distance = R/r
        if (ddinv<1.d0) then
           !kappa follows gas
-          !kappa_windaccel = windaccel(ikappac,iwindorigj) + &
-          !                  windaccel(ikappar,iwindorigj)*(1.0d0-ddinv)**(2.d0*windaccel(ivbeta,iwindorigj)-1.d0)
-          !!kappa follows radiation field
-          kappa_windaccel = windaccel(ikappac,j) + &
-                            windaccel(ikappar,j)*(1.0d0-ddinv)**(2.d0*windaccel(ivbeta,j)-1.d0)
+          kappa_windaccel = windaccel(ikappac,iwindorigj) + &
+                            windaccel(ikappar,iwindorigj)*(1.0d0-ddinv)**(2.d0*windaccel(ivbeta,iwindorigj)-1.d0)
+          !kappa follows radiation field
+          !kappa_windaccel = windaccel(ikappac,j) + &
+          !                  windaccel(ikappar,j)*(1.0d0-ddinv)**(2.d0*windaccel(ivbeta,j)-1.d0)
        elseif (ddinv>1.0d0) then
           kappa_windaccel = 0.d0
           !print*,'particle originating from star ',iwindorigj,' is within the radius of star ',j,': ',xyzmh_ptmass(ihacc,iwindorigj),rr2
        else
           kappa_windaccel = 0.d0
           !print*,'particle originating from star ',iwindorigj,' is exactly at the radius of star ',j,': ',xyzmh_ptmass(ihacc,iwindorigj),rr2
-       endif 
-    !endif
+       endif
+    endif
     xantigr = windaccel(ixantgrav,j)*kappa_windaccel
     ftmpxi = ftmpxi + xantigr*dx*f1
     ftmpyi = ftmpyi + xantigr*dy*f1
     ftmpzi = ftmpzi + xantigr*dz*f1
-    
+
     !if (jj>33552) then
     !   print*, jj,kappa_windaccel,windaccel(ixantgrav,j),xantigr,xantigr*dx*f1,dx*f1
     !endif
@@ -226,23 +227,23 @@ subroutine get_windaccel_force(xi,yi,zi,hi,fxi,fyi,fzi,phi,iwindorigj)!,jj)
     !!--- if kappa_bar is implemented, this would need to be pulled out of the current loop over point masses since the kappa for each particle interacting with each point mass would need to be computed
     !!--- additionally, the density contribution from each star's wind would need to be computed, so the density loop would need to be modified as well
     !!--- this code snippet was in the density loop
-    !DO j=1,nptmass
-    !   IF (akappar(iptm).NE.0.0) THEN
-    !      ddinv = rptmas(j) / SQRT((xi-x(j))**2 + (yi-y(j))**2 + (zi-z(j))**2)
+    !do j=1,nptmass
+    !   if (akappar(iptm) /= 0.0) then
+    !      ddinv = rptmas(j) / sqrt((xi-x(j))**2 + (yi-y(j))**2 + (zi-z(j))**2)
     !      akapp(j) = akappac(j) + akappar(j)*(1.0d0-ddinv)**(2.0d0*vbeta(j)-1.0d0)
-    !   ELSE
+    !   else
     !      akapp(j) = akappac(j)
-    !   ENDIF
-    !ENDDO
-    !!IF (iexf.EQ.7) THEN
+    !   endif
+    !enddo
+    !!if (iexf==7) then
     !akappa(ipart) = akapp(ibelong(ipart))
-    !!ELSE
-    !!   IF (rhoi.NE.0.0) THEN
+    !!else
+    !!   if (rhoi /= 0.0) then
     !!      akappa(ipart) = akapp(1)+(akapp(2)-akapp(1))*rhoip2/rhoi
-    !!   ELSE
+    !!   else
     !!      akappa(ipart) = 0.0
-    !!   ENDIF
-    !!ENDIF
+    !!   endif
+    !!endif
 
     !if (tofrom) then
     !   ! backreaction of gas onto sink

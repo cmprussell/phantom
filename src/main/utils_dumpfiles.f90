@@ -1817,7 +1817,7 @@ subroutine write_array_real8(ib,arr,my_tag,len,ikind,ipass,iunit,nums,nerr,func,
           if (imatch==i_real4 .or. use_singleprec) then
              write(iunit,iostat=ierr) (real(arr(i),kind=4),i=1,len)
           else
-             write(iunit,iostat=ierr) arr(1:len)
+             write(iunit,iostat=ierr) (arr(i),i=1,len)
           endif
        endif
     endif

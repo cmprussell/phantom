@@ -376,7 +376,7 @@ subroutine read_infile(infile,logfile,evfile,dumpfile)
  logical :: igotallprad,igotalldustform,igotallgw,igotallgr,igotallbdy,igotallH2R
  integer, parameter :: nrequired = 1
 
- print "(/,a)", ' read_infile() with infile = '//trim(infile)
+ print "(/,a)", ' start read_infile(infile,...) = read_infile('//trim(infile)//',...)'
  ireaderr = 0
  ierr     = 0
  line     = 0
@@ -415,7 +415,7 @@ subroutine read_infile(infile,logfile,evfile,dumpfile)
     if (contains_loop(valstring)) igotloops = .true.
     line = line + nlinesread
 
-    !print*,'name: '//trim(name),' value: '//trim(valstring)
+    !print "(/,a)", 'name: '//trim(name)//' value: '//trim(valstring)
     select case(trim(name))
     case('logfile')
        logfile = trim(valstring(1:min(len(logfile),len(valstring))))

@@ -155,7 +155,7 @@ subroutine setpart(id,npart,npartoftype,xyzh,massoftype,vxyzu,polyk,gamma,hfact,
  print "(a,l)", ' setpart: use_var_comp =',use_var_comp
  if (use_var_comp) then
     filename_mhn = find_phantom_datafile(datafile_mhn,'galcen')
-    if (n_startypes<=0) then !if already called from inject_galcen_winds()-->read_use_var_comp_data(), then don't call this again
+    if (n_startypes<=0) then !if already called from inject_galcen_winds()-->read_options_inject()-->read_use_var_comp_data(), then don't call this again
        call read_use_var_comp_data(filename_mhn)
     endif
     if (n_startypes>=1) then

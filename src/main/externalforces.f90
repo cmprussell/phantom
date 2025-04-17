@@ -21,7 +21,7 @@ module externalforces
 ! :Dependencies: dump_utils, extern_Bfield, extern_binary, extern_corotate,
 !   extern_densprofile, extern_geopot, extern_gnewton, extern_gwinspiral,
 !   extern_lensethirring, extern_prdrag, extern_spiral, extern_staticsine,
-!   infile_utils, io, part, units
+!   extern_windaccel, infile_utils, io, part, units
 !
  use extern_binary,   only:accradius1,mass1,accretedmass1,accretedmass2
  use extern_corotate, only:omega_corotate  ! so public from this module
@@ -66,12 +66,13 @@ module externalforces
    iext_gwinspiral    = 14, &
    iext_discgravity   = 15, &
    iext_corot_binary  = 16, &
-   iext_geopot        = 17
+   iext_geopot        = 17, &
+   iext_windaccel     = 18
 
  !
  ! Human-readable labels for these
  !
- integer, parameter, public  :: iexternalforce_max = 17
+ integer, parameter, public  :: iexternalforce_max = 18
  character(len=*), parameter, public :: externalforcetype(iexternalforce_max) = (/ &
     'star                 ', &
     'corotate             ', &
@@ -89,7 +90,8 @@ module externalforces
     'grav. wave inspiral  ', &
     'disc gravity         ', &
     'corotating binary    ', &
-    'geopotential model   '/)
+    'geopotential model   ', &
+    'wind acceleration    '/)
 
 contains
 !-----------------------------------------------------------------------
@@ -112,9 +114,11 @@ subroutine externalforce(iexternalforce,xi,yi,zi,hi,ti,fextxi,fextyi,fextzi,phi,
  use extern_staticsine,  only:staticsine_force
  use extern_gwinspiral,  only:get_gw_force_i
  use extern_geopot,      only:get_geopot_force,J2,spinvec
+ use extern_windaccel,   only:get_windaccel_force
  use units,              only:get_G_code
  use io,                 only:fatal
  use part,               only:rhoh,massoftype,igas
+ use part,               only:iwindorig
  integer, intent(in)  :: iexternalforce
  real,    intent(in)  :: xi,yi,zi,hi,ti
  real,    intent(out) :: fextxi,fextyi,fextzi,phi
@@ -125,6 +129,7 @@ subroutine externalforce(iexternalforce,xi,yi,zi,hi,ti,fextxi,fextyi,fextzi,phi,
  real            :: phii,gcode,R_g,factor,rhoi
  real, parameter :: Rtorus = 1.0
  real,dimension(3) :: pos
+ integer :: iwindorigi=1
 !-----------------------------------------------------------------------
 !
 !--set external force to zero
@@ -394,6 +399,19 @@ subroutine externalforce(iexternalforce,xi,yi,zi,hi,ti,fextxi,fextyi,fextzi,phi,
     pos = (/xi,yi,zi/)
     call get_centrifugal_force(pos,fextxi,fextyi,fextzi,phi)
 
+ case(iext_windaccel)
+    !
+    !--wind acceleration
+    !
+    if (hi>tiny(hi)) then !this prevents point masses being accelerated via ptmass.F90 --> get_accel_sink_sink()
+       if (present(ii)) then
+          iwindorigi=iwindorig(ii)
+          call get_windaccel_force(xi,yi,zi,hi,fextxi,fextyi,fextzi,phi,iwindorigi)!,ii)
+       else
+          call fatal('externalforce','ii not present in call for external-force wind acceleration')
+       endif
+    endif
+
  case default
 !
 !--external forces should not be called if iexternalforce = 0
@@ -619,6 +637,7 @@ subroutine write_options_externalforces(iunit,iexternalforce)
  use extern_staticsine,    only:write_options_staticsine
  use extern_gwinspiral,    only:write_options_gwinspiral
  use extern_geopot,        only:write_options_geopot
+ use extern_windaccel,     only:write_options_windaccel
  integer, intent(in) :: iunit,iexternalforce
  character(len=80) :: string
 
@@ -662,6 +681,8 @@ subroutine write_options_externalforces(iunit,iexternalforce)
     call write_options_gwinspiral(iunit)
  case(iext_geopot)
     call write_options_geopot(iunit)
+ case(iext_windaccel)
+    call write_options_windaccel(iunit)
  end select
 
 end subroutine write_options_externalforces
@@ -728,6 +749,7 @@ subroutine read_options_externalforces(name,valstring,imatch,igotall,ierr,iexter
  use extern_staticsine,    only:read_options_staticsine
  use extern_gwinspiral,    only:read_options_gwinspiral
  use extern_geopot,        only:read_options_geopot
+ use extern_windaccel,     only:read_options_windaccel
  character(len=*), intent(in)    :: name,valstring
  logical,          intent(out)   :: imatch,igotall
  integer,          intent(out)   :: ierr
@@ -736,6 +758,7 @@ subroutine read_options_externalforces(name,valstring,imatch,igotall,ierr,iexter
  logical :: igotallcorotate,igotallbinary,igotallprdrag
  logical :: igotallltforce,igotallspiral,igotallexternB
  logical :: igotallstaticsine,igotallgwinspiral,igotallgeopot
+ logical :: igotallwindaccel
  character(len=30), parameter :: tag = 'externalforces'
 
  imatch            = .true.
@@ -749,6 +772,7 @@ subroutine read_options_externalforces(name,valstring,imatch,igotall,ierr,iexter
  igotallstaticsine = .true.
  igotallgwinspiral = .true.
  igotallgeopot     = .true.
+ igotallwindaccel  = .true.
 
  !call read_inopt(db,'iexternalforce',iexternalforce,min=0,max=9,required=true)
  !if (imatch) ngot = ngot + 1
@@ -799,14 +823,17 @@ subroutine read_options_externalforces(name,valstring,imatch,igotall,ierr,iexter
     case(iext_gwinspiral)
        call read_options_gwinspiral(name,valstring,imatch,igotallgwinspiral,ierr)
     case(iext_geopot)
-       call read_options_geopot(name,valstring,imatch,igotallgwinspiral,ierr)
+       call read_options_geopot(name,valstring,imatch,igotallgeopot,ierr)
+    case(iext_windaccel)
+       call read_options_windaccel(name,valstring,imatch,igotallgwinspiral,ierr)
     end select
  end select
  igotall = (ngot >= 1      .and. igotallcorotate   .and. &
             igotallbinary  .and. igotallprdrag     .and. &
             igotallspiral  .and. igotallltforce    .and. &
             igotallexternB .and. igotallstaticsine .and. &
-            igotallgwinspiral .and. igotallgeopot)
+            igotallgwinspiral .and. igotallgeopot  .and. &
+            igotallwindaccel)
 
  !--make sure mass is read where relevant
  select case(iexternalforce)
