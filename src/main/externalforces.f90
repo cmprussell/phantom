@@ -406,7 +406,7 @@ subroutine externalforce(iexternalforce,xi,yi,zi,hi,ti,fextxi,fextyi,fextzi,phi,
     if (hi>tiny(hi)) then !this prevents point masses being accelerated via ptmass.F90 --> get_accel_sink_sink()
        if (present(ii)) then
           iwindorigi=iwindorig(ii)
-          call get_windaccel_force(xi,yi,zi,hi,fextxi,fextyi,fextzi,phi,iwindorigi)!,ii)
+          call get_windaccel_force(xi,yi,zi,hi,fextxi,fextyi,fextzi,phi,iwindorigi,ii)
        else
           call fatal('externalforce','ii not present in call for external-force wind acceleration')
        endif

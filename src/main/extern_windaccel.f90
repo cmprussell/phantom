@@ -34,7 +34,7 @@ contains
 !  beta velocity law in the absence of companion stars
 !+
 !------------------------------------------------
-subroutine get_windaccel_force(xi,yi,zi,hi,fxi,fyi,fzi,phi,iwindorigj)!,jj)
+subroutine get_windaccel_force(xi,yi,zi,hi,fxi,fyi,fzi,phi,iwindorigj,jj)
  use part,   only:xyzmh_ptmass,nptmass,ihsoft,ihacc
  use part,   only:windaccel,ixantgrav,ikappac,ikappar,ivbeta
  use kernel, only:kernel_softening,radkern
@@ -42,7 +42,7 @@ subroutine get_windaccel_force(xi,yi,zi,hi,fxi,fyi,fzi,phi,iwindorigj)!,jj)
  real, intent(in)    :: xi,yi,zi,hi
  real, intent(inout) :: fxi,fyi,fzi
  real, intent(inout) :: phi
- integer, intent(in) :: iwindorigj!,jj
+ integer, intent(in) :: iwindorigj,jj
 
  real :: ddinv,xantigr,kappa_windaccel
  integer :: iorder(2),k
