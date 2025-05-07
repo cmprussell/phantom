@@ -40,14 +40,13 @@ subroutine get_windaccel_force(xi,yi,zi,hi,fxi,fyi,fzi,phi,iwindorigj,jj)
  use kernel, only:kernel_softening,radkern
 
  real, intent(in)    :: xi,yi,zi,hi
- real, intent(inout) :: fxi,fyi,fzi
- real, intent(inout) :: phi
+ real, intent(out)   :: fxi,fyi,fzi,phi
  integer, intent(in) :: iwindorigj,jj
 
  real :: ddinv,xantigr,kappa_windaccel
  integer :: iorder(2),k
 
- real                             :: ftmpxi,ftmpyi,ftmpzi
+ !real                             :: ftmpxi,ftmpyi,ftmpzi
  real                             :: dx,dy,dz,rr2,ddr,dr3,f1,f2,pmassj
  real                             :: hsoft,hsoft1,hsoft21,q2i,qi,psoft,fsoft
  real                             :: fxj,fyj,fzj,dsx,dsy,dsz
@@ -119,15 +118,20 @@ subroutine get_windaccel_force(xi,yi,zi,hi,fxi,fyi,fzi,phi,iwindorigj,jj)
  !endif
  !print*,'iwindorigj =',iwindorigj,', iorder = ',iorder
 
- ftmpxi = 0.  ! use temporary summation variable
- ftmpyi = 0.  ! (better for round-off, plus we need this bit of
- ftmpzi = 0.  ! the force to calculate the dtphi timestep)
- phi    = 0.
- f2     = 0.
+ !ftmpxi = 0.  ! use temporary summation variable
+ !ftmpyi = 0.  ! (better for round-off, plus we need this bit of
+ !ftmpzi = 0.  ! the force to calculate the dtphi timestep)
+ !phi    = 0.
+ !f2     = 0.
+ fxi = 0.
+ fyi = 0.
+ fzi = 0.
+ phi = 0.
+ f2  = 0.
 
  !do j=1,nptmass
  do k=1,nptmass
-    !if (k>1) cycle !turn off wind accel on gas particles from non-originating (i.e. companion) star
+    if (k>1) cycle !turn off wind accel on gas particles from non-originating (i.e. companion) star
     j = iorder(k)
     !if (j == iwindorigj) cycle !used for gravity/gravity-canceling tests
     !if (extrap) then
@@ -215,12 +219,37 @@ subroutine get_windaccel_force(xi,yi,zi,hi,fxi,fyi,fzi,phi,iwindorigj,jj)
        endif
     endif
     xantigr = windaccel(ixantgrav,j)*kappa_windaccel
-    ftmpxi = ftmpxi + xantigr*dx*f1
-    ftmpyi = ftmpyi + xantigr*dy*f1
-    ftmpzi = ftmpzi + xantigr*dz*f1
+    !ftmpxi = ftmpxi + xantigr*dx*f1
+    !ftmpyi = ftmpyi + xantigr*dy*f1
+    !ftmpzi = ftmpzi + xantigr*dz*f1
+    fxi = fxi + xantigr*dx*f1
+    fyi = fyi + xantigr*dy*f1
+    fzi = fzi + xantigr*dz*f1
+    phi = phi + xantigr*pmassj*ddr
+    !Note: This phi computation is based on the phi computation for gravity:
+    !      phi = -pmassj*ddr = -pmassj*ddr*ddr2/ddr2 = -pmassj*ddr3/ddr2 = -f1/ddr2
+    !      where f1 is defined by ftmpxi = -dx*f1 for the gravity case 
+    !      (based on the iterative version of the formula ftmpxi = ftmpxi - dx*f1)
+    !      so phi = -f1/ddr2 = -(-ftmpxi/dx)/ddr2 = ftmpxi/dx/ddr2.
+    !      For wind acceleration, we have
+    !      fxi = xantigr*dx*f1 (= ftmpxi)
+    !      making the phi formula
+    !      phi = fxi/dx/ddr2 = xantigr*dx*f1/dx/ddr2 = xantigr*f1/ddr2 = xantigr*pmassj*ddr3/ddr2 = xantigr*pmassj*ddr
+    !      which is the in-use formula.  Using variables that don't already
+    !      include divisions and with more standard notation, this would be more conventionaly written as
+    !      phi_i = Sum_j(xantigr_ij * M_j/r_ij)
+    !      where the equivalent formula for just gravity would be
+    !      phi_i = Sum_j(-M_j/r_ij).
 
     !if (jj>33552) then
     !   print*, jj,kappa_windaccel,windaccel(ixantgrav,j),xantigr,xantigr*dx*f1,dx*f1
+    !endif
+    !if(mod(jj,1000)==0) then
+    !   print*, jj,k,j,kappa_windaccel,xantigr*dx*f1,ftmpxi
+    !endif
+    !if(mod(jj,100)==0 .and. -0.01<yi .and. yi<0.01 .and. -0.01<zi .and. zi<0.01) then
+    !   !print*, jj,k,j,xi,xyzmh_ptmass(1,j),dx,f1,kappa_windaccel,windaccel(ixantgrav,j),xantigr*dx*f1,ftmpxi
+    !   print*, jj,k,j,xi,xyzmh_ptmass(1,j),dx,f1,kappa_windaccel,windaccel(ixantgrav,j),xantigr*dx*f1,fxi,phi
     !endif
 
     !!keep this old method around to see how to mix opacities for the kappa_bar implementation via Eq. A6
@@ -281,9 +310,9 @@ subroutine get_windaccel_force(xi,yi,zi,hi,fxi,fyi,fzi,phi,iwindorigj,jj)
  !
  ! add temporary sums to existing force on gas particle
  !
- fxi = fxi + ftmpxi
- fyi = fyi + ftmpyi
- fzi = fzi + ftmpzi
+ !fxi = fxi + ftmpxi
+ !fyi = fyi + ftmpyi
+ !fzi = fzi + ftmpzi
 
 end subroutine get_windaccel_force
 
