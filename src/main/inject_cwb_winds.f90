@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------!
 ! The Phantom Smoothed Particle Hydrodynamics code, by Daniel Price et al. !
-! Copyright (c) 2007-2025 The Authors (see AUTHORS)                        !
+! Copyright (c) 2007-2026 The Authors (see AUTHORS)                        !
 ! See LICENCE file for usage and distribution conditions                   !
 ! http://phantomsph.bitbucket.io/                                          !
 !--------------------------------------------------------------------------!
@@ -14,7 +14,7 @@ module inject
 !
 ! :References: Cuadra et al. (2008), MNRAS 383, 458
 !
-! :Owner: Daniel Price and Christopher Russell
+! :Owner: Christopher Russell
 !
 ! :Runtime parameters:
 !   - datafile       : *name of data file for wind injection*
