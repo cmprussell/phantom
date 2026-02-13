@@ -181,7 +181,7 @@ subroutine write_fulldump_fortran(t,dumpfile,ntotal,iorder,sphNG)
  !turn integer array iwindorig into real array iwindorig_gas so splash reads it in automatically
  iwindorig_gas=0.
  do iii=1,npart
-    iwindorig_gas(iii)=REAL(iwindorig(iii))
+    iwindorig_gas(iii)=real(iwindorig(iii))
  enddo
  !create real array iwindorig_ptmass so splash reads it in automatically
  do iii=1,nptmass
