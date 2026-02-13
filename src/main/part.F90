@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------!
 ! The Phantom Smoothed Particle Hydrodynamics code, by Daniel Price et al. !
-! Copyright (c) 2007-2025 The Authors (see AUTHORS)                        !
+! Copyright (c) 2007-2026 The Authors (see AUTHORS)                        !
 ! See LICENCE file for usage and distribution conditions                   !
 ! http://phantomsph.github.io/                                             !
 !--------------------------------------------------------------------------!
@@ -441,6 +441,10 @@ module part
  character(len=7), dimension(maxtypes), parameter :: &
    labeltype = (/'gas    ','empty  ','bound  ','star   ','darkm  ','bulge  ', &
                  ('dust   ', i=idust,idustlast),('dustbnd',i=idustbound,idustboundl)/)
+
+! testing of kind
+ real(kind=8), allocatable :: xyzh_test(:,:)
+
 !
 !--generic interfaces for routines
 !
@@ -465,9 +469,11 @@ subroutine allocate_part
  print "(a)", ' | ------ sample real variables: definitions     ------ |'
  print "(a)", ' | real(kind=4), allocatable :: alphaind(:,:)           |'
  print "(a)", ' | real,         allocatable :: xyzh(:,:)               |'
+ print "(a)", ' | real(kind=8), allocatable :: xyzh_test(:,:)          |'
  print "(a)", ' | ------ sample real variables: kind results    ------ |'
  print "(a,i0,a)", ' | alphaind  = ',kind(alphaind),'                                        |'
  print "(a,i0,a)", ' | xyzh      = ',kind(xyzh),'                                        |'
+ print "(a,i0,a)", ' | xyzh_test = ',kind(xyzh_test),'                                        |'
  print "(a)", ' |------------------------------------------------------|'
  print "(a)", ' | ------ sample integer variables: definitions  ------ |'
  print "(a)", ' | integer(kind=1), allocatable    :: iphase(:)         |'

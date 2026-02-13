@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------!
 ! The Phantom Smoothed Particle Hydrodynamics code, by Daniel Price et al. !
-! Copyright (c) 2007-2025 The Authors (see AUTHORS)                        !
+! Copyright (c) 2007-2026 The Authors (see AUTHORS)                        !
 ! See LICENCE file for usage and distribution conditions                   !
 ! http://phantomsph.github.io/                                             !
 !--------------------------------------------------------------------------!
@@ -91,6 +91,7 @@ subroutine write_fulldump_fortran(t,dumpfile,ntotal,iorder,sphNG)
  type(dump_h)          :: hdr
  real, allocatable :: temparr(:)
  real :: iwindorig_ptmass(nptmass)
+ real :: iwindorig_gas(npart)
  integer :: iii
 !
 !--collect global information from MPI threads
@@ -176,6 +177,16 @@ subroutine write_fulldump_fortran(t,dumpfile,ntotal,iorder,sphNG)
     write (idump,iostat=ierr) nblockarrays
 
  endif masterthread
+
+ !turn integer array iwindorig into real array iwindorig_gas so splash reads it in automatically
+ iwindorig_gas=0.
+ do iii=1,npart
+    iwindorig_gas(iii)=real(iwindorig(iii))
+ enddo
+ !create real array iwindorig_ptmass so splash reads it in automatically
+ do iii=1,nptmass
+    iwindorig_ptmass(iii) = iii
+ enddo
 
  call start_threadwrite(id,idump,dumpfile)
 
@@ -308,27 +319,9 @@ subroutine write_fulldump_fortran(t,dumpfile,ntotal,iorder,sphNG)
           call write_array(1,rad,rad_label,maxirad,npart,k,ipass,idump,nums,nerr)
           call write_array(1,radprop,radprop_label,maxradprop,npart,k,ipass,idump,nums,nerr)
        endif
-       !call write_array(1,iwindorig,'iWindOrig',npart,k,ipass,idump,nums,nerr)  !though this seems fine, Splash doesn't seem to read in integers, so try a hack (below) where values are converted to real before outputting
-
-       !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-       ! hack to write iwindorg as reals to dump file !
-       !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-       ! stems from write_array_real8 in utils_dumpfiles.f90
-       !                               i_real  = 6, &
-       !                               i_real4 = 7, &
-       !                               i_real8 = 8
-       if (k==8) then !needed since we want to write as double precision reals
-          if (ipass==1) then
-             !nums(imatch,ib) = nums(imatch,ib) + 1
-             nums(8,1) = nums(8,1) + 1
-          elseif (ipass==2) then
-             write(idump,iostat=ierr) tag('iWindOrig')
-             write(idump,iostat=ierr) (iwindorig(iii)*1.d0,iii=1,npart)
-          endif
-       endif
-       !!!!!!!!!!!!!!!
-       ! end of hack !
-       !!!!!!!!!!!!!!!
+       !seg faults when run in command line for setup; use iwindorig_gas method instead
+       !call write_array(1,iwindorig*1.0d0,'iWindOrig',npart,k,ipass,idump,nums,nerr)
+       call write_array(1,iwindorig_gas,'iWindOrig',npart,k,ipass,idump,nums,nerr)
 
        if (nerr > 0) call error('write_dump','error writing hydro arrays')
     enddo
@@ -345,18 +338,7 @@ subroutine write_fulldump_fortran(t,dumpfile,ntotal,iorder,sphNG)
           if (store_ll_ptmass) then
              call write_array(2,linklist_ptmass,"linklist_ptmass",nptmass,k,ipass,idump,nums,nerr)
           endif
-          do iii=1,nptmass
-             iwindorig_ptmass(iii) = iii
-          enddo
-          if (k==8) then !needed since we want to write as double precision reals
-             if (ipass==1) then
-                !nums(imatch,ib) = nums(imatch,ib) + 1
-                nums(8,2) = nums(8,2) + 1
-             elseif (ipass==2) then
-                write(idump,iostat=ierr) tag('iWindOrig')
-                write(idump,iostat=ierr) iwindorig_ptmass(1:nptmass)*1.d0
-             endif
-          endif
+          call write_array(2,iwindorig_ptmass,'iWindOrig',nptmass,k,ipass,idump,nums,nerr)
           if (nerr > 0) call error('write_dump','error writing sink particle arrays')
        endif
     enddo
@@ -1172,17 +1154,8 @@ subroutine read_phantom_arrays(i1,i2,noffset,narraylengths,nums,npartread,nparto
                 call read_array(radprop,radprop_label,got_radprop,ik,i1,i2,noffset,idisk1,tag,match,ierr)
              endif
 
-             !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-             ! hack to read iwindorg as reals from full dump file !
-             !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
              !iWindOrig (or iwindorig) is a special case since this int*4 array is stored as real*8 in the full dump files
-             if (k==8) then
-                call read_array_real8_to_int4(iwindorig, 'iWindOrig', got_iwindorig, ik,i1,i2,noffset,idisk1,tag,match,ierr)
-                write(*,'(a,l)') ' got_iwindorig =',got_iwindorig
-             endif
-             !!!!!!!!!!!!!!!
-             ! end of hack !
-             !!!!!!!!!!!!!!!
+             call read_array_real8_to_int4(iwindorig, 'iWindOrig', got_iwindorig, ik,i1,i2,noffset,idisk1,tag,match,ierr)
           case(2)
              call read_array(xyzmh_ptmass,xyzmh_ptmass_label,got_sink_data,ik,1,nptmass,0,idisk1,tag,match,ierr)
              call read_array(vxyz_ptmass, vxyz_ptmass_label, got_sink_vels,ik,1,nptmass,0,idisk1,tag,match,ierr)
