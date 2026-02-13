@@ -36,6 +36,7 @@ jobs/
 scripts/output_bots.sh.txt
 scripts/output_*bots*.sh
 scripts/output_*bots*.txt
+scripts/*_Orig*
 src/*/*90_Orig*
 src/*/*90_Debug*
 src/*/*90_Save*
@@ -51,3 +52,4 @@ test000
 w.in
 wind_profile1D.dat
 *.swp
+asdf*
