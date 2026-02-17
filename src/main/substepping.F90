@@ -681,6 +681,7 @@ subroutine kick(dki,dt,npart,nptmass,ntypes,xyzh,vxyzu,xyzmh_ptmass,vxyz_ptmass,
  integer         :: i,itype,nfaili
  integer         :: naccreted,nfail,nlive
  real            :: dkdt,pmassi,fxi,fyi,fzi,accretedmass
+ integer         :: iaccreted_onto
 
  if (present(timei) .and. present(ibin_wake) .and. present(nbinmax)) then
     is_accretion = .true.
@@ -745,6 +746,7 @@ subroutine kick(dki,dt,npart,nptmass,ntypes,xyzh,vxyzu,xyzmh_ptmass,vxyz_ptmass,
     !$omp shared(iwindorig) &
     !$omp shared(eos_vars) &
     !$omp private(i,accreted,nfaili,fxi,fyi,fzi) &
+    !$omp private(iaccreted_onto) &
     !$omp firstprivate(itype,pmassi,ibin_wakei) &
     !$omp reduction(+:accretedmass) &
     !$omp reduction(+:nfail) &
@@ -806,7 +808,8 @@ subroutine kick(dki,dt,npart,nptmass,ntypes,xyzh,vxyzu,xyzmh_ptmass,vxyz_ptmass,
              call ptmass_accrete(1,      1,xyzh(1,i),xyzh(2,i),xyzh(3,i),xyzh(4,i),&
                               vxyzu(1,i),vxyzu(2,i),vxyzu(3,i),fxi,fyi,fzi,&
                               itype,pmassi,xyzmh_ptmass,vxyz_ptmass,accreted, &
-                              dptmass,timei,f_acc,nbinmax,ibin_wakei,nfaili)
+                              dptmass,timei,f_acc,nbinmax,ibin_wakei,nfaili,iaccreted_onto)
+                              !dptmass,timei,f_acc,nbinmax,ibin_wakei,nfaili)
              !if (i==30001) then
              !   write(*,*) 'PostAccrete: ',i,is_accretable(itype),itype,iphase(i),pmassi,xyzh(4,i),xyzmh_ptmass(5,1),f_acc,sqrt(xyzh(1,i)**2+xyzh(2,i)**2+xyzh(3,i)**2),accreted,nfaili
              !endif
@@ -831,7 +834,7 @@ subroutine kick(dki,dt,npart,nptmass,ntypes,xyzh,vxyzu,xyzmh_ptmass,vxyz_ptmass,
                    vxyzu(1,i),vxyzu(2,i),vxyzu(3,i),&
                    -xyzh(4,i),eos_vars(itemp,i),& !vxyzu(4,i)*TempConversionFactor,&
                    pmassi,rhoh(-xyzh(4,i),pmassi),vxyzu(4,i),&
-                   nfaili,iwindorig(i)
+                   nfaili,iwindorig(i),iaccreted_onto
                 naccreted = naccreted + 1
                 cycle accreteloop
              else
