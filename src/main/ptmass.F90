@@ -888,7 +888,8 @@ end function ptmass_not_obscured
 !----------------------------------------------------------------
 subroutine ptmass_accrete(is,nptmass,xi,yi,zi,hi,vxi,vyi,vzi,fxi,fyi,fzi, &
                           itypei,pmassi,xyzmh_ptmass,vxyz_ptmass,accreted, &
-                          dptmass,time,facc,nbinmax,ibin_wakei,nfaili)
+                          dptmass,time,facc,nbinmax,ibin_wakei,nfaili,iaccreted_onto)
+                          !dptmass,time,facc,nbinmax,ibin_wakei,nfaili)
 
 !$ use omputils, only:ipart_omp_lock
  use part,       only: ihacc,itbirth,ndptmass
@@ -904,7 +905,7 @@ subroutine ptmass_accrete(is,nptmass,xi,yi,zi,hi,vxi,vyi,vzi,fxi,fyi,fzi, &
  real,              intent(inout) :: dptmass(ndptmass,nptmass)
  integer(kind=1),   intent(in)    :: nbinmax
  integer(kind=1),   intent(inout) :: ibin_wakei
- integer, optional, intent(out)   :: nfaili
+ integer, optional, intent(out)   :: nfaili,iaccreted_onto
  integer            :: i,ifail
  real               :: dx,dy,dz,r2,dvx,dvy,dvz,v2,hacc
  logical, parameter :: iofailreason=.false.
@@ -1060,6 +1061,9 @@ subroutine ptmass_accrete(is,nptmass,xi,yi,zi,hi,vxi,vyi,vzi,fxi,fyi,fzi, &
 
 !$     call omp_unset_lock(ipart_omp_lock(i))
        hi = -abs(hi)
+
+       !ptmass that the gas particle accreted onto
+       iaccreted_onto = i
 
 ! avoid possibility that two sink particles try to accrete the same gas particle by exiting the loop
        exit sinkloop
