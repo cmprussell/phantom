@@ -805,7 +805,12 @@ subroutine kick(dki,dt,npart,nptmass,ntypes,xyzh,vxyzu,xyzmh_ptmass,vxyz_ptmass,
              !   write(*,*) 'BefoAccrete: ',i,is_accretable(itype),itype,iphase(i),pmassi,xyzh(4,i),sqrt(xyzh(1,i)**2+xyzh(2,i)**2+xyzh(3,i)**2),accreted,nfaili,iexternalforce,ntypes,maxphase==maxp,maxphase,maxp
              !endif
              !call ptmass_accrete(1,nptmass,xyzh(1,i),xyzh(2,i),xyzh(3,i),xyzh(4,i),&
+             !call ptmass_accrete(1,      1,xyzh(1,i),xyzh(2,i),xyzh(3,i),xyzh(4,i),&
+#ifdef CWB
+             call ptmass_accrete(1,nptmass,xyzh(1,i),xyzh(2,i),xyzh(3,i),xyzh(4,i),&
+#else
              call ptmass_accrete(1,      1,xyzh(1,i),xyzh(2,i),xyzh(3,i),xyzh(4,i),&
+#endif
                               vxyzu(1,i),vxyzu(2,i),vxyzu(3,i),fxi,fyi,fzi,&
                               itype,pmassi,xyzmh_ptmass,vxyz_ptmass,accreted, &
                               dptmass,timei,f_acc,nbinmax,ibin_wakei,nfaili,iaccreted_onto)
