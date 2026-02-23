@@ -355,6 +355,11 @@ module dim
  !--------------------
  integer :: idumpfile = 0
 
+ !--------------------
+ ! wind acceleration
+ !--------------------
+ integer :: maxwindaccel = 4
+
 contains
 
 subroutine update_max_sizes(n,ntot)

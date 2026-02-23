@@ -718,6 +718,10 @@ subroutine ptmass_drift(nptmass,ckdt,xyzmh_ptmass,vxyz_ptmass,group_info,n_ingro
  integer :: i,k,istart_ptmass
  logical :: wsub
 
+#ifdef PTMASS_STATIONARY
+ return
+#endif
+
  if (present(n_ingroup)) then
     istart_ptmass = n_ingroup + 1
     wsub = .true.
@@ -761,6 +765,10 @@ subroutine ptmass_kick(nptmass,dkdt,vxyz_ptmass,fxyz_ptmass,xyzmh_ptmass,dsdt_pt
 
  integer :: i
 
+
+#ifdef PTMASS_STATIONARY
+ return
+#endif
 
  !$omp parallel do schedule(static) default(none) &
  !$omp shared(xyzmh_ptmass,vxyz_ptmass,fxyz_ptmass,dsdt_ptmass,dkdt,nptmass) &
@@ -889,7 +897,7 @@ end function ptmass_not_obscured
 subroutine ptmass_accrete(is,nptmass,xi,yi,zi,hi,vxi,vyi,vzi,fxi,fyi,fzi, &
                           itypei,pmassi,xyzmh_ptmass,vxyz_ptmass,accreted, &
                           dptmass,time,facc,nbinmax,ibin_wakei,nfaili,iaccreted_onto)
-                          !dptmass,time,facc,nbinmax,ibin_wakei,nfaili)
+ !                        dptmass,time,facc,nbinmax,ibin_wakei,nfaili)
 
 !$ use omputils, only:ipart_omp_lock
  use part,       only: ihacc,itbirth,ndptmass

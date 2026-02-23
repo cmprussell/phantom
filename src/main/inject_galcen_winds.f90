@@ -867,9 +867,10 @@ subroutine read_use_var_comp_data(filename_mhn)
  open(newunit=iunit,file=filename_mhn,status='old',action='read',iostat=ierr)
  if (ierr /= 0) then
     print "(2(/,a))",' ERROR opening "'//trim(filename_mhn)//'" for read of various composition data', &
-                       ' -> this file should contain mu,name for each point mass, one per line'
+                       ' -> this file should contain mu,habund,name for each point mass, one per line'
     print "(a)", ' no startypes were read in from '//trim(filename_mhn)
     print "(a,g0)", ' --> mu for all particles will come from module eos-->gmw, which is ',gmw
+    print "(a,g0)", ' --> habund for all particles will be 0.7'
     name_startypes(1) = ''
     mu_startypes(1) = gmw
     habund_startypes(1) = 0.7
