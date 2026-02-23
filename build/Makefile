@@ -286,6 +286,10 @@ ifeq ($(STELLAR_POTENTIAL), yes)
     FPPFLAGS += -DSTELLAR_POTENTIAL
 endif
 
+ifeq ($(PTMASS_STATIONARY), yes)
+    FPPFLAGS += -DPTMASS_STATIONARY
+endif
+
 ifdef SRCTURB
     FPPFLAGS += -DDRIVING
 endif
@@ -479,6 +483,7 @@ SRCPOTS= extern_gr.F90 \
          extern_staticsine.f90 \
          extern_gwinspiral.f90 \
          extern_geopot.f90 \
+         extern_windaccel.f90 \
          externalforces.f90
 endif
 ifeq (X$(SRCPOT), X)

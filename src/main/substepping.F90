@@ -775,7 +775,9 @@ subroutine kick(dki,dt,npart,nptmass,ntypes,xyzh,vxyzu,xyzmh_ptmass,vxyz_ptmass,
           vxyzu(3,i) = vxyzu(3,i) + dkdt*fext(3,i)
 
           if (iexternalforce > 0) then
-             write(*,*) 'THIS IS RUNNING B' !should not be executed for galcen sims since iexternalforce=0
+             !write(*,*) 'THIS IS RUNNING B' !should not be executed for galcen sims since iexternalforce=0
+             !this is executed for CWB sims when iexternalforce=iext_windaccel,
+             !   but nothing happens in the subroutine accrete_particles(iext_windaccel,...)
              call accrete_particles(iexternalforce,xyzh(1,i),xyzh(2,i), &
                                  xyzh(3,i),xyzh(4,i),pmassi,timei,accreted)
              if (accreted) accretedmass = accretedmass + pmassi
@@ -803,17 +805,23 @@ subroutine kick(dki,dt,npart,nptmass,ntypes,xyzh,vxyzu,xyzmh_ptmass,vxyz_ptmass,
              !   write(*,*) 'BefoAccrete: ',i,is_accretable(itype),itype,iphase(i),pmassi,xyzh(4,i),sqrt(xyzh(1,i)**2+xyzh(2,i)**2+xyzh(3,i)**2),accreted,nfaili,iexternalforce,ntypes,maxphase==maxp,maxphase,maxp
              !endif
              !call ptmass_accrete(1,nptmass,xyzh(1,i),xyzh(2,i),xyzh(3,i),xyzh(4,i),&
+             !call ptmass_accrete(1,      1,xyzh(1,i),xyzh(2,i),xyzh(3,i),xyzh(4,i),&
+#ifdef CWB
+             call ptmass_accrete(1,nptmass,xyzh(1,i),xyzh(2,i),xyzh(3,i),xyzh(4,i),&
+#else
              call ptmass_accrete(1,      1,xyzh(1,i),xyzh(2,i),xyzh(3,i),xyzh(4,i),&
+#endif
                               vxyzu(1,i),vxyzu(2,i),vxyzu(3,i),fxi,fyi,fzi,&
                               itype,pmassi,xyzmh_ptmass,vxyz_ptmass,accreted, &
                               dptmass,timei,f_acc,nbinmax,ibin_wakei,nfaili,iaccreted_onto)
-                              !dptmass,timei,f_acc,nbinmax,ibin_wakei,nfaili)
+             !                dptmass,timei,f_acc,nbinmax,ibin_wakei,nfaili)
              !if (i==30001) then
              !   write(*,*) 'PostAccrete: ',i,is_accretable(itype),itype,iphase(i),pmassi,xyzh(4,i),xyzmh_ptmass(5,1),f_acc,sqrt(xyzh(1,i)**2+xyzh(2,i)**2+xyzh(3,i)**2),accreted,nfaili
              !endif
              !if (sqrt(xyzh(1,i)**2+xyzh(2,i)**2+xyzh(3,i)**2) < xyzmh_ptmass(5,1)) then !these particles might not yet accrete is f_acc<1.0
              !   write(*,*) 'DoneAccrete: ',i,is_accretable(itype),itype,iphase(i),pmassi,xyzh(4,i),sqrt(xyzh(1,i)**2+xyzh(2,i)**2+xyzh(3,i)**2),accreted,nfaili,iwindorig(i)
              !endif
+#ifndef CWB
              if (sqrt(xyzh(1,i)**2+xyzh(2,i)**2+xyzh(3,i)**2) < xyzmh_ptmass(5,1) .AND. (.NOT.accreted)) then !these particles might not yet accrete is f_acc<1.0
                 write(*,*) 'SoonWillAccrete: ',i,timei,&
                    xyzh(1,i),xyzh(2,i),xyzh(3,i),&
@@ -822,6 +830,7 @@ subroutine kick(dki,dt,npart,nptmass,ntypes,xyzh,vxyzu,xyzmh_ptmass,vxyz_ptmass,
                    pmassi,rhoh(abs(xyzh(4,i)),pmassi),vxyzu(4,i),&
                    nfaili,iwindorig(i)
              endif
+#endif
              if (accreted) then
                 !write(*,*) 'Yes Accrete: ',i,is_accretable(itype),itype,iphase(i),pmassi,xyzh(4,i),sqrt(xyzh(1,i)**2+xyzh(2,i)**2+xyzh(3,i)**2),accreted,nfaili,iwindorig(i)
                 !write out the particle index, time, position, velocity, h, T, pmass, rho, u, accretion flag, and particle's wind origin
