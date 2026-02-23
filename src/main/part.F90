@@ -657,6 +657,8 @@ subroutine deallocate_part
  if (allocated(ll))           deallocate(ll)
  if (allocated(ibelong))      deallocate(ibelong)
  if (allocated(iwindorig))    deallocate(iwindorig)
+ if (allocated(iwindorig_to_ict))    deallocate(iwindorig_to_ict)
+ if (allocated(windaccel))    deallocate(windaccel)
  if (allocated(istsactive))   deallocate(istsactive)
  if (allocated(ibin_sts))     deallocate(ibin_sts)
  if (allocated(group_info))   deallocate(group_info)

@@ -196,7 +196,19 @@ echo
 
 #srun ./phantom ./galcen.in > output.txt
 #srun make SYSTEM=ifort test
+
+#########################
+### Run all the tests ###
+#########################
 srun ./bin/phantomtest
+
+#########################
+### Run a single test ###
+#########################
+#srun ./bin/phantomtest rwdump
+#srun ./bin/phantomtest externf
+#srun ./bin/phantomtest ptmass
+#srun ./bin/phantomtest iorig
 
 echo "End time from 'date'"
 srun date

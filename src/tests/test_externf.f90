@@ -121,16 +121,20 @@ subroutine test_externf(ntests,npass)
           do i=1,npart
              xi(:) = xyzh(:,i)
              call externalforce(iextf,xi(1),xi(2),xi(3),xi(4),time, &
-                                fxi,fyi,fzi,pot1,dtf)
+                                fxi,fyi,fzi,pot1,dtf,i)
+             !                   fxi,fyi,fzi,pot1,dtf)
              !--get derivatives of potential
              call externalforce(iextf,xi(1)+dhi,xi(2),xi(3),xi(4),time, &
-                                dumx,dumy,dumz,pot2,dtf)
+                                dumx,dumy,dumz,pot2,dtf,i)
+             !                   dumx,dumy,dumz,pot2,dtf)
              fextxi = -(pot2 - pot1)/dhi
              call externalforce(iextf,xi(1),xi(2)+dhi,xi(3),xi(4),time, &
-                                dumx,dumy,dumz,pot2,dtf)
+                                dumx,dumy,dumz,pot2,dtf,i)
+             !                   dumx,dumy,dumz,pot2,dtf)
              fextyi = -(pot2 - pot1)/dhi
              call externalforce(iextf,xi(1),xi(2),xi(3)+dhi,xi(4),time, &
-                                dumx,dumy,dumz,pot2,dtf)
+                                dumx,dumy,dumz,pot2,dtf,i)
+             !                   dumx,dumy,dumz,pot2,dtf)
              fextzi = -(pot2 - pot1)/dhi
 
              call checkvalbuf(fxi,fextxi,tolf,'fextx = -grad phi',nfailed(2),ncheck(2),xerrmax)

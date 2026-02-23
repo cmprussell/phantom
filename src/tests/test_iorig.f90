@@ -36,7 +36,7 @@ subroutine test_iorig(ntests,npass)
  integer, intent(inout) :: ntests,npass
  integer :: i, j, iseed, ncheck, ierrmax
  integer :: nfailed(1)
- character(len=10) :: stringi, stringj
+ character(len=12) :: stringi, stringj
 
  if (id==master) write(*,"(/,a,/)") '--> TESTING PARTICLE ID'
 
@@ -81,8 +81,8 @@ subroutine test_iorig(ntests,npass)
  nfailed(1)=0
  do i = 1, npart
     do j = i+1, npart
-       write(stringi, "(I2)") i
-       write(stringj, "(I2)") j
+       write(stringi, "(i12)") i
+       write(stringj, "(i12)") j
        call checkvalbuf(iorig(i)==iorig(j),.false.,&
       'Check iorig('//trim(stringi)//' != iorig('//trim(stringj)//')',nfailed(1),ncheck)
     enddo

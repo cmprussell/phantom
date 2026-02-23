@@ -656,6 +656,7 @@ subroutine startrun(infile,logfile,evfile,dumpfile,noread)
     if (do_radiation) call set_radiation_and_gas_temperature_equal(npart,xyzh,vxyzu,massoftype,rad)
 #endif
  enddo
+#ifdef INJECT_PARTICLES
 #ifdef CWB
  nbinmax=max(nbinmax,ceiling(log(dtmax/dtinject)/log(2.))) !from dtinject=dtmax/2^nbinmax
 #endif
@@ -671,6 +672,7 @@ subroutine startrun(infile,logfile,evfile,dumpfile,noread)
     !nbinmax = MAX(nbinmax,3)
     nbinmax = 3
  endif
+#endif
 
  if (nalpha >= 2) then
     ialphaloc = 2

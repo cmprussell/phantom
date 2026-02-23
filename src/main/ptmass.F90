@@ -1071,7 +1071,7 @@ subroutine ptmass_accrete(is,nptmass,xi,yi,zi,hi,vxi,vyi,vzi,fxi,fyi,fzi, &
        hi = -abs(hi)
 
        !ptmass that the gas particle accreted onto
-       iaccreted_onto = i
+       if (present(iaccreted_onto)) iaccreted_onto = i
 
 ! avoid possibility that two sink particles try to accrete the same gas particle by exiting the loop
        exit sinkloop
