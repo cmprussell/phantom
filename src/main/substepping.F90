@@ -814,7 +814,7 @@ subroutine kick(dki,dt,npart,nptmass,ntypes,xyzh,vxyzu,xyzmh_ptmass,vxyz_ptmass,
                               vxyzu(1,i),vxyzu(2,i),vxyzu(3,i),fxi,fyi,fzi,&
                               itype,pmassi,xyzmh_ptmass,vxyz_ptmass,accreted, &
                               dptmass,timei,f_acc,nbinmax,ibin_wakei,nfaili,iaccreted_onto)
-                              !dptmass,timei,f_acc,nbinmax,ibin_wakei,nfaili)
+             !                dptmass,timei,f_acc,nbinmax,ibin_wakei,nfaili)
              !if (i==30001) then
              !   write(*,*) 'PostAccrete: ',i,is_accretable(itype),itype,iphase(i),pmassi,xyzh(4,i),xyzmh_ptmass(5,1),f_acc,sqrt(xyzh(1,i)**2+xyzh(2,i)**2+xyzh(3,i)**2),accreted,nfaili
              !endif

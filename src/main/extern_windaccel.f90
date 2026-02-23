@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------!
 ! The Phantom Smoothed Particle Hydrodynamics code, by Daniel Price et al. !
-! Copyright (c) 2007-2025 The Authors (see AUTHORS)                        !
+! Copyright (c) 2007-2026 The Authors (see AUTHORS)                        !
 ! See LICENCE file for usage and distribution conditions                   !
 ! http://phantomsph.github.io/                                             !
 !--------------------------------------------------------------------------!
@@ -12,9 +12,11 @@ module extern_windaccel
 !
 ! :Owner: Christopher Russell
 !
-! :Runtime parameters: None
+! :Runtime parameters:
+!   - kappa_follows_gas    : *kappa follows gas or radiation field*
+!   - radiative_inhibition : *radiative inhibition on or off*
 !
-! :Dependencies: kernel, part
+! :Dependencies: infile_utils, io, kernel, part
 !
  implicit none
  !
@@ -166,7 +168,7 @@ subroutine get_windaccel_force(xi,yi,zi,hi,fxi,fyi,fzi,phi,iwindorigj)!,jj)
     phi = phi + xantigr*pmassj*ddr
     !Note: This phi computation is based on the phi computation for gravity:
     !      phi = -pmassj*ddr = -pmassj*ddr*ddr2/ddr2 = -pmassj*ddr3/ddr2 = -f1/ddr2
-    !      where f1 is defined by ftmpxi = -dx*f1 for the gravity case 
+    !      where f1 is defined by ftmpxi = -dx*f1 for the gravity case
     !      (based on the iterative version of the formula ftmpxi = ftmpxi - dx*f1)
     !      so phi = -f1/ddr2 = -(-ftmpxi/dx)/ddr2 = ftmpxi/dx/ddr2.
     !      For wind acceleration, we have
@@ -182,10 +184,10 @@ subroutine get_windaccel_force(xi,yi,zi,hi,fxi,fyi,fzi,phi,iwindorigj)!,jj)
     !if (jj>33552) then
     !   print*, jj,kappa_windaccel,windaccel(ixantgrav,j),xantigr,xantigr*dx*f1,dx*f1
     !endif
-    !if(mod(jj,1000)==0) then
+    !if (mod(jj,1000)==0) then
     !   print*, jj,k,j,kappa_windaccel,xantigr*dx*f1,ftmpxi
     !endif
-    !if(mod(jj,100)==0 .and. -0.01<yi .and. yi<0.01 .and. -0.01<zi .and. zi<0.01) then
+    !if (mod(jj,100)==0 .and. -0.01<yi .and. yi<0.01 .and. -0.01<zi .and. zi<0.01) then
     !   !print*, jj,k,j,xi,xyzmh_ptmass(1,j),dx,f1,kappa_windaccel,windaccel(ixantgrav,j),xantigr*dx*f1,ftmpxi
     !   print*, jj,k,j,xi,xyzmh_ptmass(1,j),dx,f1,kappa_windaccel,windaccel(ixantgrav,j),xantigr*dx*f1,fxi,phi
     !endif
@@ -254,7 +256,7 @@ subroutine read_options_windaccel(name,valstring,imatch,igotall,ierr)
  case default
     imatch = .false.
  end select
- 
+
  igotall = (ngot >= 2)
 
 end subroutine read_options_windaccel

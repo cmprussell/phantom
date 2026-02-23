@@ -897,7 +897,7 @@ end function ptmass_not_obscured
 subroutine ptmass_accrete(is,nptmass,xi,yi,zi,hi,vxi,vyi,vzi,fxi,fyi,fzi, &
                           itypei,pmassi,xyzmh_ptmass,vxyz_ptmass,accreted, &
                           dptmass,time,facc,nbinmax,ibin_wakei,nfaili,iaccreted_onto)
-                          !dptmass,time,facc,nbinmax,ibin_wakei,nfaili)
+ !                        dptmass,time,facc,nbinmax,ibin_wakei,nfaili)
 
 !$ use omputils, only:ipart_omp_lock
  use part,       only: ihacc,itbirth,ndptmass
