@@ -46,7 +46,7 @@ subroutine get_windaccel_force(xi,yi,zi,hi,fxi,fyi,fzi,phi,iwindorigj)!,jj)
  real, intent(out)   :: fxi,fyi,fzi,phi
  integer, intent(in) :: iwindorigj!,jj
 
- real :: ddinv,xantigr,kappa_windaccel
+ real :: ddinv,xantigr,kappa_windaccel,kappa_windaccel_phi
  integer :: iorder(2),k
 
  real    :: dx,dy,dz,rr2,ddr,dr3,f1,pmassj
@@ -149,14 +149,42 @@ subroutine get_windaccel_force(xi,yi,zi,hi,fxi,fyi,fzi,phi,iwindorigj)!,jj)
     if (k==1 .or. (.not.kappa_follows_gas)) then
        ddinv = xyzmh_ptmass(ihacc,j) * ddr ! radius/distance = R/r
        if (ddinv<1.d0) then
-          !kappa follows gas
+          !force component, used for all coordinate directions
           kappa_windaccel = windaccel(ikappac,j) + &
                             windaccel(ikappar,j)*(1.0d0-ddinv)**(2.d0*windaccel(ivbeta,j)-1.d0)
+
+          !potential component, equivalent method to force component
+          !The expression for general beta involves a hypergeometric function, which is not included here.
+          !   Instead, the following specific beta values have their specific formula entered below.
+          !   For now, uncomment the formula corresponding to the appropriate beta value.  If multiple beta
+          !   values are in use, add an if statement to distinguish between the different potential formulas.
+          !for beta = 1
+          kappa_windaccel_phi = windaccel(ikappac,j)+windaccel(ikappar,j)*(1.0d0-0.5d0*ddinv) !beta=1
+          !for beta = 0.5
+          !kappa_windaccel_phi = windaccel(ikappac,j)+windaccel(ikappar,j) !beta=0.5
+          !for beta = 0.8
+          !kappa_windaccel_phi = (1.0d0-1.0d0/ddinv)*(windaccel(ikappac,j) + &
+          !                      windaccel(ikappar,j)*0.625d0*(1.0d0-ddinv)**0.6d0) !beta=0.8
+          !for beta = 1.5
+          !kappa_windaccel_phi = windaccel(ikappac,j) - &
+          !                      windaccel(ikappar,j)/(3.0d0*ddinv)*(1.0d0-ddinv)**3 !beta=1.5
+          !for beta = 2
+          !kappa_windaccel_phi = windaccel(ikappac,j) + &
+          !                      windaccel(ikappar,j)*(1.0d0-1.5d0*ddinv+ddinv**2-0.25d0*ddinv**3) !beta=2
+          !for beta = 2.5
+          !kappa_windaccel_phi = windaccel(ikappac,j) - &
+          !                      windaccel(ikappar,j)/(5.0d0*ddinv)*(1.0d0-ddinv)**5 !beta=2.5
+          !for beta = 3
+          !kappa_windaccel_phi = windaccel(ikappac,j) + &
+          !                      windaccel(ikappar,j)*(1.0d0-2.5d0*ddinv+10.0d0/3.0d0*ddinv**2-&
+          !                                            2.5d0*ddinv**3+ddinv**4-1.0d0/6.0d0*ddinv**5) !beta=3
           !elseif (ddinv>1.0d0) then !use for debugging of exact location of particle; not needed for regular use
           !kappa_windaccel = 0.d0
+          !kappa_windaccel_phi = 0.d0
           !print*,'particle originating from star ',iwindorigj,' is within the radius of star ',j,': ',xyzmh_ptmass(ihacc,j),rr2
        else
           kappa_windaccel = 0.d0
+          kappa_windaccel_phi = 0.d0
           !print*,'particle originating from star ',iwindorigj,' is exactly at the radius of star ',j,': ',xyzmh_ptmass(ihacc,j),rr2
        endif
     endif
@@ -165,21 +193,7 @@ subroutine get_windaccel_force(xi,yi,zi,hi,fxi,fyi,fzi,phi,iwindorigj)!,jj)
     fxi = fxi + xantigr*dx*f1
     fyi = fyi + xantigr*dy*f1
     fzi = fzi + xantigr*dz*f1
-    phi = phi + xantigr*pmassj*ddr
-    !Note: This phi computation is based on the phi computation for gravity:
-    !      phi = -pmassj*ddr = -pmassj*ddr*ddr2/ddr2 = -pmassj*ddr3/ddr2 = -f1/ddr2
-    !      where f1 is defined by ftmpxi = -dx*f1 for the gravity case
-    !      (based on the iterative version of the formula ftmpxi = ftmpxi - dx*f1)
-    !      so phi = -f1/ddr2 = -(-ftmpxi/dx)/ddr2 = ftmpxi/dx/ddr2.
-    !      For wind acceleration, we have
-    !      fxi = xantigr*dx*f1 (= ftmpxi)
-    !      making the phi formula
-    !      phi = fxi/dx/ddr2 = xantigr*dx*f1/dx/ddr2 = xantigr*f1/ddr2 = xantigr*pmassj*ddr3/ddr2 = xantigr*pmassj*ddr
-    !      which is the in-use formula.  Using variables that don't already
-    !      include divisions and with more standard notation, this would be more conventionaly written as
-    !      phi_i = Sum_j(xantigr_ij * M_j/r_ij)
-    !      where the equivalent formula for just gravity would be
-    !      phi_i = Sum_j(-M_j/r_ij).
+    phi = phi + windaccel(ixantgrav,j)*kappa_windaccel_phi*pmassj*ddr
 
     !if (jj>33552) then
     !   print*, jj,kappa_windaccel,windaccel(ixantgrav,j),xantigr,xantigr*dx*f1,dx*f1
@@ -193,8 +207,10 @@ subroutine get_windaccel_force(xi,yi,zi,hi,fxi,fyi,fzi,phi,iwindorigj)!,jj)
     !endif
 
     !!keep this old method around to see how to mix opacities for the kappa_bar implementation via Eq. A6
-    !!--- if kappa_bar is implemented, this would need to be pulled out of the current loop over point masses since the kappa for each particle interacting with each point mass would need to be computed
-    !!--- additionally, the density contribution from each star's wind would need to be computed, so the density loop would need to be modified as well
+    !!--- if kappa_bar is implemented, this would need to be pulled out of the current loop over point masses
+    !!       since the kappa for each particle interacting with each point mass would need to be computed
+    !!--- additionally, the density contribution from each star's wind would need to be computed, so the 
+    !!       density loop would need to be modified as well
     !!--- this code snippet was in the density loop
     !do j=1,nptmass
     !   if (akappar(iptm) /= 0.0) then

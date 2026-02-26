@@ -118,7 +118,7 @@ subroutine externalforce(iexternalforce,xi,yi,zi,hi,ti,fextxi,fextyi,fextzi,phi,
  use units,              only:get_G_code
  use io,                 only:fatal
  use part,               only:rhoh,massoftype,igas
- use part,               only:iwindorig
+ use part,               only:iwindorig,npart
  integer, intent(in)  :: iexternalforce
  real,    intent(in)  :: xi,yi,zi,hi,ti
  real,    intent(out) :: fextxi,fextyi,fextzi,phi
@@ -407,6 +407,8 @@ subroutine externalforce(iexternalforce,xi,yi,zi,hi,ti,fextxi,fextyi,fextzi,phi,
        if (present(ii)) then
           iwindorigi=iwindorig(ii)
           call get_windaccel_force(xi,yi,zi,hi,fextxi,fextyi,fextzi,phi,iwindorigi)!,ii)
+       elseif (npart==1000) then !external force testing, see src/tests/test_externf.f90 for details
+          call get_windaccel_force(xi,yi,zi,hi,fextxi,fextyi,fextzi,phi,1)!,ii)
        else
           call fatal('externalforce','ii not present in call for external-force wind acceleration')
        endif

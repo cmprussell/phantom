@@ -37,7 +37,7 @@ subroutine test_externf(ntests,npass)
                           accradius1,update_externalforce,is_velocity_dependent,&
                           externalforce_vdependent,update_vdependent_extforce,&
                           iext_lensethirring,iext_prdrag,iext_einsteinprec,iext_spiral,&
-                          iext_densprofile,iext_staticsine,iext_gwinspiral
+                          iext_densprofile,iext_staticsine,iext_gwinspiral,iext_windaccel
  use extern_corotate, only:omega_corotate
  use extern_geopot,   only:J2
  use unifdis,  only:set_unifdis
@@ -45,6 +45,12 @@ subroutine test_externf(ntests,npass)
  use physcon,  only:pc,solarm
  use mpidomain,only:i_belong
  use kernel,   only:hfact_default
+
+ use part, only:nptmass,xyzmh_ptmass,ihacc,windaccel,ikappac,ikappar,ivbeta,ixantgrav
+ use units, only: umass,udist,utime,unit_energ
+ !use physcon,   only:solarm,kpc,pi,au,solarr
+ use physcon,   only:au,solarr,solarl
+
  integer, intent(inout) :: ntests,npass
  integer                :: i,iextf,nfail1,ierr
  logical                :: dotest1,dotest2,dotest3,accreted
@@ -95,6 +101,8 @@ subroutine test_externf(ntests,npass)
              call set_units(dist=100.*pc,mass=1.d05*solarm,G=1.d0)
           case(iext_lensethirring,iext_prdrag,iext_einsteinprec)
              call set_units(c=1.d0)
+          case(iext_windaccel)
+             call set_units(mass=solarm,dist=au,G=1.d0)
           case default
              call set_units(G=1.d0)
           end select
@@ -118,6 +126,31 @@ subroutine test_externf(ntests,npass)
           ferrmaxx = 0.
           ferrmaxy = 0.
           ferrmaxz = 0.
+          if (iextf==18) then
+             !set up the wind acceleration calculation
+             !move to the particles to appropriate distances
+             xyzh(1:4,1:npart) = xyzh(1:4,1:npart) * solarr/udist
+             dhi = dhi * solarr/udist
+             !create the star that will accelerate the particles
+             nptmass = 1
+             xyzmh_ptmass(1:3,1) = 0.
+             xyzmh_ptmass(4,1) = 10. * solarm / umass
+             xyzmh_ptmass(ihacc,1) = 10. * solarr / udist
+
+             !choose from the following beta values that are implemented in extern_windaccel.f90
+             !   make sure the correct beta formula for the potential is chosen in file
+             windaccel(ivbeta,1) = 1.
+             !windaccel(ivbeta,1) = 0.5
+             !windaccel(ivbeta,1) = 0.8
+             !windaccel(ivbeta,1) = 1.5
+             !windaccel(ivbeta,1) = 2.
+             !windaccel(ivbeta,1) = 2.5
+             !windaccel(ivbeta,1) = 3.
+
+             windaccel(ikappac,1) = 1.d0/(1.d5*solarl) * xyzmh_ptmass(4,1) * unit_energ/utime
+             windaccel(ikappar,1) = 1.d0/(1.d5*solarl) * (3000.*1.d5)**2 * xyzmh_ptmass(ihacc,1) * windaccel(ivbeta,1) * umass/utime
+             windaccel(ixantgrav,1) = 1.d5*solarl / xyzmh_ptmass(4,1) * utime/unit_energ
+          endif
           do i=1,npart
              xi(:) = xyzh(:,i)
              call externalforce(iextf,xi(1),xi(2),xi(3),xi(4),time, &
@@ -125,23 +158,39 @@ subroutine test_externf(ntests,npass)
              !--get derivatives of potential
              call externalforce(iextf,xi(1)+dhi,xi(2),xi(3),xi(4),time, &
                                 dumx,dumy,dumz,pot2,dtf)
+             if (iextf==18) then
+                if(abs((pot2-pot1)/pot1)<1.d-11) cycle !avoid error calculations dominated by numerical precision
+             endif
              fextxi = -(pot2 - pot1)/dhi
              call externalforce(iextf,xi(1),xi(2)+dhi,xi(3),xi(4),time, &
                                 dumx,dumy,dumz,pot2,dtf)
+             if (iextf==18) then
+                if(abs((pot2-pot1)/pot1)<1.d-11) cycle !avoid error calculations dominated by numerical precision
+             endif
              fextyi = -(pot2 - pot1)/dhi
              call externalforce(iextf,xi(1),xi(2),xi(3)+dhi,xi(4),time, &
                                 dumx,dumy,dumz,pot2,dtf)
+             if (iextf==18) then
+                if(abs((pot2-pot1)/pot1)<1.d-11) cycle !avoid error calculations dominated by numerical precision
+             endif
              fextzi = -(pot2 - pot1)/dhi
-
-             call checkvalbuf(fxi,fextxi,tolf,'fextx = -grad phi',nfailed(2),ncheck(2),xerrmax)
-             call checkvalbuf(fyi,fextyi,tolf,'fexty = -grad phi',nfailed(3),ncheck(3),yerrmax)
-             call checkvalbuf(fzi,fextzi,tolf,'fextz = -grad phi',nfailed(4),ncheck(4),zerrmax)
+             if (iextf/=18) then
+                call checkvalbuf(fxi,fextxi,tolf,'fextx = -grad phi',nfailed(2),ncheck(2),xerrmax)
+                call checkvalbuf(fyi,fextyi,tolf,'fexty = -grad phi',nfailed(3),ncheck(3),yerrmax)
+                call checkvalbuf(fzi,fextzi,tolf,'fextz = -grad phi',nfailed(4),ncheck(4),zerrmax)
+             else
+                !use relative error for wind acceleration calculations
+                call checkvalbuf(fxi,fextxi,tolf,'fextx = -grad phi',nfailed(2),ncheck(2),xerrmax,.true.)
+                call checkvalbuf(fyi,fextyi,tolf,'fexty = -grad phi',nfailed(3),ncheck(3),yerrmax,.true.)
+                call checkvalbuf(fzi,fextzi,tolf,'fextz = -grad phi',nfailed(4),ncheck(4),zerrmax,.true.)
+             endif
           enddo
           call checkvalbuf_end('fextx = -grad phi',ncheck(2),nfailed(2),xerrmax,tolf)
           call checkvalbuf_end('fexty = -grad phi',ncheck(3),nfailed(3),yerrmax,tolf)
           call checkvalbuf_end('fextz = -grad phi',ncheck(4),nfailed(4),zerrmax,tolf)
           call update_test_scores(ntests,nfailed(1:1),npass)
           call update_test_scores(ntests,nfailed(2:4),npass)
+          if (iextf==18) nptmass = 0 !remove the point mass used for the wind acceleration calculation
        endif
 
        nfailed(:) = 0
