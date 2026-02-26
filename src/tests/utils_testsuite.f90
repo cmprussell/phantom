@@ -643,7 +643,7 @@ subroutine checkvalbuf_real(xi,val,tol,label,ndiff,ncheck,errmax,use_rel_tol)
  if (present(use_rel_tol)) rel_tol = use_rel_tol
 
  erri = abs(xi-val)
- if (rel_tol .or. (abs(val) > smallval .and. erri > tol)) erri = erri/abs(val)
+ if ((rel_tol .and. abs(val) > tiny(val)) .or. (abs(val) > smallval .and. erri > tol)) erri = erri/abs(val)
 
  ncheck = ncheck + 1
  if (erri > tol .or. erri /= erri) then
