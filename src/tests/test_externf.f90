@@ -160,19 +160,19 @@ subroutine test_externf(ntests,npass)
              call externalforce(iextf,xi(1)+dhi,xi(2),xi(3),xi(4),time, &
                                 dumx,dumy,dumz,pot2,dtf)
              if (iextf==18) then
-                if(abs((pot2-pot1)/pot1)<1.d-11) cycle !avoid error calculations dominated by numerical precision
+                if (abs((pot2-pot1)/pot1)<1.d-11) cycle !avoid error calculations dominated by numerical precision
              endif
              fextxi = -(pot2 - pot1)/dhi
              call externalforce(iextf,xi(1),xi(2)+dhi,xi(3),xi(4),time, &
                                 dumx,dumy,dumz,pot2,dtf)
              if (iextf==18) then
-                if(abs((pot2-pot1)/pot1)<1.d-11) cycle !avoid error calculations dominated by numerical precision
+                if (abs((pot2-pot1)/pot1)<1.d-11) cycle !avoid error calculations dominated by numerical precision
              endif
              fextyi = -(pot2 - pot1)/dhi
              call externalforce(iextf,xi(1),xi(2),xi(3)+dhi,xi(4),time, &
                                 dumx,dumy,dumz,pot2,dtf)
              if (iextf==18) then
-                if(abs((pot2-pot1)/pot1)<1.d-11) cycle !avoid error calculations dominated by numerical precision
+                if (abs((pot2-pot1)/pot1)<1.d-11) cycle !avoid error calculations dominated by numerical precision
              endif
              fextzi = -(pot2 - pot1)/dhi
              if (iextf/=18) then
