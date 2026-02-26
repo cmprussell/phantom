@@ -209,7 +209,7 @@ subroutine get_windaccel_force(xi,yi,zi,hi,fxi,fyi,fzi,phi,iwindorigj)!,jj)
     !!keep this old method around to see how to mix opacities for the kappa_bar implementation via Eq. A6
     !!--- if kappa_bar is implemented, this would need to be pulled out of the current loop over point masses
     !!       since the kappa for each particle interacting with each point mass would need to be computed
-    !!--- additionally, the density contribution from each star's wind would need to be computed, so the 
+    !!--- additionally, the density contribution from each star's wind would need to be computed, so the
     !!       density loop would need to be modified as well
     !!--- this code snippet was in the density loop
     !do j=1,nptmass
