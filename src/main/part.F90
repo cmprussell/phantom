@@ -939,9 +939,6 @@ logical function sink_has_heating(xyzmh_ptmassi)
 
  sink_has_heating = xyzmh_ptmassi(iTeff) <= 0. .and. &
                               xyzmh_ptmassi(ilum) > 0.
-!WRITE(*,*) 'sink_has_heating =',sink_has_heating
-!WRITE(*,*) 'xyzmh_ptmassi(iTeff) =',xyzmh_ptmassi(iTeff)
-!WRITE(*,*) 'xyzmh_ptmassi(ilum)  =',xyzmh_ptmassi(ilum)
 
 end function sink_has_heating
 
