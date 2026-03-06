@@ -46,19 +46,21 @@ contains
 !+
 !----------------------------------------------------------------
 subroutine setpart(id,npart,npartoftype,xyzh,massoftype,vxyzu,polyk,gamma,hfact,time,fileprefix)
- use part,      only:nptmass,xyzmh_ptmass,vxyz_ptmass,ihacc,ihsoft,igas,iwindorig,eos_vars,imu,mu_startypes,n_startypes
- use units,     only:set_units,umass,udist,utime
- use physcon,   only:solarm,kpc,pi,au,solarr
- use io,        only:fatal,iprint,master
- use eos,       only:gmw,use_var_comp
- use timestep,  only:dtmax,tmax
- use spherical, only:set_sphere
- use datafiles, only:find_phantom_datafile
- use inject,    only:ninjectmax_cwb
+ use part,           only:nptmass,xyzmh_ptmass,vxyz_ptmass,ihacc,ihsoft,igas,iwindorig,eos_vars,imu,mu_startypes,n_startypes
+ use units,          only:set_units,umass,udist,utime
+ use physcon,        only:solarm,kpc,pi,au,solarr
+ use io,             only:fatal,iprint,master
+ use eos,            only:gmw,use_var_comp
+ use timestep,       only:dtmax,tmax
+ use spherical,      only:set_sphere
+ use datafiles,      only:find_phantom_datafile
+ use setup_params,   only:npart_total
+ use infile_utils,   only:get_options
  use options,        only:icooling,nfulldump,iexternalforce
  use cooling_solver, only:icool_method,lambda_table
  use cooling,        only:Tfloor
- use inject,         only:read_use_var_comp_data
+ use part,           only:mu_startypes,n_startypes
+ use inject,         only:read_use_var_comp_data,ninjectmax_cwb
  use externalforces, only:iext_windaccel
  integer,           intent(in)    :: id
  integer,           intent(inout) :: npart
@@ -106,14 +108,19 @@ subroutine setpart(id,npart,npartoftype,xyzh,massoftype,vxyzu,polyk,gamma,hfact,
  gmw = 0.6  ! completely ionized, solar abu; eventually needs to be WR abu
  !
  ! read setup parameters from the .setup file
- ! if file does not exist, then ask for user input
  !
- setupfile = trim(fileprefix)//'.setup'
- call read_setupfile(setupfile,iprint,ierr)
- if (ierr /= 0 .and. id==master) then
-    call interactive_setup()               ! read setup options from user
-    call write_setupfile(setupfile,iprint) ! write .setup file with defaults
- endif
+!<<<<<<< HEAD
+! setupfile = trim(fileprefix)//'.setup'
+! call read_setupfile(setupfile,ierr)
+! if (ierr /= 0 .and. id==master) then
+!    call interactive_setup()           ! read setup options from user
+!    call write_setupfile(setupfile)    ! write .setup file with defaults
+! endif
+!=======
+ call get_options(trim(fileprefix)//'.setup',id==master,ierr,&
+                  read_setupfile,write_setupfile)
+ if (ierr /= 0) stop 'rerun phantomsetup after editing .setup file'
+!>>>>>>> upstream/master
 !
 ! space available for injected gas particles
 !
@@ -132,14 +139,13 @@ subroutine setpart(id,npart,npartoftype,xyzh,massoftype,vxyzu,polyk,gamma,hfact,
  !print "(a,i0)", ' nptmass E = ',nptmass !note: nptmass=0 here
  call read_ptmass_data(filename_mpv,xyzmh_ptmass,vxyz_ptmass,nptmass,ierr) !nptmass is determined in this subroutine
  do i=1,nptmass
-    xyzmh_ptmass(1:3,i) = xyzmh_ptmass(1:3,i)
-    xyzmh_ptmass(4,i)   = xyzmh_ptmass(4,i)
+    !xyzmh_ptmass(1:3,i) = xyzmh_ptmass(1:3,i) !no unit comversion needed, positions entered in au   = udist
+    !xyzmh_ptmass(4,i)   = xyzmh_ptmass(4,i)   !no unit conversion needed, masses    entered in Msun = umass
     !xyzmh_ptmass(ihacc,i)  = h_sink*solarr/au
+    xyzmh_ptmass(ihacc,i)  = 0.1*solarr/au !for now, only for removing gas particles too close to stars; set later in init_inject()
     !xyzmh_ptmass(ihsoft,i) = h_sink*solarr/au
-    xyzmh_ptmass(ihacc,i)  = 0.1**solarr/au !for now, only for removing gas particles too close to stars; set later in init_inject()
     !xyzmh_ptmass(ihsoft,i) = 0.1*solarr/au
-    xyzmh_ptmass(5,i) = 0.1*solarr/au !for now, only for removing gas particles too close to stars; set in init_inject()
-    vxyz_ptmass(1:3,i)  = vxyz_ptmass(1:3,i)*1.e5*utime/udist
+    vxyz_ptmass(1:3,i)  = vxyz_ptmass(1:3,i)*1.e5*utime/udist !unit conversion, from km/s to code units
  enddo
  print "(a,i0)", ' nptmass = ',nptmass
  do i=1,nptmass
@@ -154,7 +160,8 @@ subroutine setpart(id,npart,npartoftype,xyzh,massoftype,vxyzu,polyk,gamma,hfact,
 ! setup initial sphere of particles to prevent initialisation problems
 !
  psep = 1.0
- call set_sphere('cubic',id,master,0.,20.,psep,hfact,npart,xyzh)
+ npart_total = 0
+ call set_sphere('cubic',id,master,0.,20.,psep,hfact,npart,xyzh,nptot=npart_total)
 !
 ! initialize mean molecular weight if needed
 !
@@ -339,11 +346,10 @@ end subroutine read_ptmass_data
 !  Write setup parameters to .setup file
 !+
 !------------------------------------------
-subroutine write_setupfile(filename,iprint)
+subroutine write_setupfile(filename)
  use infile_utils, only:write_inopt
  use dim,          only:tagline
  character(len=*), intent(in) :: filename
- integer,          intent(in) :: iprint
  integer                      :: lu,ierr1,ierr2
 
  print "(a)", ' Writing '//trim(filename)//' with setup options'
@@ -374,13 +380,12 @@ end subroutine write_setupfile
 !  Read setup parameters from input file
 !+
 !------------------------------------------
-subroutine read_setupfile(filename,iprint,ierr)
+subroutine read_setupfile(filename,ierr)
  use infile_utils, only:open_db_from_file,inopts,close_db,read_inopt
  use dim,          only:maxvxyzu
  use eos,          only:use_var_comp
  character(len=*), intent(in)  :: filename
  integer,          parameter   :: lu = 21
- integer,          intent(in)  :: iprint
  integer,          intent(out) :: ierr
  integer                       :: nerr
  type(inopts), allocatable     :: db(:)

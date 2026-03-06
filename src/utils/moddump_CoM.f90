@@ -18,12 +18,13 @@ module moddump
 ! :Dependencies: boundary, centreofmass, dim, part
 !
  implicit none
+ character(len=*), parameter, public :: moddump_flags = ''
 
 contains
 
 subroutine modify_dump(npart,npartoftype,massoftype,xyzh,vxyzu)
  use part,         only: nptmass,xyzmh_ptmass,vxyz_ptmass
- use centreofmass, only: reset_centreofmass
+ use centreofmass, only:reset_centreofmass
  use dim,          only: periodic
  use boundary,     only: xmin,ymin,zmin,dxbound,dybound,dzbound
  integer, intent(inout) :: npart
@@ -47,7 +48,6 @@ subroutine modify_dump(npart,npartoftype,massoftype,xyzh,vxyzu)
     enddo
  endif
  !
- return
 end subroutine modify_dump
 
 end module moddump

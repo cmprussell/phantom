@@ -19,7 +19,7 @@ module metric
 !   - a     : *spin parameter for Kerr metric*
 !   - mass1 : *black hole mass in code units*
 !
-! :Dependencies: infile_utils, io
+! :Dependencies: dump_utils, infile_utils, io
 !
  implicit none
  character(len=*), parameter :: metric_type = 'Kerr'
@@ -392,7 +392,6 @@ pure subroutine metric_spherical_derivatives(position,dgcovdr, dgcovdtheta, dgco
 
 end subroutine metric_spherical_derivatives
 
-
 !----------------------------------------------------------------
 !+
 !  (Jacobian tensor) Derivatives of Boyer-Lindquist 'Spherical'
@@ -500,6 +499,58 @@ pure subroutine spherical2cartesian(xspher,xcart)
 
 end subroutine spherical2cartesian
 
+!-------------------------------------------------------------------------------
+!+
+!  Subroutine to update the metric inputs if time dependent
+!+
+!-------------------------------------------------------------------------------
+subroutine update_metric(time)
+ real, intent(in) :: time
+
+end subroutine update_metric
+
+!-----------------------------------------------------------------------
+!+
+!  Check if a particle should be accreted by the black hole
+!+
+!-----------------------------------------------------------------------
+subroutine accrete_particles_metric(xi,yi,zi,mi,ti,accradius,accreted)
+ real,    intent(in)  :: xi,yi,zi,mi,ti,accradius
+ logical, intent(out) :: accreted
+
+ accreted = .false.
+
+end subroutine accrete_particles_metric
+
+!-----------------------------------------------------------------------
+!+
+!  writes relevant options to the header of the dump file
+!+
+!-----------------------------------------------------------------------
+subroutine write_headeropts_metric(hdr,time,accradius,ierr)
+ use dump_utils, only:dump_h
+ type(dump_h), intent(inout) :: hdr
+ real,         intent(in)    :: time,accradius
+ integer,      intent(out)   :: ierr
+
+ ierr = 0
+
+end subroutine write_headeropts_metric
+
+!-----------------------------------------------------------------------
+!+
+!  reads relevant options from the header of the dump file
+!+
+!-----------------------------------------------------------------------
+subroutine read_headeropts_metric(hdr,ierr)
+ use dump_utils, only:dump_h
+ type(dump_h), intent(in)  :: hdr
+ integer,      intent(out) :: ierr
+
+ ierr  = 0
+
+end subroutine read_headeropts_metric
+
 !-----------------------------------------------------------------------
 !+
 !  writes metric options to the input file
@@ -521,32 +572,17 @@ end subroutine write_options_metric
 !  reads metric options from the input file
 !+
 !-----------------------------------------------------------------------
-subroutine read_options_metric(name,valstring,imatch,igotall,ierr)
- use io, only:fatal,warning
- character(len=*), intent(in)  :: name,valstring
- logical,          intent(out) :: imatch,igotall
- integer,          intent(out) :: ierr
+subroutine read_options_metric(db,nerr)
+ use io,           only:warn
+ use infile_utils, only:inopts,read_inopt
+ type(inopts), intent(inout) :: db(:)
+ integer,      intent(inout) :: nerr
  character(len=*), parameter :: tag = 'metric'
- integer, save :: ngot = 0
 
- imatch  = .true.
- igotall = .false.
- select case(trim(name))
- case('mass1')
-    read(valstring,*,iostat=ierr) mass1
-    if (mass1 < 0.)  call fatal(tag,'black hole mass: mass1 < 0')
-    if (mass1 == 0.) call warning(tag,'black hole mass: mass1 = 0')
-    ngot = ngot + 1
- case('a')
-    read(valstring,*,iostat=ierr) a
-    if (abs(a) > 1.)  call fatal(tag,'black hole spin: |a| > 1')
-    if (a == 0.) call warning(tag,'black hole spin: a = 0')
-    ngot = ngot + 1
- case default
-    imatch = .false.
- end select
-
- igotall = (ngot >= 2)
+ call read_inopt(mass1,'mass1',db,errcount=nerr,min=0.,max=1.e12)
+ if (mass1 <= tiny(mass1)) call warn(tag,'black hole mass: mass1 = 0')
+ call read_inopt(a,'a',db,errcount=nerr,min=-1.,max=1.)
+ if (a <= tiny(a)) call warn(tag,'black hole spin: a = 0')
 
 end subroutine read_options_metric
 

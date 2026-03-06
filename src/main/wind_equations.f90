@@ -106,13 +106,13 @@ subroutine evolve_hydro(dt, rvT, Rstar_cgs, Mdot_cgs, mu, gamma, alpha, dalpha_d
     endif
 
  enddo
- rvT = new_rvT
 
 !constrain timestep so the changes in r,v & T do not exceed dt_tol
  dt_next = min(dt_next,1e-2*real(au/new_rvt(2)),&
       dt_tol*dt*abs(rvt(1)/(1e-10+(new_rvt(1)-rvt(1)))),&
       dt_tol*dt*abs(rvt(2)/(1e-10+(new_rvt(2)-rvt(2)))),&
       dt_tol*dt*abs(rvt(3)/(1e-10+(new_rvt(3)-rvt(3)))))
+ rvT = new_rvT
 
  spcode = 0
  if (numerator < -num_tol .and. denominator > -denom_tol) spcode = 1  !no solution for stationary wind
@@ -173,7 +173,6 @@ subroutine RK6_step_dr(dt, rvT, Rstar_cgs, Mdot_cgs, mu, gamma, alpha, dalpha_dr
  r = r0+A5*h
  v = v0+h*(B51*dv1_dr+B52+dv2_dr+B53*dv3_dr+B54*dv4_dr)
  T = T0+h*(B51*dT1_dr+B52+dT2_dr+B53*dT3_dr+B54*dT4_dr)
-
 
  call calc_dvT_dr(r, v, T, Rstar_cgs, Mdot_cgs, mu, gamma, alpha, dalpha_dr, Q, dQ_dr, dv5_dr, dT5_dr, numerator, denominator)
  r = r0+A6*h

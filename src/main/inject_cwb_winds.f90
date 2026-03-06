@@ -18,14 +18,13 @@ module inject
 ! :Runtime parameters:
 !   - datafile_mhn   : *filename for wind composition (mu,habund,name)*
 !   - datafile_wind  : *filename for wind properties (id, vinf, mdot, etc.)*
-!   - dtinject_cwb   : *timestep limit based on number of particles injected per timestep*
 !   - ninjectmax_cwb : *max particles to inject per timestep per star*
 !   - outer_boundary : *kill gas particles outside this radius*
 !
 ! :Dependencies: datafiles, dim, eos, infile_utils, io, options, part,
 !   partinject, physcon, random, timestep, units
 !
- use dim,  only:maxptmass
+ use dim,  only:maxptmass,dtinject_cwb
  use part, only:nptmass
  implicit none
  character(len=*), parameter, public :: inject_type = 'cwb_winds'
@@ -60,7 +59,8 @@ module inject
  integer, parameter :: i_comp_char = 1, &
                        i_fulltype_char = 2
 
- real :: dtinject_cwb = min(1.e99,0.1*huge(dtinject_cwb)) !prevents 3-digit exponents, which fortran writes weirdly
+ !real :: dtinject_cwb = min(1.e99,0.1*huge(dtinject_cwb)) !prevents 3-digit exponents, which fortran writes weirdly
+!   - dtinject_cwb   : *timestep limit based on number of particles injected per timestep*
  integer :: ninjectmax_cwb = 100
 
  ! array containing properties of the wind from each star
@@ -91,7 +91,6 @@ subroutine init_inject(ierr)
  use units,     only:umass,udist,utime,unit_velocity
  use eos,       only:gmw,gamma
  use timestep,  only:dtmax
- use options,   only:use_var_comp
  use physcon,   only:pi,c,gg,solarl,solarr
  use part,      only:windaccel,ixantgrav,ikappac,ikappar,ivbeta,ihacc,ilum,iReff
  use units,     only:unit_energ
@@ -725,10 +724,13 @@ subroutine write_options_inject(iunit)
  use infile_utils, only:write_inopt
  use timestep,     only:time
  use options,      only:use_var_comp
+ use eos,          only:num_var_comp
  integer, intent(in) :: iunit
  integer             :: iunit_tpi
 
+ call write_inopt(use_var_comp,'use_var_comp','whether gas particles have different mean molecular weights',iunit)
  if (use_var_comp) then
+    call write_inopt(num_var_comp,'num_var_comp','number of various compositions',iunit)
     call write_inopt(trim(datafile_mhn),'datafile_mhn','filename for wind composition (mu,habund,name)',iunit)
  endif
  call write_inopt(trim(datafile_wind),'datafile_wind','filename for wind properties (id, vinf, mdot, etc.)',iunit)
@@ -755,51 +757,71 @@ end subroutine write_options_inject
 !  Reads input options from the input file.
 !+
 !-----------------------------------------------------------------------
-subroutine read_options_inject(name,valstring,imatch,igotall,ierr)
- !use io,      only:fatal,error,warning
- use physcon, only:solarm,years
- character(len=*), intent(in)  :: name,valstring
- logical,          intent(out) :: imatch,igotall
- integer,          intent(out) :: ierr
- integer, save :: ngot = 0
- character(len=30), parameter :: label = 'read_options_inject'
- integer :: nstars
+!subroutine read_options_inject(name,valstring,imatch,igotall,ierr)
+subroutine read_options_inject(db,nerr)
+ use io,           only:warning
+ use infile_utils, only:inopts,read_inopt
+ use options,      only:use_var_comp
+ use eos,          only:num_var_comp
+ type(inopts), intent(inout) :: db(:)
+ integer,      intent(inout) :: nerr
+ integer :: nstars,ierr
 
- !print "(a)", ' start read_options_inject(name,...) = read_options_inject('//trim(name)//',...)'
- imatch  = .true.
- select case(trim(name))
- case('datafile_mhn')
-    read(valstring,*,iostat=ierr) datafile_mhn
-    print "(a)", ' calling read_use_var_comp_data() from read_options_inject()'
-    call read_use_var_comp_data(datafile_mhn)
-    !note: call this here as opposed to in inject_cwb_winds.f90 --> init_inject() since abundance data is needed
-    !      in init_cooling(), which is called before init_inject() in initial.F90 --> startrun()
- case('datafile_wind')
-    read(valstring,*,iostat=ierr) datafile_wind
+ call read_inopt(use_var_comp,'use_var_comp',db,ierr,errcount=nerr)
+ if (use_var_comp) then
+    call read_inopt(num_var_comp,'num_var_comp',db,ierr,errcount=nerr)
+    call read_inopt(datafile_mhn,'datafile_mhn',db,ierr,errcount=nerr)
+    if (ierr == 0) then
+       call read_use_var_comp_data(datafile_mhn)
+    endif
+ endif
+ call read_inopt(datafile_wind,'datafile_wind',db,ierr,errcount=nerr)
+ if (ierr == 0) then
     call read_wind_data(datafile_wind,nstars)
     !note: nptmass=0 here, so can't compare nstars and nptmass
     !if (nstars /= nptmass) then
     !   call warning('read_options_inject','number of stars /= number of wind sources')
     !endif
-    ngot = ngot + 1
- case('outer_boundary')
-    read(valstring,*,iostat=ierr) outer_boundary
-    print*, 'CWB-specific code: outer_boundary = ',outer_boundary
- case('dtinject_cwb')
-    !print*, 'CWB-specific code: pre-read  dtinject_cwb = ',dtinject_cwb
-    read(valstring,*,iostat=ierr) dtinject_cwb
-    !print*, 'CWB-specific code: post-read dtinject_cwb = ',dtinject_cwb
-    print*, 'CWB-specific code: dtinject_cwb = ',dtinject_cwb
- case('ninjectmax_cwb')
-    !print*, 'CWB-specific code: pre-read  ninjectmax_cwb = ',ninjectmax_cwb
-    read(valstring,*,iostat=ierr) ninjectmax_cwb
-    !print*, 'CWB-specific code: post-read ninjectmax_cwb = ',ninjectmax_cwb
-    print*, 'CWB-specific code: ninjectmax_cwb = ',ninjectmax_cwb
- case default
-    imatch = .false.
- end select
+ endif
+ call read_inopt(outer_boundary,'outer_boundary',db,errcount=nerr,default=outer_boundary)
+ call read_inopt(dtinject_cwb,'dtinject_cwb',db,errcount=nerr,default=dtinject_cwb)
+ call read_inopt(ninjectmax_cwb,'ninjectmax_cwb',db,errcount=nerr,default=ninjectmax_cwb)
 
- igotall = (ngot >= 1)
+! !print "(a)", ' start read_options_inject(name,...) = read_options_inject('//trim(name)//',...)'
+! imatch  = .true.
+! select case(trim(name))
+! case('datafile_mhn')
+!    read(valstring,*,iostat=ierr) datafile_mhn
+!    print "(a)", ' calling read_use_var_comp_data() from read_options_inject()'
+!    call read_use_var_comp_data(datafile_mhn)
+!    !note: call this here as opposed to in inject_cwb_winds.f90 --> init_inject() since abundance data is needed
+!    !      in init_cooling(), which is called before init_inject() in initial.F90 --> startrun()
+! case('datafile_wind')
+!    read(valstring,*,iostat=ierr) datafile_wind
+!    call read_wind_data(datafile_wind,nstars)
+!    !note: nptmass=0 here, so can't compare nstars and nptmass
+!    !if (nstars /= nptmass) then
+!    !   call warning('read_options_inject','number of stars /= number of wind sources')
+!    !endif
+!    ngot = ngot + 1
+! case('outer_boundary')
+!    read(valstring,*,iostat=ierr) outer_boundary
+!    print*, 'CWB-specific code: outer_boundary = ',outer_boundary
+! case('dtinject_cwb')
+!    !print*, 'CWB-specific code: pre-read  dtinject_cwb = ',dtinject_cwb
+!    read(valstring,*,iostat=ierr) dtinject_cwb
+!    !print*, 'CWB-specific code: post-read dtinject_cwb = ',dtinject_cwb
+!    print*, 'CWB-specific code: dtinject_cwb = ',dtinject_cwb
+! case('ninjectmax_cwb')
+!    !print*, 'CWB-specific code: pre-read  ninjectmax_cwb = ',ninjectmax_cwb
+!    read(valstring,*,iostat=ierr) ninjectmax_cwb
+!    !print*, 'CWB-specific code: post-read ninjectmax_cwb = ',ninjectmax_cwb
+!    print*, 'CWB-specific code: ninjectmax_cwb = ',ninjectmax_cwb
+! case default
+!    imatch = .false.
+! end select
+!
+! igotall = (ngot >= 1)
 
 end subroutine read_options_inject
 
