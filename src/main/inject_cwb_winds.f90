@@ -950,7 +950,8 @@ subroutine read_wind_data(datafile_wind,nstars)
           !read(iunit,*,iostat=ierr) wind_int(i_astroID,nstars),wind(i_vel,nstars),wind(i_Mdot,nstars)
           !   wind_char(i_comp_char,nstars),wind_char(i_fulltype_char,nstars)
           read(iunit,*,iostat=ierr) wind_int(i_astroID,nstars),wind(i_vel,nstars),wind(i_Mdot,nstars), &
-             wind(i_rad,nstars),wind(i_tem,nstars),wind(i_vbeta,nstars),wind(i_vinj,nstars),wind(i_lum,nstars)!, &
+             wind(i_rad,nstars),wind(i_tem,nstars),wind(i_vbeta,nstars),wind(i_vinj,nstars),wind(i_radinj,nstars), &
+             wind(i_lum,nstars)!,wind_char(i_comp_char,nstars),wind_char(i_fulltype_char,nstars)
           if (ierr /= 0) then
              !entry for this wind was not read in properly, signaling the end of reading in wind entries
              !reset entries in the wind arrays that were unsuccessfully read in
