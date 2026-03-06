@@ -252,28 +252,39 @@ end subroutine write_options_windaccel
 !  reads input options from the input file
 !+
 !-----------------------------------------------------------------------
-subroutine read_options_windaccel(name,valstring,imatch,igotall,ierr)
- use io,      only:fatal
- character(len=*), intent(in)  :: name,valstring
- logical,          intent(out) :: imatch,igotall
- integer,          intent(out) :: ierr
- integer, save :: ngot = 0
- !character(len=30), parameter :: label = 'read_options_windaccel'
+!subroutine read_options_windaccel(name,valstring,imatch,igotall,ierr)
+! use io,      only:fatal
+! character(len=*), intent(in)  :: name,valstring
+! logical,          intent(out) :: imatch,igotall
+! integer,          intent(out) :: ierr
+! integer, save :: ngot = 0
+! !character(len=30), parameter :: label = 'read_options_windaccel'
+!
+! igotall = .false.
+! imatch = .true.
+! select case(trim(name))
+! case('kappa_follows_gas')
+!    read(valstring,*,iostat=ierr) kappa_follows_gas
+!    ngot = ngot + 1
+! case('radiative_inhibition')
+!    read(valstring,*,iostat=ierr) radiative_inhibition
+!    ngot = ngot + 1
+! case default
+!    imatch = .false.
+! end select
+!
+! igotall = (ngot >= 2)
+!
+!end subroutine read_options_windaccel
+subroutine read_options_windaccel(db,nerr)
+ use io,           only:error
+ use infile_utils, only:inopts,read_inopt
+ type(inopts), intent(inout) :: db(:)
+ integer,      intent(inout) :: nerr
+ character(len=*), parameter :: label = 'read_options_windaccel'
 
- igotall = .false.
- imatch = .true.
- select case(trim(name))
- case('kappa_follows_gas')
-    read(valstring,*,iostat=ierr) kappa_follows_gas
-    ngot = ngot + 1
- case('radiative_inhibition')
-    read(valstring,*,iostat=ierr) radiative_inhibition
-    ngot = ngot + 1
- case default
-    imatch = .false.
- end select
-
- igotall = (ngot >= 2)
+ call read_inopt(kappa_follows_gas,'kappa_follows_gas',db,errcount=nerr,default=kappa_follows_gas)
+ call read_inopt(radiative_inhibition,'radiative_inhibition',db,errcount=nerr,default=radiative_inhibition)
 
 end subroutine read_options_windaccel
 

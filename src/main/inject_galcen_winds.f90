@@ -498,7 +498,6 @@ subroutine inject_particles(time,dtlast,xyzh,vxyzu,xyzmh_ptmass,vxyz_ptmass,&
     ! calculate how much mass to inject based on time interval since last injection
     j = i - nskip_ptmass ! position in wind table
     Mdot_code = wind(i_Mdot,j)*Mdot_fac
-    vinject   = wind(i_vel,j)*vel_fac
     tlast     = xyzmh_ptmass(i_tlast,i)
     deltat    = time - tlast
     Minject   = Mdot_code*time
@@ -520,6 +519,9 @@ subroutine inject_particles(time,dtlast,xyzh,vxyzu,xyzmh_ptmass,vxyz_ptmass,&
           ! extract current velocity and injection radius of star
           rr        = 1.0001*xyzmh_ptmass(ihacc,i)
           vxyz_star = vxyz_ptmass(1:3,i)
+
+          !wind velocity in code units
+          vinject   = wind(i_vel,j)*vel_fac
 
           !set abundance of new particle based on origin-star's abundances, which is used in u and mu->eos_vars
           if (use_var_comp) then
@@ -636,10 +638,13 @@ subroutine write_options_inject(iunit)
  use infile_utils, only:write_inopt
  use timestep,     only:time
  use options,      only:use_var_comp
+ use eos,          only:num_var_comp
  integer, intent(in) :: iunit
  integer             :: iunit_tpi
 
+ call write_inopt(use_var_comp,'use_var_comp','whether gas particles have different mean molecular weights',iunit)
  if (use_var_comp) then
+    call write_inopt(num_var_comp,'num_var_comp','number of various compositions',iunit)
     call write_inopt(trim(datafile_mhn),'datafile_mhn','filename for wind composition (mu,habund,name)',iunit)
  endif
  call write_inopt(trim(datafile_wind),'datafile_wind','filename for wind injection (m,x,y,z,vx,vy,vz)',iunit)
@@ -664,36 +669,32 @@ end subroutine write_options_inject
 !  Reads input options from the input file.
 !+
 !-----------------------------------------------------------------------
-subroutine read_options_inject(name,valstring,imatch,igotall,ierr)
- !use io,      only:fatal,error,warning
- use physcon, only:solarm,years
- character(len=*), intent(in)  :: name,valstring
- logical,          intent(out) :: imatch,igotall
- integer,          intent(out) :: ierr
- integer, save :: ngot = 0
- character(len=30), parameter :: label = 'read_options_inject'
- integer :: nstars
+subroutine read_options_inject(db,nerr)
+ use io,           only:warning
+ use infile_utils, only:inopts,read_inopt
+ use options,      only:use_var_comp
+ use eos,          only:num_var_comp
+ type(inopts), intent(inout) :: db(:)
+ integer,      intent(inout) :: nerr
+ integer :: nstars,ierr
 
- imatch  = .true.
- select case(trim(name))
- case('datafile_mhn')
-    read(valstring,*,iostat=ierr) datafile_mhn
-    call read_use_var_comp_data(datafile_mhn)
- case('datafile_wind')
-    read(valstring,*,iostat=ierr) datafile_wind
+ call read_inopt(use_var_comp,'use_var_comp',db,ierr,errcount=nerr)
+ if (use_var_comp) then
+    call read_inopt(num_var_comp,'num_var_comp',db,ierr,errcount=nerr)
+    call read_inopt(datafile_mhn,'datafile_mhn',db,ierr,errcount=nerr)
+    if (ierr == 0) then
+       call read_use_var_comp_data(datafile_mhn)
+    endif
+ endif
+ call read_inopt(datafile_wind,'datafile_wind',db,ierr,errcount=nerr)
+ if (ierr == 0) then
     call read_wind_data(datafile_wind,nstars)
     !note: nptmass=0 here, so can't compare nstars and nptmass
     !if (nstars /= nptmass) then
     !   call warning('read_options_inject','number of stars /= number of wind sources')
     !endif
-    ngot = ngot + 1
- case('outer_boundary')
-    read(valstring,*,iostat=ierr) outer_boundary
- case default
-    imatch = .false.
- end select
-
- igotall = (ngot >= 1)
+ endif
+ call read_inopt(outer_boundary,'outer_boundary',db,errcount=nerr,default=outer_boundary)
 
 end subroutine read_options_inject
 

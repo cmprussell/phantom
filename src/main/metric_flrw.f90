@@ -6,7 +6,7 @@
 !--------------------------------------------------------------------------!
 module metric
 !
-! None
+! Friedmann-Lemaître-Robertson-Walker metric
 !
 ! :References: None
 !
@@ -14,14 +14,14 @@ module metric
 !
 ! :Runtime parameters: None
 !
-! :Dependencies: infile_utils, timestep
+! :Dependencies: dump_utils, infile_utils, timestep
 !
-
-
- use timestep,            only:  time
+ use timestep,            only:time
  implicit none
  character(len=*), parameter :: metric_type = 'flrw'
- integer,          parameter :: imetric     = 5
+ integer,          parameter :: imetric     = 6
+ real, public  :: mass1 = 0.      ! for compatibility with other metrics
+ real, public  :: a     = 0.      ! for compatibility with other metrics
 
 contains
 
@@ -95,9 +95,11 @@ end subroutine get_metric_spherical
 pure subroutine metric_cartesian_derivatives(position,dgcovdx, dgcovdy, dgcovdz)
  real,    intent(in)  :: position(3)
  real,    intent(out) :: dgcovdx(0:3,0:3), dgcovdy(0:3,0:3), dgcovdz(0:3,0:3)
+
  dgcovdx = 1.
  dgcovdy = 1.
  dgcovdz = 1.
+
 end subroutine metric_cartesian_derivatives
 
 pure subroutine metric_spherical_derivatives(position,dgcovdr, dgcovdtheta, dgcovdphi)
@@ -109,7 +111,6 @@ pure subroutine metric_spherical_derivatives(position,dgcovdr, dgcovdtheta, dgco
  t = time
  ! Get the scale factor for the current time
  call get_scale_factor(t,a)
-
 
  r     = position(1)
  theta = position(2)
@@ -198,7 +199,60 @@ pure subroutine get_jacobian(position,dxdx)
  dxdx(1:3,1) = dSPHERICALdx
  dxdx(1:3,2) = dSPHERICALdy
  dxdx(1:3,3) = dSPHERICALdz
+
 end subroutine get_jacobian
+
+!-------------------------------------------------------------------------------
+!+
+!  Subroutine to update the metric inputs if time dependent
+!+
+!-------------------------------------------------------------------------------
+subroutine update_metric(time)
+ real, intent(in) :: time
+
+end subroutine update_metric
+
+!-----------------------------------------------------------------------
+!+
+!  Check if a particle should be accreted by the black hole
+!+
+!-----------------------------------------------------------------------
+subroutine accrete_particles_metric(xi,yi,zi,mi,ti,accradius,accreted)
+ real,    intent(in)  :: xi,yi,zi,mi,ti,accradius
+ logical, intent(out) :: accreted
+
+ accreted = .false.
+
+end subroutine accrete_particles_metric
+
+!-----------------------------------------------------------------------
+!+
+!  writes relevant options to the header of the dump file
+!+
+!-----------------------------------------------------------------------
+subroutine write_headeropts_metric(hdr,time,accradius,ierr)
+ use dump_utils, only:dump_h
+ type(dump_h), intent(inout) :: hdr
+ real,         intent(in)    :: time,accradius
+ integer,      intent(out)   :: ierr
+
+ ierr = 0
+
+end subroutine write_headeropts_metric
+
+!-----------------------------------------------------------------------
+!+
+!  reads relevant options from the header of the dump file
+!+
+!-----------------------------------------------------------------------
+subroutine read_headeropts_metric(hdr,ierr)
+ use dump_utils, only:dump_h
+ type(dump_h), intent(in)  :: hdr
+ integer,      intent(out) :: ierr
+
+ ierr  = 0
+
+end subroutine read_headeropts_metric
 
 !-----------------------------------------------------------------------
 !+
@@ -218,16 +272,18 @@ end subroutine write_options_metric
 !  reads metric options from the input file
 !+
 !-----------------------------------------------------------------------
-subroutine read_options_metric(name,valstring,imatch,igotall,ierr)
- character(len=*), intent(in)  :: name,valstring
- logical,          intent(out) :: imatch,igotall
- integer,          intent(out) :: ierr
-
- ! imatch  = .true.
- ! igotall = .true.
+subroutine read_options_metric(db,nerr)
+ use infile_utils, only:inopts,read_inopt
+ type(inopts), intent(inout) :: db(:)
+ integer,      intent(inout) :: nerr
 
 end subroutine read_options_metric
 
+!----------------------------------------------------------------
+!+
+!  Get the scale factor for the current time
+!+
+!----------------------------------------------------------------
 pure subroutine get_scale_factor(t,a)
  real, intent(in) :: t
  real, intent(out) :: a

@@ -23,8 +23,16 @@ module setup
 !   - use_var_comp_local : *whether or not to use various compositions*
 !
 ! :Dependencies: cooling, cooling_solver, datafiles, dim, eos,
-!   infile_utils, inject, io, options, part, physcon, prompting, spherical,
-!   timestep, units
+!   infile_utils, inject, io, options, part, physcon, prompting, setup_params,
+!   spherical, timestep, units
+!<<<<<<< HEAD
+!! :Dependencies: cooling, cooling_solver, datafiles, dim, eos,
+!!   infile_utils, inject, io, options, part, physcon, prompting, spherical,
+!!   timestep, units
+!=======
+!! :Dependencies: datafiles, dim, eos, infile_utils, io, part, physcon,
+!!   setup_params, spherical, timestep, units
+!>>>>>>> upstream/master
 !
  implicit none
  public :: setpart
@@ -56,6 +64,8 @@ subroutine setpart(id,npart,npartoftype,xyzh,massoftype,vxyzu,polyk,gamma,hfact,
  use timestep,       only:dtmax,tmax
  use spherical,      only:set_sphere
  use datafiles,      only:find_phantom_datafile
+ use setup_params,   only:npart_total
+ use infile_utils,   only:get_options
  use options,        only:icooling,nfulldump
  use cooling_solver, only:icool_method,lambda_table
  use cooling,        only:Tfloor
@@ -74,10 +84,9 @@ subroutine setpart(id,npart,npartoftype,xyzh,massoftype,vxyzu,polyk,gamma,hfact,
  character(len=len(fileprefix)+6) :: setupfile
  character(len=len(datafile_mpv)) :: filename_mpv
  character(len=len(datafile_mhn)) :: filename_mhn
- integer :: ierr,i
+ integer :: ierr,i,iexist
  real    :: scale,psep
  !integer :: ierr_Tinit
- integer :: iexist
 !
 !set some GC-specific parameters in case galcen.in does not exist
 !
@@ -107,14 +116,19 @@ subroutine setpart(id,npart,npartoftype,xyzh,massoftype,vxyzu,polyk,gamma,hfact,
  if (n_startypes<=0) print*
  !
  ! read setup parameters from the .setup file
- ! if file does not exist, then ask for user input
  !
- setupfile = trim(fileprefix)//'.setup'
- call read_setupfile(setupfile,ierr)
- if (ierr /= 0 .and. id==master) then
-    call interactive_setup()           ! read setup options from user
-    call write_setupfile(setupfile)    ! write .setup file with defaults
- endif
+!<<<<<<< HEAD
+! setupfile = trim(fileprefix)//'.setup'
+! call read_setupfile(setupfile,ierr)
+! if (ierr /= 0 .and. id==master) then
+!    call interactive_setup()           ! read setup options from user
+!    call write_setupfile(setupfile)    ! write .setup file with defaults
+! endif
+!=======
+ call get_options(trim(fileprefix)//'.setup',id==master,ierr,&
+                  read_setupfile,write_setupfile)
+ if (ierr /= 0) stop 'rerun phantomsetup after editing .setup file'
+!>>>>>>> upstream/master
 !
 ! space available for injected gas particles
 !
@@ -148,7 +162,8 @@ subroutine setpart(id,npart,npartoftype,xyzh,massoftype,vxyzu,polyk,gamma,hfact,
 ! setup initial sphere of particles to prevent initialisation problems
 !
  psep = 1.0
- call set_sphere('cubic',id,master,0.,20.,psep,hfact,npart,xyzh)
+ npart_total = 0
+ call set_sphere('cubic',id,master,0.,20.,psep,hfact,npart,xyzh,nptot=npart_total)
 !
 ! initialize mean molecular weight if needed
 !
@@ -341,7 +356,6 @@ subroutine read_setupfile(filename,ierr)
  integer,          intent(out) :: ierr
  integer                       :: nerr
  type(inopts), allocatable     :: db(:)
- !integer                       :: i
 
  call open_db_from_file(db,filename,lu,ierr)
  if (ierr /= 0) then

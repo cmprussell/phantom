@@ -19,9 +19,9 @@ module fileutils
 !
 
  implicit none
- public :: getnextfilename,numfromfile,basename,get_ncolumns,skip_header
- public :: read_column_labels,get_column_labels,split
- public :: strip_extension,is_digit,files_are_sequential
+ public :: getnextfilename,numfromfile,basename,get_ncolumns,skip_header,number_of_rows
+ public :: read_column_labels,get_column_labels,split,find_column
+ public :: strip_extension,is_digit,files_are_sequential,load_data_file
  public :: ucase,lcase,make_tags_unique,get_nlines,string_delete,string_replace,nospaces
  integer, parameter :: max_line_length = 10000 ! for finding number of columns
 
@@ -36,7 +36,7 @@ contains
 !----------------------------------------------------------------
 function getnextfilename(filename,ifilename)
  character(len=*), intent(in) :: filename
- character(len=len(filename)) :: getnextfilename
+ character(len=len(filename)+1) :: getnextfilename
  integer :: idot,istartnum,ilen,i,ierr,num
  integer, optional, intent(out) :: ifilename
  character(len=10) :: fmtstring
@@ -63,12 +63,13 @@ function getnextfilename(filename,ifilename)
 !--increment number by one
 !
     num = num + 1
-    write(fmtstring,"('(i',i1,'.',i1,')')") ilen,ilen
+    if (log10(real(num)) >= ilen) ilen = ilen + 1
+    write(fmtstring,"('(a,i',i1,'.',i1,',a)')") ilen,ilen
     getnextfilename = trim(filename)
 !
 !--replace number in new filename
 !
-    write(getnextfilename(istartnum:istartnum+ilen-1),fmtstring) num
+    write(getnextfilename,fmtstring) filename(1:istartnum-1), num, filename(idot:len(filename))
  else
     getnextfilename = trim(filename)//'001'
  endif
@@ -267,32 +268,43 @@ end subroutine strip_extension
 subroutine get_ncolumns(lunit,ncolumns,nheaderlines)
  integer, intent(in)  :: lunit
  integer, intent(out) :: ncolumns,nheaderlines
- integer :: ierr,ncolprev,ncolsthisline
- character(len=2000) :: line
+ integer :: ierr,ncolprev,ncolprev2,ncolsthisline,maxlines
+ character(len=max_line_length) :: line
  logical :: nansinfile,infsinfile
 
+ maxlines = 1000
  nheaderlines = 0
  line = ' '
  ierr = 0
  ncolumns = 0
- ncolprev = 666
+ ncolprev = -100
+ ncolprev2 = -200
  ncolsthisline = 0
  nansinfile = .false.
  infsinfile = .false.
 !
 !--loop until we find two consecutive lines with the same number of columns (but non zero)
+!  if ncolumns==1 then we must find 3 consecutive lines
 !
- do while ((len_trim(line)==0 .or. ncolsthisline /= ncolprev .or. ncolumns <= 0) .and. ierr==0)
+ do while ((len_trim(line)==0 .or. ncolsthisline /= ncolprev .or. ncolumns < 1 .or. &
+           (ncolumns==1 .and. ncolsthisline /= ncolprev2)) &
+           .and. ierr==0 .and. nheaderlines <= maxlines)
+    ncolprev2 = ncolprev
     ncolprev = ncolumns
     read(lunit,"(a)",iostat=ierr) line
     if (index(line,'NaN') > 0) nansinfile = .true.
     if (index(line,'Inf') > 0) infsinfile = .true.
-    if (ierr==0) ncolsthisline = ncolumnsline(line)
-    if (ncolsthisline >= 0) nheaderlines = nheaderlines + 1
-    ncolumns = ncolsthisline
+    if (len_trim(line)==0) then
+       ncolsthisline = -1
+    else
+       if (ierr==0) ncolsthisline = ncolumnsline(line)
+       ncolumns = ncolsthisline
+    endif
+    nheaderlines = nheaderlines + 1
  enddo
  !--subtract 2 from the header line count (the last two lines which were the same)
  nheaderlines = max(nheaderlines - 2,0)
+ if (ncolumns==1) nheaderlines = max(nheaderlines - 1,0)
  if (ierr  > 0 .or. ncolumns <= 0) then
     ncolumns = 0
  elseif (ierr  <  0) then
@@ -317,21 +329,17 @@ end subroutine get_ncolumns
 !---------------------------------------------------------------------------
 integer function ncolumnsline(line)
  character(len=*), intent(in) :: line
- real :: dummyreal(100)
+ real :: dummyreal(1000)
  integer :: ierr,i
 
- dummyreal = -666.0
+ dummyreal = -666666.0
 
  ierr = 0
  read(line,*,iostat=ierr) (dummyreal(i),i=1,size(dummyreal))
- !if (ierr  >  0) then
- !   ncolumnsline = -1
- !   return
- !endif
 
  i = 1
  ncolumnsline = 0
- do while(abs(dummyreal(i)+666.) > tiny(0.))
+ do while(abs(dummyreal(i)+666666.) > tiny(0.) .and. .not.isnan(dummyreal(i)))
     ncolumnsline = ncolumnsline + 1
     i = i + 1
     if (i > size(dummyreal)) then
@@ -535,6 +543,37 @@ end subroutine split
 
 !-----------------------------------------------------------------
 !
+!  normalize bracket delimiters: replace ']' followed by any spaces
+!  followed by '[' with '][' to allow consistent splitting
+!
+!-----------------------------------------------------------------
+subroutine normalize_bracket_delimiters(string)
+ character(len=*), intent(inout) :: string
+ integer :: ipos,ipos2,ipos_rel
+
+ ipos = 1
+ do while (ipos <= len_trim(string))
+    ipos_rel = index(string(ipos:),']')
+    if (ipos_rel == 0) exit
+    ipos = ipos + ipos_rel - 1
+    ! find next '[' after this ']', skipping any spaces
+    ipos2 = ipos + 1
+    do while (ipos2 <= len_trim(string) .and. string(ipos2:ipos2) == ' ')
+       ipos2 = ipos2 + 1
+    enddo
+    if (ipos2 <= len_trim(string) .and. string(ipos2:ipos2) == '[') then
+       ! replace the spaces between ']' and '[' with nothing
+       string = string(1:ipos)//string(ipos2:)
+       ipos = ipos + 1
+    else
+       ipos = ipos2
+    endif
+ enddo
+
+end subroutine normalize_bracket_delimiters
+
+!-----------------------------------------------------------------
+!
 !  utility to count number of times a character appears in a string
 !
 !-----------------------------------------------------------------
@@ -565,6 +604,7 @@ subroutine get_column_labels(line,nlabels,labels,method,ndesired,csv)
  integer :: i1,i2,i,nlabelstmp,nlabels_prev,istyle,ntarget
  character(len=1) :: leadingchar
  character(len=4), parameter :: spaces = '    '
+ character(len=len(line)) :: linestr
  logical :: is_csv
 
  nlabels = 0
@@ -591,7 +631,12 @@ subroutine get_column_labels(line,nlabels,labels,method,ndesired,csv)
     !
     istyle = 1
     i1 = max(index(line,'[')+1,i1)    ! strip leading square bracket
-    call split(nospaces(line(i1:)),'][',labels,nlabels)
+    ! normalize spaces between brackets: replace ']' followed by any spaces followed by '[' with ']['
+    ! this allows us to split on a fixed delimiter regardless of spacing
+    linestr = line(i1:)
+    call normalize_bracket_delimiters(linestr)
+    ! now split on '][' which should work regardless of original spacing
+    call split(linestr,'][',labels,nlabels)
  elseif (index(line,',') > 1 .or. is_csv) then
     !
     ! format style 2: mylabel1,mylabel2,mylabel3
@@ -612,6 +657,7 @@ subroutine get_column_labels(line,nlabels,labels,method,ndesired,csv)
     nlabels_prev = 0
     over_spaces: do i=4,2,-1
        call split(line(i1:),spaces(1:i),labels,nlabelstmp)
+
        ! quit if we already have the target number of labels
        if (nlabelstmp == ntarget) exit over_spaces
 
@@ -625,11 +671,17 @@ subroutine get_column_labels(line,nlabels,labels,method,ndesired,csv)
        endif
        nlabels_prev = nlabelstmp
     enddo over_spaces
+
     !
     ! this style is dangerous, so perform sanity checks
     ! on the labels to ensure they are sensible
     !
     nlabels = count_sensible_labels(nlabelstmp,labels)
+    !
+    ! be lenient if the number of sensible labels is close to the target
+    !
+    if (abs(nlabels-nlabelstmp) < 5 .and. nlabelstmp==ntarget) nlabels = nlabelstmp
+
     if (nlabels <= 1) then
        !
        ! format style 4: x y z vx vy vz
@@ -656,6 +708,13 @@ subroutine get_column_labels(line,nlabels,labels,method,ndesired,csv)
              labels(i)(i1:i1) = ' '
              i1 = i1 + 1
           enddo
+       endif
+       ! remove trailing square bracket for style 1
+       if (istyle==1) then
+          i2 = len_trim(labels(i))
+          if (i2 > 0 .and. labels(i)(i2:i2)==']') then
+             labels(i) = labels(i)(1:i2-1)
+          endif
        endif
        labels(i) = trim(adjustl(labels(i)))
     endif
@@ -692,7 +751,7 @@ subroutine read_column_labels(iunit,nheaderlines,ncols,nlabels,labels,csv,debug)
  character(len=len(labels(1))), dimension(size(labels)) :: tmplabel
  character(len=max_line_length) :: line
  logical :: is_csv,verbose,got_labels
- integer :: i,imethod,ierr,nwanted
+ integer :: i,imethod,ierr,nwanted,nlabelstmp
 
  is_csv = .false.
  verbose = .false.
@@ -706,19 +765,44 @@ subroutine read_column_labels(iunit,nheaderlines,ncols,nlabels,labels,csv,debug)
  do i=1,nheaderlines
     read(iunit,"(a)",iostat=ierr) line
     !--try to match column labels from this header line, if not already matched (or dubious match)
-    call get_column_labels(trim(line),nlabels,tmplabel,method=imethod,ndesired=nwanted,csv=csv)
+    call get_column_labels(trim(line),nlabelstmp,tmplabel,method=imethod,ndesired=nwanted,csv=csv)
     !--if we get nlabels > ncolumns, use them, but keep trying for a better match
-    if ((got_labels .and. nlabels == nwanted) .or. &
-        (.not.got_labels .and. nlabels >= nwanted  & ! only allow single-spaced labels if == ncols
-         .and. (.not.(imethod>=4) .or. nlabels==nwanted))) then
+    if ((got_labels .and. nlabelstmp == nwanted) .or. (.not.got_labels .and. imethod==2) .or. &
+        (.not.got_labels .and. nlabelstmp >= nwanted  & ! only allow single-spaced labels if == ncols
+         .and. (.not.(imethod>=4) .or. nlabelstmp==nwanted))) then
        labels(1:nwanted) = tmplabel(1:nwanted)
        got_labels = .true.
+       nlabels = nlabelstmp
     endif
-    if (verbose) print "(5(1x,a,i0))",'DEBUG: line ',i,'nlabels = ',nlabels,&
-                 'want ',ncols,'method=',imethod,'len_trim(line)=',len_trim(line) !,' LABELS= '//tmplabel(1:ncols)
+    if (verbose) print "(5(1x,a,i0),1x,a,l1)",'DEBUG: line ',i,'nlabels = ',nlabels,&
+                 'want ',ncols,'method=',imethod,'len_trim(line)=',len_trim(line),'got_labels=',got_labels
  enddo
 
 end subroutine read_column_labels
+
+!---------------------------------------------------------------------------
+!
+! find the column number of a given label
+!
+!---------------------------------------------------------------------------
+integer function find_column(labels,label,verbose)
+ character(len=*), dimension(:), intent(in) :: labels
+ character(len=*), intent(in) :: label
+ logical, intent(in), optional :: verbose
+ integer :: i
+
+ find_column = 0
+ do i=1,size(labels)
+    if (index(labels(i),label) > 0) then
+       find_column = i
+       exit
+    endif
+ enddo
+ if (present(verbose)) then
+    if (verbose) print*,' found ',trim(label),' in column ',find_column
+ endif
+
+end function find_column
 
 !---------------------------------------------------------------------------
 !
@@ -791,5 +875,128 @@ function nospaces(string)
  call string_delete(nospaces,' ')
 
 end function nospaces
+
+!---------------------------------------------------------------------------
+!
+! function to read a data file into a 2D array
+!
+!---------------------------------------------------------------------------
+subroutine load_data_file(filename,datafile,nhead)
+ character(len=*), intent(in) :: filename
+ real, allocatable, intent(inout) :: datafile(:,:)
+ integer, intent(in), optional :: nhead
+ integer :: nrows,ncolumns,nheadlines,iunit,ierr,i
+
+ write(*,*) 'Loading data from file: ',trim(filename)
+
+ open(newunit=iunit,file=filename,status='old',action='read',iostat=ierr)
+ if (ierr /= 0) then
+    if (trim(filename)=='sigma_grid.dat' .or. trim(filename)=='ecc_grid.dat') then
+       print*,''
+       print*,'!!!!!FATAL!!!!!'
+       print*,'You chose to initialise sigma or ecc profiles from files, but there are no such files!'
+       print*,'Make sure you ran phantomdir/scripts/generate_eccsigma_grid.py before phantomsetup'
+    endif
+    write(*,*) 'ERROR: load_from_file: could not open/read '//trim(filename)
+    ierr = -1
+    return
+ endif
+
+ call get_ncolumns(iunit,ncolumns,nheadlines)
+ nrows=number_of_rows(iunit)
+
+ if (present(nhead)) nheadlines=nhead
+ write(*,*) 'Skipping ',nheadlines,' head lines'
+
+ write(*,*) 'Found nrows, ncolumns: ',nrows,ncolumns
+
+ allocate(datafile(nrows-nheadlines,ncolumns))
+ do i=1,nheadlines
+    read(iunit,*,iostat=ierr)
+ enddo
+ do i=1, nrows-nheadlines
+    read(iunit,*,iostat=ierr) datafile(i,:)
+ enddo
+ if (ierr /= 0) then
+    write(*,*) 'ERROR: load_from_file: error reading data from '//trim(filename)
+ endif
+ close(iunit)
+
+end subroutine load_data_file
+
+!---------------------------------------------------------------------------
+!
+! function to determine the number of rows in a file
+!
+!---------------------------------------------------------------------------
+integer function number_of_rows(iunit) result(nrows)
+ integer, intent(in) :: iunit
+ integer :: ios
+
+ rewind(iunit)
+ nrows = 0
+ ios = 0
+ do while (ios == 0)
+    read(iunit,*,iostat=ios)
+    if (ios /= 0) exit
+    nrows = nrows + 1
+ enddo
+
+ rewind(iunit)
+
+end function number_of_rows
+
+!subroutine write_in_file_1d(namefile,arraytowrite)
+!    character(len=*), intent(in) :: namefile
+!    real, intent(in), dimension(:) :: arraytowrite
+!    integer :: iunit,i
+!
+!    iunit=155
+!
+!    open(unit=iunit,file=namefile,status='replace',action='write')
+!    do i=1,size(arraytowrite(:))
+!       write(iunit,*) arraytowrite(i)
+!    enddo
+!    close(unit=iunit)
+!
+!end subroutine write_in_file_1d
+!
+!
+!subroutine write_in_file_2d(namefile,arraytowrite)
+!    character(len=*), intent(in) :: namefile
+!    real, intent(in), dimension(:,:) :: arraytowrite
+!    integer :: iunit,i
+!
+!    iunit=1
+!
+!    open(unit=iunit,file=namefile,status='replace',action='write')
+!
+!    do i=1,size(arraytowrite(:,1))
+!       write(iunit,*) arraytowrite(i,:)
+!    enddo
+!
+!    close(unit=iunit)
+!
+!end subroutine write_in_file_2d
+!
+!subroutine write_in_file_1dx2(namefile,arraytowrite1,arraytowrite2)
+!    character(len=*), intent(in) :: namefile
+!    real, intent(in), dimension(:) :: arraytowrite1,arraytowrite2
+!    integer :: iunit,i
+!
+!    iunit=1
+!
+!    open(unit=iunit,file=namefile,status='replace',action='write')
+!    do i=1,size(arraytowrite1(:))
+!       write(iunit,*) arraytowrite1(i),arraytowrite2(i)
+!    enddo
+!    close(unit=iunit)
+!
+!end subroutine write_in_file_1dx2
+!
+!these functions are currently not used, they could be wrapped in an interface
+! interface write_in_file
+!    module procedure  write_in_file_1d,write_in_file_2d,write_in_file_1dx2
+! end interface
 
 end module fileutils

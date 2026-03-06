@@ -271,3 +271,62 @@ Tell phantom where to look for files needed for a specific type of job
 If the files are not in the pwd, which is searched first, then the code looks in the .../phantom/data/<type_of_job> directory, which depends on the environment variable PHANTOM_DIR
 export PHANTOM_DIR=/work/phys/crussell/phantom_cmprussellFork/phantom
 
+
+
+
+
+
+Results of pull and merge from Daniel's mater branch on Feb 25, 2026
+
+error: addinfo_cache failed for path 'src/utils/libphantom.f90'
+CONFLICT (modify/delete): src/utils/velfield.f90 deleted in upstream/master and modified in HEAD. Version HEAD of src/utils/velfield.f90 left in tree.
+CONFLICT (modify/delete): src/utils/utils_orbits.f90 deleted in upstream/master and modified in HEAD. Version HEAD of src/utils/utils_orbits.f90 left in tree.
+CONFLICT (modify/delete): src/utils/getmathflags.f90 deleted in upstream/master and modified in HEAD. Version HEAD of src/utils/getmathflags.f90 left in tree.
+CONFLICT (modify/delete): src/utils/analysis_prdrag.f90 deleted in upstream/master and modified in HEAD. Version HEAD of src/utils/analysis_prdrag.f90 left in tree.
+CONFLICT (modify/delete): src/utils/analysis_mapping_mass.f90 deleted in upstream/master and modified in HEAD. Version HEAD of src/utils/analysis_mapping_mass.f90 left in tree.
+CONFLICT (modify/delete): src/utils/analysis_kdtree.F90 deleted in upstream/master and modified in HEAD. Version HEAD of src/utils/analysis_kdtree.F90 left in tree.
+ONFLICT (modify/delete): src/tests/test_smol.F90 deleted in upstream/master and modified in HEAD. Version HEAD of src/tests/test_smol.F90 left in tree.
+CONFLICT (content): Merge conflict in src/tests/test_ptmass.f90
+CONFLICT (modify/delete): src/tests/test_luminosity.F90 deleted in upstream/master and modified in HEAD. Version HEAD of src/tests/test_luminosity.F90 left in tree.
+CONFLICT (content): Merge conflict in src/tests/test_iorig.f90
+CONFLICT (modify/delete): src/tests/test_fastmath.f90 deleted in upstream/master and modified in HEAD. Version HEAD of src/tests/test_fastmath.f90 left in tree.
+ONFLICT (content): Merge conflict in src/setup/setup_galcen_stars.f90
+CONFLICT (modify/delete): src/setup/setup_common.f90 deleted in upstream/master and modified in HEAD. Version HEAD of src/setup/setup_common.f90 left in tree.
+CONFLICT (modify/delete): src/setup/set_flyby.f90 deleted in upstream/master and modified in HEAD. Version HEAD of src/setup/set_flyby.f90 left in tree.
+CONFLICT (modify/delete): src/main/utils_supertimestep.F90 deleted in upstream/master and modified in HEAD. Version HEAD of src/main/utils_supertimestep.F90 left in tree.
+CONFLICT (modify/delete): src/main/utils_omp.F90 deleted in upstream/master and modified in HEAD. Version HEAD of src/main/utils_omp.F90 left in tree.
+CONFLICT (modify/delete): src/main/utils_kepler.f90 deleted in upstream/master and modified in HEAD. Version HEAD of src/main/utils_kepler.f90 left in tree.
+CONFLICT (modify/delete): src/main/utils_hdf5.f90 deleted in upstream/master and modified in HEAD. Version HEAD of src/main/utils_hdf5.f90 left in tree.
+CONFLICT (modify/delete): src/main/utils_dumpfiles_hdf5.f90 deleted in upstream/master and modified in HEAD. Version HEAD of src/main/utils_dumpfiles_hdf5.f90 left in tree.
+CONFLICT (modify/delete): src/main/utils_binary.f90 deleted in upstream/master and modified in HEAD. Version HEAD of src/main/utils_binary.f90 left in tree.
+CONFLICT (content): Merge conflict in src/main/utils_allocate.f90
+CONFLICT (content): Merge conflict in src/main/substepping.F90
+CONFLICT (content): Merge conflict in src/main/subgroup.f90
+CONFLICT (modify/delete): src/main/step_supertimestep.F90 deleted in upstream/master and modified in HEAD. Version HEAD of src/main/step_supertimestep.F90 left in tree.
+CONFLICT (content): Merge conflict in src/main/step_leapfrog.f90
+CONFLICT (modify/delete): src/main/readwrite_infile.F90 deleted in upstream/master and modified in HEAD. Version HEAD of src/main/readwrite_infile.F90 left in tree.
+CONFLICT (modify/delete): src/main/readwrite_dumps_hdf5.F90 deleted in upstream/master and modified in HEAD. Version HEAD of src/main/readwrite_dumps_hdf5.F90 left in tree.
+CONFLICT (content): Merge conflict in src/main/readwrite_dumps.f90
+CONFLICT (modify/delete): src/main/readwrite_dumps.F90 deleted in upstream/master and modified in HEAD. Version HEAD of src/main/readwrite_dumps.F90 left in tree.
+CONFLICT (content): Merge conflict in src/main/ptmass.F90
+CONFLICT (content): Merge conflict in src/main/part.F90
+CONFLICT (modify/delete): src/main/linklist_kdtree.F90 deleted in upstream/master and modified in HEAD. Version HEAD of src/main/linklist_kdtree.F90 left in tree.
+ONFLICT (modify/delete): src/main/inject_rochelobe.f90 deleted in upstream/master and modified in HEAD. Version HEAD of src/main/inject_rochelobe.f90 left in tree.
+CONFLICT (content): Merge conflict in src/main/inject_galcen_winds.f90
+CONFLICT (content): Merge conflict in src/main/initial.F90
+CONFLICT (modify/delete): src/main/growth_smol.f90 deleted in upstream/master and modified in HEAD. Version HEAD of src/main/growth_smol.f90 left in tree.
+CONFLICT (modify/delete): src/main/fastmath.f90 deleted in upstream/master and modified in HEAD. Version HEAD of src/main/fastmath.f90 left in tree.
+CONFLICT (content): Merge conflict in src/main/externalforces.f90
+CONFLICT (modify/delete): src/main/evolve.F90 deleted in upstream/master and modified in HEAD. Version HEAD of src/main/evolve.F90 left in tree.
+CONFLICT (content): Merge conflict in src/main/eos.f90
+CONFLICT (modify/delete): src/main/cullendehnen.f90 deleted in upstream/master and modified in HEAD. Version HEAD of src/main/cullendehnen.f90 left in tree.
+CONFLICT (content): Merge conflict in src/main/cooling_solver.f90
+ONFLICT (content): Merge conflict in src/main/cooling.f90
+CONFLICT (content): Merge conflict in src/main/cons2prim.f90
+Removing build/Makefile_fastmath
+CONFLICT (content): Merge conflict in build/Makefile
+CONFLICT (content): Merge conflict in AUTHORS
+Removing .slackmap
+CONFLICT (content): Merge conflict in .gitignore
+
+

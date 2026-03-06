@@ -63,8 +63,8 @@ subroutine test_iorig(ntests,npass)
 
     call shuffle_part(npart)
 
-    write(stringi, "(I2)") i
-    call checkvalbuf(npart,100-4*i,0,'Check npart while deleting '//trim(stringi),nfailed(1),ncheck,ierrmax)
+    write(stringi,"(i12)") i
+    call checkvalbuf(npart,100-4*i,0,'Check npart while deleting '//trim(adjustl(stringi)),nfailed(1),ncheck,ierrmax)
  enddo
 
  call checkvalbuf_end('check npart while deleting', ncheck, nfailed(1), ierrmax, 0)
@@ -81,10 +81,10 @@ subroutine test_iorig(ntests,npass)
  nfailed(1)=0
  do i = 1, npart
     do j = i+1, npart
-       write(stringi, "(i12)") i
-       write(stringj, "(i12)") j
+       write(stringi,"(i12)") i
+       write(stringj,"(i12)") j
        call checkvalbuf(iorig(i)==iorig(j),.false.,&
-      'Check iorig('//trim(stringi)//' != iorig('//trim(stringj)//')',nfailed(1),ncheck)
+      'Check iorig('//trim(adjustl(stringi))//' != iorig('//trim(adjustl(stringj))//')',nfailed(1),ncheck)
     enddo
  enddo
  call checkvalbuf_end('Check iorig',ncheck,nfailed(1))
@@ -94,6 +94,5 @@ subroutine test_iorig(ntests,npass)
  if (id==master) write(*,"(/,a)") '<-- PARTICLE ID TEST COMPLETE'
 
 end subroutine test_iorig
-
 
 end module testiorig
