@@ -97,7 +97,7 @@ subroutine init_inject(ierr)
  use units,     only:unit_energ
  integer, intent(out) :: ierr
  integer :: i,j,j_corrupt
- real    :: Mcut
+ !real    :: Mcut
  logical :: iexist
  integer :: ierr_tpi=0
  real    :: time_tpi(10000) = 0.
@@ -131,19 +131,21 @@ subroutine init_inject(ierr)
 
  !
  ! correlate pointmass postion/velocity/mass table and pointmass wind table
- ! for wind injection, skip SMBH and IMBH -- which are above 200Msun -- since black holes don't appear in the wind table
+ !! for wind injection, skip SMBH and IMBH -- which are above 200Msun -- since black holes don't appear in the wind table
+ ! Note: not needed for current implmentation of cwb, but might be used in future sims for no-wind objects,
+ !       so keep this code for now
  !
- Mcut = 200.*(solarm/umass)
+ !Mcut = 200.*(solarm/umass)
  nskip_ptmass = 0
- do while(xyzmh_ptmass(4,nskip_ptmass+1) > Mcut .and. nskip_ptmass<nptmass)
-    nskip_ptmass = nskip_ptmass + 1
- enddo
- if (nskip_ptmass==nptmass) then
-    ierr = ierr + 1
-    print*,' ERROR: no winds since all read-in point masses are skipped'
- endif
- print "(a,i0,a,f0.1,a)", ' Skipping ',nskip_ptmass,' point masses for wind injection since their point masses are >200Msun,'
- print "(a)", '   which is presently interpreted to mean that these point masses are black holes.'
+ !do while(xyzmh_ptmass(4,nskip_ptmass+1) > Mcut .and. nskip_ptmass<nptmass)
+ !   nskip_ptmass = nskip_ptmass + 1
+ !enddo
+ !if (nskip_ptmass==nptmass) then
+ !   ierr = ierr + 1
+ !   print*,' ERROR: no winds since all read-in point masses are skipped'
+ !endif
+ !print "(a,i0,a,f0.1,a)", ' Skipping ',nskip_ptmass,' point masses for wind injection since their point masses are >200Msun,'
+ !print "(a)", '   which is presently interpreted to mean that these point masses are black holes.'
  ! convert mass loss rate from Msun/yr to code units
  Mdot_fac = (solarm/umass)*(utime/years)
  vel_fac  = (km/udist)*(utime/seconds)
@@ -571,9 +573,11 @@ subroutine inject_particles(time,dtlast,xyzh,vxyzu,xyzmh_ptmass,vxyz_ptmass,&
 !
  !!$omp parallel do default(none) &
  !!$omp shared(nptmass)
- do i=nskip_ptmass+1,nptmass
+ !do i=nskip_ptmass+1,nptmass
+ do i=1,nptmass !position in wind table; nskip_ptmass not needed, but keep in case future sims have no-wind objects
     ! calculate how much mass to inject based on time interval since last injection
-    j = i - nskip_ptmass ! position in wind table
+    !j = i - nskip_ptmass ! position in wind table
+    j = i !position in wind table; nskip_ptmass not needed, but keep in case future sims have no-wind objects
     Mdot_code = wind(i_Mdot,j)*Mdot_fac
     tlast     = xyzmh_ptmass(i_tlast,i)
     deltat    = time - tlast
@@ -594,7 +598,8 @@ subroutine inject_particles(time,dtlast,xyzh,vxyzu,xyzmh_ptmass,vxyz_ptmass,&
        xyz_star  = xyzmh_ptmass(1:3,i)
        ! only inject particles that won't be immediately killed due to being beyond outer_boundary
        ! this can be used with the original all-particles-are-new method as well
-       if (sqrt(xyz_star(1)**2+xyz_star(2)**2+xyz_star(3)**2) < outer_boundary) then
+       !if (sqrt(xyz_star(1)**2+xyz_star(2)**2+xyz_star(3)**2) < outer_boundary) then
+       if (.true.) then
           ! extract current velocity and injection radius of star
           !rr        = 1.0001*xyzmh_ptmass(ihacc,i)
           !rr        = 1.0001*xyzmh_ptmass(iReff,i)
@@ -846,14 +851,14 @@ subroutine read_wind_data(datafile_wind,nstars)
              !entry for this wind was not read in properly, signaling the end of reading in wind entries
              !reset entries in the wind arrays that were unsuccessfully read in
              wind_int(i_astroID,nstars) = 0
-             wind(i_vel ,nstars)   = 0.
-             wind(i_Mdot,nstars)   = 0.
-             wind(i_rad ,nstars)   = 0.
-             wind(i_tem ,nstars)   = 0.
-             wind(i_vbeta,nstars)  = 0.
-             wind(i_vinj,nstars)   = 0.
+             wind(i_vel   ,nstars) = 0.
+             wind(i_Mdot  ,nstars) = 0.
+             wind(i_rad   ,nstars) = 0.
+             wind(i_tem   ,nstars) = 0.
+             wind(i_vbeta ,nstars) = 0.
+             wind(i_vinj  ,nstars) = 0.
              wind(i_radinj,nstars) = 0.
-             wind(i_lum ,nstars)   = 0.
+             wind(i_lum   ,nstars) = 0.
              wind_char(i_comp_char,nstars)     = ''
              wind_char(i_fulltype_char,nstars) = ''
              !decrement nstars so it corresponds to the number of stars with successfully read-in winds
@@ -890,9 +895,12 @@ subroutine read_wind_data(datafile_wind,nstars)
        wind_char(i_comp_char,i) = trim(name_startypes(wind_int(i_comp,i)))
 
        print "(1x,130('-'))"
-       print "(a)", ' | ID           | ID       | Wind Vel | Mdot          | Composition | Composition | mu          | habund      | Spec type         |'
-       print "(a)", ' | (sequential) | (astro)  | (km/s)   | (Msun/yr)     | (code ID)   | (name)      | (amu)       | (mass frac) | (full name)       |'
-       print "(a)", ' |--------------|----------|----------|---------------|-------------|-------------|-------------|-------------|-------------------|'
+       print "(a)", ' | ID           | ID       | Wind Vel | Mdot          |'// &
+                    ' Composition | Composition | mu          | habund      | Spec type         |'
+       print "(a)", ' | (sequential) | (astro)  | (km/s)   | (Msun/yr)     |'// &
+                    ' (code ID)   | (name)      | (amu)       | (mass frac) | (full name)       |'
+       print "(a)", ' |--------------|----------|----------|---------------|'// &
+                    '-------------|-------------|-------------|-------------|-------------------|'
        do i=1,nstars
           write(*,'(1x,"|",5x,i8,1x,"|",1x,i8,1x,"|",1x,f8.2,1x,"|",1x,es13.6,1x,"|",1x,3x,i8,1x,"|",1x,a)',advance='no') &
              i,wind_int(i_astroID,i),wind(i_vel,i),wind(i_Mdot,i),wind_int(i_comp,i),trim(wind_char(i_comp_char,i))
@@ -905,7 +913,8 @@ subroutine read_wind_data(datafile_wind,nstars)
           enddo
           write(*,'(1x,"|")')
        enddo
-       print "(a)", ' |--------------|-------------------------------------|-------------|-------------|-------------|-------------|-------------------|'
+       print "(a)", ' |--------------|-------------------------------------|'// &
+                    '-------------|-------------|-------------|-------------|-------------------|'
        i = nstars+1
        write(*,'(1x,"|",5x,i8,1x,"|",1x,a,1x,"|",1x,3x,i8,1x,"|",1x,a)',advance='no') &
           i,'unknown & initialization particles ',wind_int(i_comp,i),trim(name_startypes(wind_int(i_comp,i)))
@@ -914,28 +923,29 @@ subroutine read_wind_data(datafile_wind,nstars)
        enddo
        write(*,'(1x,2("|",1x,f11.9,1x),"| N/A               |")') mu_startypes(wind_int(i_comp,i)),habund_startypes(wind_int(i_comp,i))
        print "(1x,130('-'))"
-       print "(1x,81('-'))"
-       print "(a)", ' | ID           | Radius   | Temperature   | beta     | V_intial | Luminosity    |'
-       print "(a)", ' | (sequential) | (Rsun)   | (K)           |          | (km/s)   | (Lsun)        | '
-       print "(a)", ' |--------------|----------|---------------|----------|----------|---------------|'
+       print "(1x,98('-'))"
+       print "(a)", ' | ID           | Radius    | Temperature   | beta    | R_initial   | V_initial   | Luminosity    |'
+       print "(a)", ' | (sequential) | (Rsun)    | (K)           |         | (Rsun)      | (km/s )     | (Lsun)        | '
+       print "(a)", ' |--------------|-----------|---------------|---------|-------------|-------------|---------------|'
        do i=1,nstars
-          print "(1x,'|',5x,i8,1x,'|',1x,f8.2,1x,'|',1x,es13.6,1x,'|',1x,f8.2,1x,'|',1x,f8.2,1x,'|',1x,es13.6,1x,'|')", &
-             i,wind(i_rad,i),wind(i_tem,i),wind(i_vbeta,i),wind(i_vinj,i),wind(i_lum,i)
+          print "(1x,'|',5x,i8,1x,'|',1x,f9.3,1x,'|',1x,es13.6,1x,'|',1x,f7.3,1x,'|',2(1x,f11.6,1x,'|'),1x,es13.6,1x,'|')", &
+             i,wind(i_rad,i),wind(i_tem,i),wind(i_vbeta,i),wind(i_radinj,i),wind(i_vinj,i),wind(i_lum,i)
        enddo
-       print "(1x,81('-'))"
+       print "(1x,98('-'))"
     else
        print "(a)", ' *******************************************'
        print "(a)", ' * No wind data read in from '//trim(filename_wind)//'  *'
        print "(a)", ' * --> setting Mdot''s and vel''s to zero.   *'
        print "(a)", ' * --> setting composition indices to one. *'
        print "(a)", ' *******************************************'
-       wind(i_vel ,:) = 0.
-       wind(i_Mdot,:) = 0.
-       wind(i_rad ,nstars) = 0.
-       wind(i_tem ,nstars) = 0.
-       wind(i_vbeta,nstars) = 0.
-       wind(i_vinj,nstars) = 0.
-       wind(i_lum ,nstars) = 0.
+       wind(i_vel   ,:) = 0.
+       wind(i_Mdot  ,:) = 0.
+       wind(i_rad   ,:) = 0.
+       wind(i_tem   ,:) = 0.
+       wind(i_vbeta ,:) = 0.
+       wind(i_vinj  ,:) = 0.
+       wind(i_radinj,:) = 0.
+       wind(i_lum   ,:) = 0.
        wind_int(i_comp,:) = 1
     endif
 
@@ -947,8 +957,6 @@ subroutine read_wind_data(datafile_wind,nstars)
     do while(ierr == 0)
        nstars = nstars + 1
        if (nstars <= maxptmass) then
-          !read(iunit,*,iostat=ierr) wind_int(i_astroID,nstars),wind(i_vel,nstars),wind(i_Mdot,nstars)
-          !   wind_char(i_comp_char,nstars),wind_char(i_fulltype_char,nstars)
           read(iunit,*,iostat=ierr) wind_int(i_astroID,nstars),wind(i_vel,nstars),wind(i_Mdot,nstars), &
              wind(i_rad,nstars),wind(i_tem,nstars),wind(i_vbeta,nstars),wind(i_vinj,nstars),wind(i_radinj,nstars), &
              wind(i_lum,nstars)!,wind_char(i_comp_char,nstars),wind_char(i_fulltype_char,nstars)
@@ -956,13 +964,14 @@ subroutine read_wind_data(datafile_wind,nstars)
              !entry for this wind was not read in properly, signaling the end of reading in wind entries
              !reset entries in the wind arrays that were unsuccessfully read in
              wind_int(i_astroID,nstars) = 0
-             wind(i_vel,nstars) = 0.
-             wind(i_Mdot,nstars) = 0.
-             wind(i_rad ,nstars) = 0.
-             wind(i_tem ,nstars) = 0.
-             wind(i_vbeta,nstars) = 0.
-             wind(i_vinj,nstars) = 0.
-             wind(i_lum ,nstars) = 0.
+             wind(i_vel   ,nstars) = 0.
+             wind(i_Mdot  ,nstars) = 0.
+             wind(i_rad   ,nstars) = 0.
+             wind(i_tem   ,nstars) = 0.
+             wind(i_vbeta ,nstars) = 0.
+             wind(i_vinj  ,nstars) = 0.
+             wind(i_radinj,nstars) = 0.
+             wind(i_lum   ,nstars) = 0.
              !decrement nstars so it corresponds to the number of stars with successfully read-in winds
              nstars = nstars - 1
           endif
@@ -974,7 +983,6 @@ subroutine read_wind_data(datafile_wind,nstars)
 
     if (nstars > 0) then
        print "(1x,54('-'))"
-       !print "(a)", ' | ID           | ID       | Wind Vel | Mdot          |'
        print "(a)", ' | ID           | ID       | V_termin | Mdot          |'
        print "(a)", ' | (sequential) | (astro)  | (km/s)   | (Msun/yr)     |'
        print "(a)", ' |--------------|----------|----------|---------------|'
@@ -983,27 +991,28 @@ subroutine read_wind_data(datafile_wind,nstars)
              i,wind_int(i_astroID,i),wind(i_vel,i),wind(i_Mdot,i)
        enddo
        print "(1x,54('-'))"
-       print "(1x,81('-'))"
-       print "(a)", ' | ID           | Radius   | Temperature   | beta     | V_intial | Luminosity    |'
-       print "(a)", ' | (sequential) | (Rsun)   | (K)           |          | (km/s)   | (Lsun)        | '
-       print "(a)", ' |--------------|----------|---------------|----------|----------|---------------|'
+       print "(1x,98('-'))"
+       print "(a)", ' | ID           | Radius    | Temperature   | beta    | R_inject    | V_initial   | Luminosity    |'
+       print "(a)", ' | (sequential) | (Rsun)    | (K)           |         | (Rsun)      | (km/s )     | (Lsun)        |'
+       print "(a)", ' |--------------|-----------|---------------|---------|-------------|-------------|---------------|'
        do i=1,nstars
-          print "(1x,'|',5x,i8,1x,'|',1x,f8.2,1x,'|',1x,es13.6,1x,'|',1x,f8.2,1x,'|',1x,f8.2,1x,'|',1x,es13.6,1x,'|')", &
-             i,wind(i_rad,i),wind(i_tem,i),wind(i_vbeta,i),wind(i_vinj,i),wind(i_lum,i)
+          print "(1x,'|',5x,i8,1x,'|',1x,f9.3,1x,'|',1x,es13.6,1x,'|',1x,f7.3,1x,'|',2(1x,f11.6,1x,'|'),1x,es13.6,1x,'|')", &
+             i,wind(i_rad,i),wind(i_tem,i),wind(i_vbeta,i),wind(i_radinj,i),wind(i_vinj,i),wind(i_lum,i)
        enddo
-       print "(1x,81('-'))"
+       print "(1x,98('-'))"
     else
        print "(a)", ' ******************************************'
        print "(a)", ' * No wind data read in from '//trim(filename_wind)//' *'
        print "(a)", ' * --> setting Mdot''s and vel''s to zero.  *'
        print "(a)", ' ******************************************'
-       wind(i_vel ,:) = 0.
-       wind(i_Mdot,:) = 0.
-       wind(i_rad ,nstars) = 0.
-       wind(i_tem ,nstars) = 0.
-       wind(i_vbeta,nstars) = 0.
-       wind(i_vinj,nstars) = 0.
-       wind(i_lum ,nstars) = 0.
+       wind(i_vel   ,:) = 0.
+       wind(i_Mdot  ,:) = 0.
+       wind(i_rad   ,:) = 0.
+       wind(i_tem   ,:) = 0.
+       wind(i_vbeta ,:) = 0.
+       wind(i_vinj  ,:) = 0.
+       wind(i_radinj,:) = 0.
+       wind(i_lum   ,:) = 0.
     endif
 
  endif
