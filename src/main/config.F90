@@ -43,7 +43,7 @@ module dim
 #else
  integer, parameter :: maxptmass = 1000
 #endif
- integer, parameter :: nsinkproperties = 26
+ integer, parameter :: nsinkproperties = 29
 
  ! storage of thermal energy or not
 #ifdef ISOTHERMAL
@@ -377,8 +377,8 @@ module dim
 contains
 
 subroutine update_max_sizes(n,ntot)
- integer,                   intent(in) :: n
- integer(kind=8), optional, intent(in) :: ntot
+ integer,         intent(in) :: n
+ integer(kind=8), intent(in), optional :: ntot
 
  maxp = n
  if (use_apr) then

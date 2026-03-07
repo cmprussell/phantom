@@ -1033,7 +1033,7 @@ end subroutine read_use_var_comp_data
 
 subroutine set_default_options_inject(flag)
 
- integer, optional, intent(in) :: flag
+ integer, intent(in), optional :: flag
 end subroutine set_default_options_inject
 
 end module inject

@@ -52,6 +52,7 @@ module set_dust_options
  integer, public :: igraindenssmall
  integer, public :: isetdust
  integer, public :: ndust_max_mrn
+ integer, public :: idust_to_gas_norm
  real,    public :: smincgs
  real,    public :: smaxcgs
  real,    public :: s1cgs
@@ -72,7 +73,6 @@ module set_dust_options
  real,    public :: sindexlarge
  real,    public :: dustbinfrac(maxdusttypes)
  real,    public :: Kdrag
- logical, public :: ilimitdustfluxinp
  logical, public :: iusesamepowerlaw
 
  public :: set_dust_default_options
@@ -111,6 +111,7 @@ subroutine set_dust_default_options()
  igrainsizesmall = 0
  igraindenssmall = 0
  isetdust = 0
+ idust_to_gas_norm = 0
  smincgs      = 1.e-4
  sminsmallcgs = 1.e-4
  sminlargecgs = 1.e-4
@@ -132,7 +133,6 @@ subroutine set_dust_default_options()
  dustbinfrac(:) = 0.
  dustbinfrac(1) = 1.
  Kdrag = 1000.
- ilimitdustfluxinp = .false.
  iusesamepowerlaw  = .false.
 
 end subroutine set_dust_default_options
@@ -145,11 +145,11 @@ end subroutine set_dust_default_options
 subroutine set_dust_grain_distribution(ndusttypes,dustbinfrac,grainsize,graindens,udist,umass)
  use set_dust, only:set_dustbinfrac
  use dust,     only:grainsizecgs,graindenscgs
- integer, intent(out) :: ndusttypes
- real,    intent(out) :: dustbinfrac(maxdusttypes)
- real,    intent(out) :: grainsize(maxdusttypes)
- real,    intent(out) :: graindens(maxdusttypes)
- real(kind=8), intent(in) :: udist,umass
+ integer,      intent(out) :: ndusttypes
+ real,         intent(out) :: dustbinfrac(maxdusttypes)
+ real,         intent(out) :: grainsize(maxdusttypes)
+ real,         intent(out) :: graindens(maxdusttypes)
+ real(kind=8), intent(in)  :: udist,umass
 
  grainsize = 0.
  graindens = 0.
@@ -211,7 +211,6 @@ subroutine set_dust_interactive(method)
        if (dust_method == 1) ndustlargeinp = 0
     endif
     if (dust_method /= 1) call prompt('How many large grain sizes do you want?',ndustlargeinp,1,maxdustlarge)
-    call prompt('Do you want to limit the dust flux?',ilimitdustfluxinp)
  elseif ((dust_method==2) .and. .not.use_dustgrowth) then
     call prompt('How many large grain sizes do you want?',ndustlargeinp,1,maxdustlarge)
     ndustsmallinp = 0
@@ -262,6 +261,14 @@ subroutine set_dust_interactive(method)
             ' 1=custom'//new_line('A')// &
             ' 2=equal to the gas, but with unique cutoffs'//new_line('A'),isetdust,0,2)
 
+ if (isetdust /= 0) then
+    call prompt('How do you want to handle dust cutoffs?'//new_line('A')// &
+               ' 0=renormalise dust to keep global dust_to_gas'//new_line('A')// &
+               ' 1=do not renormalise (global dust_to_gas can decrease)',idust_to_gas_norm,0,1)
+ else
+    idust_to_gas_norm = 0
+ endif
+
 end subroutine set_dust_interactive
 
 !--------------------------------------------------------------------------
@@ -296,8 +303,8 @@ subroutine read_dust_setup_options(db,nerr,method)
  use options,       only:use_porosity
 
  type(inopts), allocatable, intent(inout) :: db(:)
- integer, intent(inout) :: nerr
- integer, intent(in), optional :: method
+ integer,                   intent(inout) :: nerr
+ integer,                   intent(in), optional :: method
  character(len=120) :: varlabel(maxdusttypes)
  integer :: i,ierr
 
@@ -307,10 +314,7 @@ subroutine read_dust_setup_options(db,nerr,method)
     call read_inopt(dust_method,'dust_method',db,min=1,max=3,errcount=nerr)
  endif
  call read_inopt(dust_to_gas,'dust_to_gas',db,min=0.,errcount=nerr)
- if (dust_method == 1 .or. dust_method==3) then
-    call read_inopt(ilimitdustfluxinp,'ilimitdustfluxinp',db,err=ierr,errcount=nerr)
- endif
-
+ call read_inopt(idust_to_gas_norm,'idust_to_gas_norm',db,min=0,max=1,err=ierr)
  !--options for setting up the dust grid
  select case(dust_method)
  case(1)
@@ -599,17 +603,14 @@ subroutine write_dust_setup_options(iunit,method)
     call write_inopt(dust_method,'dust_method','dust method (1=one fluid,2=two fluid,3=Hybrid)',iunit)
  endif
  call write_inopt(dust_to_gas,'dust_to_gas','dust to gas ratio',iunit)
+ call write_inopt(idust_to_gas_norm,'idust_to_gas_norm', &
+    'renormalise dust to keep global dust_to_gas (0=yes,1=no)',iunit)
 
  if (dust_method == 3) then
     call write_inopt(ndustsmallinp,'ndustsmallinp','number of small grain sizes',iunit)
     call write_inopt(ndustlargeinp,'ndustlargeinp','number of large grain sizes',iunit)
  else
     call write_inopt(ndusttypesinp,'ndusttypesinp','number of grain sizes',iunit)
- endif
-
- if (dust_method==1 .or. dust_method==3) then
-    call write_inopt(ilimitdustfluxinp,'ilimitdustfluxinp',&
-       'limit dust diffusion using Ballabio et al. (2018)',iunit)
  endif
 
  if (ndusttypesinp > 1) then
@@ -844,8 +845,8 @@ subroutine check_dust_method(dust_method,ichange_method)
  use options, only:use_dustfrac
  use part,    only:npart,massoftype,xyzh,vxyzu,rhoh,igas,dustfrac,&
                    grainsize,graindens,ndusttypes
- integer,          intent(inout) :: dust_method
- logical,          intent(out)   :: ichange_method
+ integer, intent(inout) :: dust_method
+ logical, intent(out)   :: ichange_method
  integer :: i,l,iregime,ierr,icheckdust(maxdusttypes)
  real    :: r,rhogasi,rhodusti,rhoi,dustfracisum,spsoundi
  real    :: dustfraci(maxdusttypes),tsi(maxdusttypes)

@@ -330,3 +330,55 @@ Removing .slackmap
 CONFLICT (content): Merge conflict in .gitignore
 
 
+
+
+
+Results of pull and merge from Daniel's mater branch on Mar 6, 2026
+
+
+Results of pull and merge from Daniel's mater branch on Feb 25, 2026uto-merging src/utils/moddump_addsink.f90
+CONFLICT (content): Merge conflict in src/utils/moddump_addsink.f90
+Auto-merging src/utils/libphantom.f90
+Auto-merging src/tests/utils_testsuite.f90
+Auto-merging src/tests/test_gravity.f90
+Auto-merging src/setup/setup_galcen_stars.f90
+CONFLICT (content): Merge conflict in src/setup/setup_galcen_stars.f90
+Auto-merging src/setup/set_localdisk.f90
+CONFLICT (content): Merge conflict in src/setup/set_localdisk.f90
+Auto-merging src/main/utils_dumpfiles.f90
+Auto-merging src/main/utils_allocate.f90
+Auto-merging src/main/units.f90
+Auto-merging src/main/substepping.F90
+Auto-merging src/main/readwrite_dumps_common.f90
+Auto-merging src/main/readwrite_dumps.f90
+CONFLICT (content): Merge conflict in src/main/readwrite_dumps.f90
+Auto-merging src/main/ptmass.F90
+CONFLICT (content): Merge conflict in src/main/ptmass.F90
+Auto-merging src/main/part.F90
+CONFLICT (content): Merge conflict in src/main/part.F90
+Auto-merging src/main/kdtree.F90
+Auto-merging src/main/inject_galcen_winds.f90
+Auto-merging src/main/inject_disk.f90
+CONFLICT (content): Merge conflict in src/main/inject_disk.f90
+Auto-merging src/main/initial.F90
+CONFLICT (content): Merge conflict in src/main/initial.F90
+Auto-merging src/main/externalforces.f90
+CONFLICT (content): Merge conflict in src/main/externalforces.f90
+Auto-merging src/main/evolve.f90
+Auto-merging src/main/eos.f90
+Auto-merging src/main/cooling_solver.f90
+CONFLICT (content): Merge conflict in src/main/cooling_solver.f90
+Auto-merging src/main/cooling.f90
+CONFLICT (content): Merge conflict in src/main/cooling.f90
+Auto-merging src/main/cons2prim.f90
+Auto-merging src/main/config.F90
+Removing scripts/remove-tabs.pl
+Auto-merging build/Makefile_setups
+Auto-merging build/Makefile
+Auto-merging AUTHORS
+CONFLICT (content): Merge conflict in AUTHORS
+Auto-merging .mailmap
+Automatic merge failed; fix conflicts and then commit the result.
+[(phys:crussell)@login00.caviness phantom]$ 
+
+

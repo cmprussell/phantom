@@ -109,18 +109,9 @@ subroutine setpart(id,npart,npartoftype,xyzh,massoftype,vxyzu,polyk,gamma,hfact,
  !
  ! read setup parameters from the .setup file
  !
-!<<<<<<< HEAD
-! setupfile = trim(fileprefix)//'.setup'
-! call read_setupfile(setupfile,ierr)
-! if (ierr /= 0 .and. id==master) then
-!    call interactive_setup()           ! read setup options from user
-!    call write_setupfile(setupfile)    ! write .setup file with defaults
-! endif
-!=======
  call get_options(trim(fileprefix)//'.setup',id==master,ierr,&
                   read_setupfile,write_setupfile)
  if (ierr /= 0) stop 'rerun phantomsetup after editing .setup file'
-!>>>>>>> upstream/master
 !
 ! space available for injected gas particles
 !
@@ -236,10 +227,10 @@ end subroutine setpart
 !----------------------------------------------------------------
 subroutine read_ptmass_data(filename,xyzmh_ptmass,vxyz_ptmass,n,ierr)
  use io, only:error
- character(len=*), intent(in) :: filename
- real,    intent(out)   :: xyzmh_ptmass(:,:), vxyz_ptmass(:,:)
- integer, intent(inout) :: n
- integer, intent(out)   :: ierr
+ character(len=*), intent(in)    :: filename
+ real,             intent(out)   :: xyzmh_ptmass(:,:), vxyz_ptmass(:,:)
+ integer,          intent(inout) :: n
+ integer,          intent(out)   :: ierr
  integer :: iunit,n_input,i
  logical :: fulloutput=.false. !true shows all 14 decimal points for double precision
  !                             !false shows a more reasonable 8 decimal points
@@ -344,8 +335,8 @@ subroutine read_setupfile(filename,ierr)
  use dim,          only:maxvxyzu
  use eos,          only:use_var_comp
  character(len=*), intent(in)  :: filename
- integer,          parameter   :: lu = 21
  integer,          intent(out) :: ierr
+ integer,          parameter   :: lu = 21
  integer                       :: nerr
  type(inopts), allocatable     :: db(:)
 

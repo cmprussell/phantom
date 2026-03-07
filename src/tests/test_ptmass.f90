@@ -36,10 +36,10 @@ subroutine test_ptmass(ntests,npass,string)
  use part,    only:nptmass,gr
  use options, only:iexternalforce,alpha
  use ptmass,  only:use_fourthorder,set_integration_precision
- character(len=*), intent(in) :: string
+ character(len=*), intent(in)    :: string
+ integer,          intent(inout) :: ntests,npass
  character(len=20) :: filename
  character(len=40) :: stringf
- integer, intent(inout) :: ntests,npass
  integer :: itmp,ierr,itest,istart,imax
  logical :: do_test_binary,do_test_accretion,do_test_createsink,do_test_softening
  logical :: do_test_chinese_coin,do_test_merger,do_test_potential,do_test_HII,do_test_SDAR
@@ -175,6 +175,11 @@ subroutine test_ptmass(ntests,npass,string)
  close(itmp,status='delete',iostat=ierr)
  open(unit=itmp,file='Sink00.sink',status='old',iostat=ierr)
  close(itmp,status='delete',iostat=ierr)
+
+ ! reset integration precision to default
+ use_fourthorder = .true.
+ call set_integration_precision
+ alpha = 0.
 
  if (id==master) write(*,"(/,a)") '<-- PTMASS TEST COMPLETE'
 
@@ -552,7 +557,7 @@ subroutine test_sink_binary_gr(ntests,npass,string)
  use extern_gr,      only:get_grforce_all
  use energies,       only:angtot,etot,totmom,compute_energies,epot
  use step_lf_global, only:step
- integer, intent(inout)          :: ntests,npass
+ integer,          intent(inout) :: ntests,npass
  character(len=*), intent(in)    :: string
  real    :: fxyz_sinksink(4,2),dsdt_sinksink(3,2) ! we only use 2 sink particles in the tests here
  real    :: m1,m2,a,ecc,hacc1,hacc2,t,dt,tol_en
@@ -817,7 +822,7 @@ subroutine test_chinese_coin(ntests,npass,string)
  use options,        only:iexternalforce
  use externalforces, only:iext_binary,update_externalforce
  use physcon,        only:pi
- use step_lf_global, only:step
+ use step_lf_global, only:step,init_step
  use ptmass,         only:use_fourthorder,get_accel_sink_sink
  integer,          intent(inout) :: ntests,npass
  character(len=*), intent(in)    :: string
@@ -870,12 +875,12 @@ subroutine test_chinese_coin(ntests,npass,string)
     tol_per_orbit_y = 1.1e-3
     tol_per_orbit_v = 3.35e-4
  endif
+ call init_step(npart,t,dtorb)
  do while (t < tmax)
     ! do a whole orbit but with the substepping handling how many steps per orbit
     call step(npart,npart,t,dtorb,dtext,dtnew)
     t = t + dtorb
     norbit = norbit + 1
-
     write(tag,"(a,i1,a)") '(orbit ',norbit,')'
     call checkval(xyzmh_ptmass(2,1),y0,norbit*tol_per_orbit_y,nfailed(1),'y pos of sink '//trim(tag))
     call checkval(vxyz_ptmass(1,1),v0,norbit*tol_per_orbit_v,nfailed(2),'x vel of sink '//trim(tag))
@@ -912,6 +917,7 @@ subroutine test_accretion(ntests,npass,itest)
  integer, intent(inout) :: ntests,npass
  integer, intent(in)    :: itest
  integer :: i,j,nfailed(11),np_disc,nneigh
+ real :: xyz(3)
  integer(kind=8) :: naccreted
  integer(kind=1) :: ibin_wakei
  character(len=20) :: string
@@ -995,7 +1001,7 @@ subroutine test_accretion(ntests,npass,itest)
  naccreted  = 0
  dptmass(:,1:nptmass) = 0.
  !$omp parallel default(shared)&
- !$omp private(i,accreted,nneigh)&
+ !$omp private(i,accreted,nneigh,xyz)&
  !$omp firstprivate(dptmass_thread,rsearch)&
  !$omp reduction(+:naccreted)
  dptmass_thread(:,1:nptmass) = 0.
@@ -1004,7 +1010,8 @@ subroutine test_accretion(ntests,npass,itest)
     if (.not.isdead_or_accreted(xyzh(4,i))) then
        if (itest==3) then
           rsearch = max(rsearch,xyzh(4,i))
-          call get_ptmass_neigh(ptmasskdtree,(/xyzh(1,i),xyzh(2,i),xyzh(3,i)/),rsearch,listneigh,nneigh)
+          xyz = [xyzh(1,i),xyzh(2,i),xyzh(3,i)]
+          call get_ptmass_neigh(ptmasskdtree,xyz,rsearch,listneigh,nneigh)
        else
           listneigh(1:nptmass) = (/ (j, j=1,nptmass) /)
           nneigh = nptmass
@@ -1752,7 +1759,7 @@ subroutine test_SDAR(ntests,npass)
  use subgroup,       only:subgroup_search,r_neigh,update_kappa
  use utils_subgroup, only:get_subgroup,get_binary
  use centreofmass,   only:reset_centreofmass
- integer,          intent(inout) :: ntests,npass
+ integer, intent(inout) :: ntests,npass
  integer :: i,ierr,nfailed(4),nerr,nwarn
  integer :: merge_ij(3),merge_n
  integer :: gsize,sid,eid,prim,sec
@@ -1994,8 +2001,8 @@ subroutine test_orbit_reconstructor_grid(ntests,npass,string)
  use dim,         only:use_sinktree,gr
  use io,          only:id,master
  use table_utils, only:linspace
- integer, intent(inout) :: ntests,npass
- character(len=*), intent(in) :: string
+ integer,          intent(inout) :: ntests,npass
+ character(len=*), intent(in)    :: string
  integer, parameter :: ngrid = 5
  real :: dvxgrid(ngrid),dvygrid(ngrid),dxobs(3),dvobs(3)
  integer :: i,j

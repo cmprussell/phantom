@@ -213,7 +213,7 @@ endif
 
 
 ifeq ($(SETUP), qpe)
-#   (rad.) -hydrodnymic QPE simulation
+#   (rad.) hydrodynamic QPE simulation
     RADIATION=no
     SETUPFILE= setup_empty.f90
     KNOWN_SETUP=yes
@@ -334,7 +334,7 @@ ifeq ($(SETUP), prtest)
 endif
 
 ifeq ($(SETUP), binarydiscMFlow)
-#   binarydiscMFlow setup
+#   binary disc with mass flow
     FPPFLAGS= -DMFLOW #-DVMFLOW -DBINPOS
     SETUPFILE= setup_disc.f90
     ANALYSIS= analysis_disc_MFlow.f90
@@ -435,7 +435,7 @@ endif
 #-----------------------------------------------
 
 ifeq ($(SETUP), quebec)
-#   Terry Tricco
+#   test setup for binary interaction
     SETUPFILE = setup_quebec.f90
     GRAVITY = yes
     KNOWN_SETUP = yes
@@ -607,7 +607,7 @@ ifeq ($(SETUP), dustysedov)
 endif
 
 ifeq ($(SETUP), dustywave)
-#   dust in a box
+#   dusty sound wave test
     PERIODIC=yes
     SETUPFILE= setup_wave.f90
     MODFILE= moddump_dustadd.f90
@@ -908,7 +908,7 @@ ifeq ($(SETUP), windtunnel)
 endif
 
 ifeq ($(SETUP), masstransfer)
-#   Wind tunnel setup
+#   mass transfer in binary system
     SETUPFILE= setup_masstransfer.f90
     SRCINJECT= readwrite_mesa.f90 inject_masstransfer.f90
     KNOWN_SETUP=yes
@@ -1008,6 +1008,7 @@ ifeq ($(SETUP), dustyisosgdisc)
 endif
 
 ifeq ($(SETUP), streamerdisc)
+#   disc with infalling streamer (Pineda et al.)
     DISC_VISCOSITY=yes
     SETUPFILE= setup_disc.f90
     ANALYSIS= analysis_disc.f90
@@ -1117,7 +1118,7 @@ ifeq ($(SETUP), testapr)
 endif
 
 ifeq ($(SETUP), testcoolra)
-#   star cluster formation
+#   unit test for cooling radiation
     SETUPFILE= setup_sphere.f90
     ISOTHERMAL=no
     GRAVITY=yes
@@ -1219,6 +1220,7 @@ ifeq ($(SETUP), radiativebox)
 endif
 
 ifeq ($(SETUP), amuse)
+#   setup for AMUSE interface
     # H2CHEM=yes
     ISOTHERMAL=no
     GRAVITY=yes

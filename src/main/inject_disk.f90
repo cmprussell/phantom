@@ -10,7 +10,7 @@ module inject
 !
 ! :References: Jankovič, T., et al., 2026: https://arxiv.org/abs/2602.02656
 !
-! :Owner: tajjankovic
+! :Owner: Daniel Price
 !
 ! :Runtime parameters: None
 !
@@ -150,7 +150,7 @@ end subroutine update_injected_par
 !+
 !-----------------------------------------------------------------------
 subroutine set_default_options_inject(flag)
- integer, optional, intent(in) :: flag
+ integer, intent(in), optional :: flag
 
 end subroutine set_default_options_inject
 

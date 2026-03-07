@@ -55,9 +55,9 @@ module allocutils
 contains
 
 subroutine allocate_array_real8_1d(name, x, n1)
- character(*),                intent(in)     :: name
- real(kind=8), allocatable,   intent(inout)  :: x(:)
- integer,                     intent(in)     :: n1
+ character(*),              intent(in)    :: name
+ real(kind=8), allocatable, intent(inout) :: x(:)
+ integer,                   intent(in)    :: n1
  integer                                     :: allocstat
 
  allocate(x(n1), stat = allocstat)
@@ -67,9 +67,9 @@ subroutine allocate_array_real8_1d(name, x, n1)
 end subroutine allocate_array_real8_1d
 
 subroutine allocate_array_real8_2d(name, x, n1, n2)
- character(len=*),            intent(in)     :: name
- real(kind=8), allocatable,   intent(inout)  :: x(:,:)
- integer,                     intent(in)     :: n1, n2
+ character(len=*),          intent(in)    :: name
+ real(kind=8), allocatable, intent(inout) :: x(:,:)
+ integer,                   intent(in)    :: n1, n2
  integer                                     :: allocstat
 
  allocate(x(n1, n2), stat = allocstat)
@@ -79,9 +79,9 @@ subroutine allocate_array_real8_2d(name, x, n1, n2)
 end subroutine allocate_array_real8_2d
 
 subroutine allocate_array_real8_3d(name, x, n1, n2, n3)
- character(len=*),            intent(in)     :: name
- real(kind=8), allocatable,   intent(inout)  :: x(:, :, :)
- integer,                     intent(in)     :: n1, n2, n3
+ character(len=*),          intent(in)    :: name
+ real(kind=8), allocatable, intent(inout) :: x(:, :, :)
+ integer,                   intent(in)    :: n1, n2, n3
  integer                                     :: allocstat
 
  allocate(x(n1, n2, n3), stat = allocstat)
@@ -91,9 +91,9 @@ subroutine allocate_array_real8_3d(name, x, n1, n2, n3)
 end subroutine allocate_array_real8_3d
 
 subroutine allocate_array_real8_4d(name, x, n1, n2, n3, n4)
- character(len=*),            intent(in)     :: name
- real(kind=8), allocatable,   intent(inout)  :: x(:,:,:,:)
- integer,                     intent(in)     :: n1, n2, n3, n4
+ character(len=*),          intent(in)    :: name
+ real(kind=8), allocatable, intent(inout) :: x(:,:,:,:)
+ integer,                   intent(in)    :: n1, n2, n3, n4
  integer                                     :: allocstat
 
  allocate(x(n1, n2, n3, n4), stat = allocstat)
@@ -103,9 +103,9 @@ subroutine allocate_array_real8_4d(name, x, n1, n2, n3, n4)
 end subroutine allocate_array_real8_4d
 
 subroutine allocate_array_real4_1d(name, x, n1)
- character(len=*),            intent(in)     :: name
- real(kind=4), allocatable,   intent(inout)  :: x(:)
- integer,                     intent(in)     :: n1
+ character(len=*),          intent(in)    :: name
+ real(kind=4), allocatable, intent(inout) :: x(:)
+ integer,                   intent(in)    :: n1
  integer                                     :: allocstat
 
  allocate(x(n1), stat = allocstat)
@@ -115,9 +115,9 @@ subroutine allocate_array_real4_1d(name, x, n1)
 end subroutine allocate_array_real4_1d
 
 subroutine allocate_array_real4_2d(name, x, n1, n2)
- character(len=*),            intent(in)     :: name
- real(kind=4), allocatable,   intent(inout)  :: x(:,:)
- integer,                     intent(in)     :: n1, n2
+ character(len=*),          intent(in)    :: name
+ real(kind=4), allocatable, intent(inout) :: x(:,:)
+ integer,                   intent(in)    :: n1, n2
  integer                                     :: allocstat
 
  allocate(x(n1, n2), stat = allocstat)
@@ -127,9 +127,9 @@ subroutine allocate_array_real4_2d(name, x, n1, n2)
 end subroutine allocate_array_real4_2d
 
 subroutine allocate_array_real4_3d(name, x, n1, n2, n3)
- character(len=*),            intent(in)     :: name
- real(kind=4), allocatable,   intent(inout)  :: x(:, :, :)
- integer,                     intent(in)     :: n1, n2, n3
+ character(len=*),          intent(in)    :: name
+ real(kind=4), allocatable, intent(inout) :: x(:, :, :)
+ integer,                   intent(in)    :: n1, n2, n3
  integer                                     :: allocstat
 
  allocate(x(n1, n2, n3), stat = allocstat)
@@ -139,9 +139,9 @@ subroutine allocate_array_real4_3d(name, x, n1, n2, n3)
 end subroutine allocate_array_real4_3d
 
 subroutine allocate_array_real4_4d(name, x, n1, n2, n3, n4)
- character(len=*),            intent(in)     :: name
- real(kind=4), allocatable,   intent(inout)  :: x(:,:,:,:)
- integer,                     intent(in)     :: n1, n2, n3, n4
+ character(len=*),          intent(in)    :: name
+ real(kind=4), allocatable, intent(inout) :: x(:,:,:,:)
+ integer,                   intent(in)    :: n1, n2, n3, n4
  integer                                     :: allocstat
 
  allocate(x(n1, n2, n3, n4), stat = allocstat)
@@ -151,9 +151,9 @@ subroutine allocate_array_real4_4d(name, x, n1, n2, n3, n4)
 end subroutine allocate_array_real4_4d
 
 subroutine allocate_array_integer8_1d(name, x, n1)
- character(len=*),               intent(in)     :: name
- integer(kind=8), allocatable,   intent(inout)  :: x(:)
- integer,                        intent(in)     :: n1
+ character(len=*),             intent(in)    :: name
+ integer(kind=8), allocatable, intent(inout) :: x(:)
+ integer,                      intent(in)    :: n1
  integer                                        :: allocstat
 
  allocate(x(n1), stat = allocstat)
@@ -162,9 +162,9 @@ subroutine allocate_array_integer8_1d(name, x, n1)
 end subroutine allocate_array_integer8_1d
 
 subroutine allocate_array_integer4_1d(name, x, n1)
- character(len=*),               intent(in)     :: name
- integer(kind=4), allocatable,   intent(inout)  :: x(:)
- integer,                        intent(in)     :: n1
+ character(len=*),             intent(in)    :: name
+ integer(kind=4), allocatable, intent(inout) :: x(:)
+ integer,                      intent(in)    :: n1
  integer                                        :: allocstat
 
  allocate(x(n1), stat = allocstat)
@@ -174,9 +174,9 @@ subroutine allocate_array_integer4_1d(name, x, n1)
 end subroutine allocate_array_integer4_1d
 
 subroutine allocate_array_integer4_1d_long(name, x, n1)
- character(len=*),               intent(in)     :: name
- integer(kind=4), allocatable,   intent(inout)  :: x(:)
- integer(kind=8),                intent(in)     :: n1
+ character(len=*),             intent(in)    :: name
+ integer(kind=4), allocatable, intent(inout) :: x(:)
+ integer(kind=8),              intent(in)    :: n1
  integer                                        :: allocstat
 
  allocate(x(n1), stat = allocstat)
@@ -186,9 +186,9 @@ subroutine allocate_array_integer4_1d_long(name, x, n1)
 end subroutine allocate_array_integer4_1d_long
 
 subroutine allocate_array_integer4_2d(name, x, n1, n2)
- character(len=*),               intent(in)     :: name
- integer(kind=4), allocatable,   intent(inout)  :: x(:,:)
- integer,                        intent(in)     :: n1, n2
+ character(len=*),             intent(in)    :: name
+ integer(kind=4), allocatable, intent(inout) :: x(:,:)
+ integer,                      intent(in)    :: n1, n2
  integer                                        :: allocstat
 
  allocate(x(n1, n2), stat = allocstat)
@@ -198,9 +198,9 @@ subroutine allocate_array_integer4_2d(name, x, n1, n2)
 end subroutine allocate_array_integer4_2d
 
 subroutine allocate_array_integer4_3d(name, x, n1, n2, n3)
- character(len=*),               intent(in)     :: name
- integer(kind=4), allocatable,   intent(inout)  :: x(:, :, :)
- integer,                        intent(in)     :: n1, n2, n3
+ character(len=*),             intent(in)    :: name
+ integer(kind=4), allocatable, intent(inout) :: x(:, :, :)
+ integer,                      intent(in)    :: n1, n2, n3
  integer                                        :: allocstat
 
  allocate(x(n1, n2, n3), stat = allocstat)
@@ -210,9 +210,9 @@ subroutine allocate_array_integer4_3d(name, x, n1, n2, n3)
 end subroutine allocate_array_integer4_3d
 
 subroutine allocate_array_integer1_1d(name, x, n1)
- character(len=*),               intent(in)     :: name
- integer(kind=1), allocatable,   intent(inout)  :: x(:)
- integer,                        intent(in)     :: n1
+ character(len=*),             intent(in)    :: name
+ integer(kind=1), allocatable, intent(inout) :: x(:)
+ integer,                      intent(in)    :: n1
  integer                                        :: allocstat
 
  allocate(x(n1), stat = allocstat)
@@ -222,9 +222,9 @@ subroutine allocate_array_integer1_1d(name, x, n1)
 end subroutine allocate_array_integer1_1d
 
 subroutine allocate_array_integer1_2d(name, x, n1, n2)
- character(len=*),               intent(in)     :: name
- integer(kind=1), allocatable,   intent(inout)  :: x(:,:)
- integer,                        intent(in)     :: n1, n2
+ character(len=*),             intent(in)    :: name
+ integer(kind=1), allocatable, intent(inout) :: x(:,:)
+ integer,                      intent(in)    :: n1, n2
  integer                                        :: allocstat
 
  allocate(x(n1, n2), stat = allocstat)
@@ -234,9 +234,9 @@ subroutine allocate_array_integer1_2d(name, x, n1, n2)
 end subroutine allocate_array_integer1_2d
 
 subroutine allocate_array_integer1_3d(name, x, n1, n2, n3)
- character(len=*),               intent(in)     :: name
- integer(kind=1), allocatable,   intent(inout)  :: x(:, :, :)
- integer,                        intent(in)     :: n1, n2, n3
+ character(len=*),             intent(in)    :: name
+ integer(kind=1), allocatable, intent(inout) :: x(:, :, :)
+ integer,                      intent(in)    :: n1, n2, n3
  integer                                        :: allocstat
 
  allocate(x(n1, n2, n3), stat = allocstat)
@@ -246,9 +246,9 @@ subroutine allocate_array_integer1_3d(name, x, n1, n2, n3)
 end subroutine allocate_array_integer1_3d
 
 subroutine allocate_array_kdnode_1d(name, x, n1)
- character(len=*),               intent(in)     :: name
- type(kdnode), allocatable,      intent(inout)  :: x(:)
- integer,                        intent(in)     :: n1
+ character(len=*),          intent(in)    :: name
+ type(kdnode), allocatable, intent(inout) :: x(:)
+ integer,                   intent(in)    :: n1
  integer                                        :: allocstat
 
  allocate(x(n1), stat = allocstat)
@@ -258,9 +258,9 @@ subroutine allocate_array_kdnode_1d(name, x, n1)
 end subroutine allocate_array_kdnode_1d
 
 subroutine allocate_array_ptmassnode_1d(name, x, n1)
- character(len=*),               intent(in)     :: name
- type(ptmassnode), allocatable,  intent(inout)  :: x(:)
- integer,                        intent(in)     :: n1
+ character(len=*),              intent(in)    :: name
+ type(ptmassnode), allocatable, intent(inout) :: x(:)
+ integer,                       intent(in)    :: n1
  integer                                        :: allocstat
 
  allocate(x(n1), stat = allocstat)
@@ -270,9 +270,9 @@ subroutine allocate_array_ptmassnode_1d(name, x, n1)
 end subroutine allocate_array_ptmassnode_1d
 
 subroutine allocate_array_kdnode_1d_long(name, x, n1)
- character(len=*),               intent(in)     :: name
- type(kdnode), allocatable,      intent(inout)  :: x(:)
- integer(kind=8),                intent(in)     :: n1
+ character(len=*),          intent(in)    :: name
+ type(kdnode), allocatable, intent(inout) :: x(:)
+ integer(kind=8),           intent(in)    :: n1
  integer                                        :: allocstat
 
  allocate(x(n1), stat = allocstat)
@@ -282,9 +282,9 @@ subroutine allocate_array_kdnode_1d_long(name, x, n1)
 end subroutine allocate_array_kdnode_1d_long
 
 subroutine allocate_array_logical(name, x, n1)
- character(len=*),          intent(in)     :: name
- logical, allocatable,      intent(inout)  :: x(:)
- integer,                   intent(in)     :: n1
+ character(len=*),     intent(in)    :: name
+ logical, allocatable, intent(inout) :: x(:)
+ integer,              intent(in)    :: n1
  integer                                   :: allocstat
 
  allocate(x(n1), stat = allocstat)
@@ -312,17 +312,17 @@ subroutine allocate_array_integer4_1d_startatzero(name, x, n1, startatzero)
 end subroutine allocate_array_integer4_1d_startatzero
 
 subroutine check_allocate(name, allocstat)
- character(len=*),   intent(in) :: name
- integer,            intent(in) :: allocstat
+ character(len=*), intent(in) :: name
+ integer,          intent(in) :: allocstat
 
  if (allocstat /= 0) call fatal('memory', name // ' allocation error')
 
 end subroutine check_allocate
 
 subroutine print_allocation_stats(name, xdim, type)
- character(len=*),   intent(in) :: name
- integer(kind=8),    intent(in) :: xdim(:)
- character(len=*),   intent(in) :: type
+ character(len=*), intent(in) :: name
+ integer(kind=8),  intent(in) :: xdim(:)
+ character(len=*), intent(in) :: type
  character(len=10)              :: number
  character(len=14)              :: dimstring
  character(len=11)              :: sizestring
@@ -375,8 +375,8 @@ subroutine print_allocation_stats(name, xdim, type)
 end subroutine print_allocation_stats
 
 subroutine bytes2human(bytes, sizestring)
- real,                intent(in)  :: bytes
- character(len=11),   intent(out) :: sizestring
+ real,              intent(in)  :: bytes
+ character(len=11), intent(out) :: sizestring
 
  if (bytes > 1073741824.0) then
     write(sizestring, '(f8.3, a3)') bytes / 1073741824.0, ' GB'
