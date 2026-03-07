@@ -117,10 +117,8 @@ subroutine write_infile(infile,logfile,evfile,dumpfile,iwritein,iprint)
  if (maxvxyzu >= 4) call write_options_cooling(iwritein)
  if (compiled_with_mcfost) call write_options_mcfost(iwritein)
 
-WRITE(*,*) 'nptmass =',nptmass
  ! only write sink options if they are used, or if self-gravity is on
  if (nptmass > 0 .or. gravity) call write_options_ptmass(iwritein)
-WRITE(*,*) 'nptmass =',nptmass
 
  call write_options_externalforces(iwritein,iexternalforce)
 
