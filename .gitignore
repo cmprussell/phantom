@@ -62,3 +62,7 @@ wind_profile1D.dat
 asdf*
 AUTHORS_Save*
 Ignore/*
+backup/
+anotherbackup/
+.gitattributes
+.slackmap
