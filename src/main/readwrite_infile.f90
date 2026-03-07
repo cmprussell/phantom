@@ -238,11 +238,6 @@ subroutine read_infile(infile,logfile,evfile,dumpfile)
     if (len_trim(db(i)%tag) > 0 .and. .not.db(i)%retrieved) then
        call warn(label,'unknown variable '//trim(adjustl(db(i)%tag))// &
                  ' in input file, value = '//trim(adjustl(db(i)%val)))
-!ELSE
-!IF (len_trim(db(i)%tag) > 0) then
-!WRITE(*,*) label,': known variable '//trim(adjustl(db(i)%tag))// &
-!                 ' in input file, value = '//trim(adjustl(db(i)%val))
-!ENDIF
     endif
  enddo
 
@@ -342,9 +337,7 @@ subroutine read_options_from_db(db,nerr,logfile,dumpfile,evfile)
  if (maxvxyzu >= 4) call read_options_cooling(db,nerr)
  if (compiled_with_mcfost) call read_options_mcfost(db,nerr)
 
-WRITE(*,*) 'maxptmass =',maxptmass,', nerr =',nerr
  if (maxptmass > 0) call read_options_ptmass(db,nerr)
-WRITE(*,*) 'maxptmass =',maxptmass,', nerr =',nerr
  call read_options_externalforces(db,nerr,iexternalforce)
  call read_options_tree(db,nerr)
 

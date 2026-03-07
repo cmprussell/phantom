@@ -57,7 +57,7 @@ subroutine step_sts(npart,nactive,time,dt,dtextforce,dtnew,iprint)
  use timestep_sts,   only: sts_it_n,dtau,Nmegasts_done,bigdt, &
                            sts_initialise_activity,sts_set_active_particles,nnu
  use io,             only: fatal
- use step_lf_global, only: step
+ use step_lf_global, only:step
  integer, intent(inout) :: npart,nactive
  integer, intent(in)    :: iprint
  real,    intent(in)    :: time,dt

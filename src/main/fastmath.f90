@@ -103,7 +103,6 @@ subroutine testsqrt(ierr,output)
  call checksqrt(3.141592653589,tol,ierr,output)
  call checksqrt(6878.,tol,ierr,output)
 
- return
 end subroutine testsqrt
 
 subroutine checksqrt(x,tol,ierr,output)
@@ -122,7 +121,6 @@ subroutine checksqrt(x,tol,ierr,output)
     ierr = ierr + 1
  endif
 
- return
 end subroutine checksqrt
 
 end module fastmath

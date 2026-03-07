@@ -69,7 +69,6 @@ module cooling_solver
  !logical, parameter :: methodLong=.true. !Q-based method, native to Phantom
  logical, parameter :: methodLong=.false. !Lambda-based method, native to EIS algorithm
 
-
 contains
 !-----------------------------------------------------------------------
 !+

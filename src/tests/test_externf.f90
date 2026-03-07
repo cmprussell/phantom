@@ -47,7 +47,7 @@ subroutine test_externf(ntests,npass)
  use kernel,   only:hfact_default
 
  use part, only:nptmass,xyzmh_ptmass,ihacc,windaccel,ikappac,ikappar,ivbeta,ixantgrav
- use units, only: umass,udist,utime,unit_energ
+ use units, only:umass,udist,utime,unit_energ
  !use physcon,   only:solarm,kpc,pi,au,solarr
  use physcon,   only:au,solarr,solarl
 

@@ -24,7 +24,7 @@ module setup
 !
 ! :Dependencies: cooling, cooling_solver, datafiles, dim, eos,
 !   externalforces, infile_utils, inject, io, options, part, physcon,
-!   prompting, spherical, timestep, units
+!   prompting, setup_params, spherical, timestep, units
 !
  implicit none
  public :: setpart

@@ -23,16 +23,8 @@ module setup
 !   - use_var_comp_local : *whether or not to use various compositions*
 !
 ! :Dependencies: cooling, cooling_solver, datafiles, dim, eos,
-!   infile_utils, inject, io, options, part, physcon, prompting, setup_params,
-!   spherical, timestep, units
-!<<<<<<< HEAD
-!! :Dependencies: cooling, cooling_solver, datafiles, dim, eos,
-!!   infile_utils, inject, io, options, part, physcon, prompting, spherical,
-!!   timestep, units
-!=======
-!! :Dependencies: datafiles, dim, eos, infile_utils, io, part, physcon,
-!!   setup_params, spherical, timestep, units
-!>>>>>>> upstream/master
+!   infile_utils, inject, io, options, part, physcon, prompting,
+!   setup_params, spherical, timestep, units
 !
  implicit none
  public :: setpart

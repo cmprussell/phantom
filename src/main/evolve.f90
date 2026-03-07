@@ -72,7 +72,7 @@ subroutine evol_init(time,dtmax,rhomaxnow,dt)
 ! dtinject = dtinject_cwb
 ! write(*,*) 'CWB-specific code: dtinject set to dtinject_cwb; dtinject, dtinject_cwb =',dtinject,dtinject_cwb
 !#endif
- if(cwb) then
+ if (cwb) then
     dtinject = dtinject_cwb
     write(*,*) 'CWB-specific code: dtinject set to dtinject_cwb; dtinject, dtinject_cwb =',dtinject,dtinject_cwb
  endif

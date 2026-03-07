@@ -43,7 +43,6 @@ module readwrite_dumps
  procedure(write_smalldump_fortran), pointer :: write_smalldump => write_smalldump_fortran
  procedure(write_fulldump_fortran), pointer :: write_fulldump => write_fulldump_fortran
 
-
 contains
 
 subroutine init_readwrite_dumps()
@@ -180,7 +179,6 @@ subroutine write_gadgetdump(dumpfile,t,xyzh,particlemass,vxyzu,rho,utherm,npart)
  endif
  print*,' finished writing file -- OK'
 
- return
 end subroutine write_gadgetdump
 
 end module readwrite_dumps

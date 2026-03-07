@@ -18,8 +18,11 @@ module inject
 ! :Runtime parameters:
 !   - datafile_mhn   : *filename for wind composition (mu,habund,name)*
 !   - datafile_wind  : *filename for wind properties (id, vinf, mdot, etc.)*
+!   - dtinject_cwb   : *timestep limit based on number of particles injected per timestep*
 !   - ninjectmax_cwb : *max particles to inject per timestep per star*
+!   - num_var_comp   : *number of various compositions*
 !   - outer_boundary : *kill gas particles outside this radius*
+!   - use_var_comp   : *whether gas particles have different mean molecular weights*
 !
 ! :Dependencies: datafiles, dim, eos, infile_utils, io, options, part,
 !   partinject, physcon, random, timestep, units

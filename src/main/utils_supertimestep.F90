@@ -22,8 +22,8 @@ module timestep_sts
 !
 ! :Dependencies: dim, io, part, timestep_ind
 !
- use dim, only: maxsts
- use part, only: istsactive,ibin_sts
+ use dim, only:maxsts
+ use part, only:istsactive,ibin_sts
  implicit none
 
  !--Control Variables (Hardcode values if not using STS)
@@ -234,7 +234,7 @@ end subroutine sts_init_nu
 !------------------------------------------------------------
 subroutine sts_init_step(npart,timei,dtmax,dtau_in)
 #ifdef IND_TIMESTEPS
- use timestep_ind, only: get_dt
+ use timestep_ind, only:get_dt
  use part,         only: ibin,twas
 #endif
  integer,         intent(in)  :: npart
@@ -308,7 +308,7 @@ end subroutine sts_get_dtau_next
 !+
 !----------------------------------------------------------------
 subroutine sts_get_dtau_array(Nmegasts,dt_next,dtdiff_in,Nmega_in)
- use io, only: fatal
+ use io, only:fatal
  real,    intent(in)           :: dt_next,dtdiff_in
  integer, intent(out)          :: Nmegasts
  integer, intent(in), optional :: Nmega_in
@@ -322,7 +322,7 @@ subroutine sts_get_dtau_array(Nmegasts,dt_next,dtdiff_in,Nmega_in)
 
  ! Calculate the number of super and mega steps
  if (present(Nmega_in)) then
-    call sts_get_Ndtdiff(dt_next/float(Nmega_in),dtdiff_in,dtdiff_used,Nsts,Nmega,nu,Nreal,icase_sts)
+    call sts_get_Ndtdiff(dt_next/real(Nmega_in),dtdiff_in,dtdiff_used,Nsts,Nmega,nu,Nreal,icase_sts)
     Nmega = Nmega * Nmega_in
  else
     call sts_get_Ndtdiff(dt_next,dtdiff_in,dtdiff_used,Nsts,Nmega,nu,Nreal,icase_sts)
@@ -369,7 +369,7 @@ end subroutine sts_get_dtau_array
 !+
 !----------------------------------------------------------------
 subroutine sts_get_Ndtdiff(dt,dtdiff_in,dtdiff_out,Nsts,Nmega,nu_local,Nreal,icase)
- use io, only: fatal
+ use io, only:fatal
  real,    intent(in)    :: dt,dtdiff_in
  real,    intent(out)   :: dtdiff_out,nu_local
  integer, intent(in)    :: Nreal
@@ -391,7 +391,7 @@ subroutine sts_get_Ndtdiff(dt,dtdiff_in,dtdiff_out,Nsts,Nmega,nu_local,Nreal,ica
        Nsts = int( sqrt(dt/(dtdiffcoef(i)*dtdiff_in*Nmega)) ) + 1
        if (Nsts*Nmega >= Nreal) find_dtdiff = .false.
        if (find_dtdiff) then
-          dtdiff_out = sts_get_dtdiff(i,dt/float(Nmega),Nsts)
+          dtdiff_out = sts_get_dtdiff(i,dt/real(Nmega),Nsts)
           if (Nsts < nnu) then
              nu_local   = nu(Nsts,i)
              dtau_local = sts_get_dtau(1,Nsts,nu_local,dtdiff_out)
@@ -518,7 +518,7 @@ end subroutine sts_initialise_activity
 !+
 !----------------------------------------------------------------
 subroutine sts_set_active_particles(npart,nactive,all_active)
- use part, only: isdead_or_accreted,iamtype,isetphase,iphase,xyzh
+ use part, only:isdead_or_accreted,iamtype,isetphase,iphase,xyzh
  integer,         intent(in)    :: npart
  integer,         intent(out)   :: nactive
  logical,         intent(in)    :: all_active

@@ -42,7 +42,6 @@ logical function escape(velocity_on_orbit,central_obj_m,position_of_obj)
  real, intent(in) :: velocity_on_orbit,central_obj_m,position_of_obj
  real             :: escape_vel
 
-
  escape_vel = sqrt((2.*gg*central_obj_m)/(position_of_obj))
  if (velocity_on_orbit > escape_vel) then
     print*,'star has escaped',(velocity_on_orbit)/escape_vel,'vel bh/escape vel'
@@ -62,7 +61,7 @@ end function escape
 function hvector(pos_vec,vel_vec)
  use vectorutils,     only : cross_product3D
 
- real,intent(in) :: pos_vec(3),vel_vec(3)
+ real, intent(in) :: pos_vec(3),vel_vec(3)
  real,dimension(3) :: hvector
 
  call cross_product3D(vel_vec,pos_vec,hvector)
@@ -77,7 +76,7 @@ end function hvector
 function vcrossh(pos_vec,vel_vec)
  use vectorutils,     only : cross_product3D
 
- real,intent(in) :: vel_vec(3),pos_vec(3)
+ real, intent(in) :: vel_vec(3),pos_vec(3)
  real,dimension(3) :: h_vector,vcrossh
 
  h_vector = hvector(pos_vec,vel_vec)
@@ -143,7 +142,6 @@ real function semimajor_axis(mass1,mass2,pos_vec,vel_vec)
  !formula used is a = h^2/(G(M*+M_BH)*(1-e^2))
  semimajor_axis = h2/((gg*(mass1+mass2))*(1-eccentricity_value**2))
 
-
 end function semimajor_axis
 
  !----------------------------------------------------------------
@@ -175,7 +173,7 @@ end function period_star
 subroutine orbital_angles(mass1,mass2,pos_vec,vel_vec,&
                             inclination_angle,argument_of_periestron,longitude_ascending_node)
 
- use vectorutils, only : cross_product3D
+ use vectorutils, only:cross_product3D
 
  real, intent(in)   :: mass1,mass2
  real, intent(in)   :: pos_vec(3),vel_vec(3)
@@ -205,7 +203,6 @@ subroutine orbital_angles(mass1,mass2,pos_vec,vel_vec,&
  argument_of_periestron = acos(dot_product(ecc_hat,n_hat))
  longitude_ascending_node = acos(dot_product(i_vector,n_hat))
 
-
 end subroutine orbital_angles
 
  !----------------------------------------------------------------
@@ -218,7 +215,7 @@ end subroutine orbital_angles
 
 subroutine isco_kerr(a,mass_bh,r_isco)
  real, intent(in) :: a,mass_bh
- real, intent(out):: r_isco
+ real, intent(out) :: r_isco
  real  :: z1,z2
 
  !Modified the formulas for Z1 and Z2 so that it uses the spin parameter

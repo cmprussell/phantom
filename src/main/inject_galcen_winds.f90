@@ -16,7 +16,9 @@ module inject
 ! :Runtime parameters:
 !   - datafile_mhn   : *filename for wind composition (mu,habund,name)*
 !   - datafile_wind  : *filename for wind injection (m,x,y,z,vx,vy,vz)*
+!   - num_var_comp   : *number of various compositions*
 !   - outer_boundary : *kill gas particles outside this radius*
+!   - use_var_comp   : *whether gas particles have different mean molecular weights*
 !
 ! :Dependencies: dim, eos, infile_utils, io, options, part, partinject,
 !   physcon, random, timestep, units

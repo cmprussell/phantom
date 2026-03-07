@@ -190,7 +190,6 @@ module utils_dumpfiles_hdf5
 
 contains
 
-
 !--------------------------------------------------------------------
 !+
 !  write header
@@ -347,7 +346,7 @@ subroutine write_hdf5_arrays( &
 )
 
  integer(HID_T),  intent(in) :: file_id
- integer,         intent(out):: error
+ integer,         intent(out) :: error
  integer,         intent(in) :: npart, nptmass
  real,            intent(in) :: dtind(:),          &
                                 beta_pr(:),        &
@@ -570,7 +569,7 @@ subroutine write_hdf5_arrays_small( &
 )
 
  integer(HID_T),  intent(in) :: file_id
- integer,         intent(out):: error
+ integer,         intent(out) :: error
  integer,         intent(in) :: npart, nptmass
  real,            intent(in) :: xyzh(:,:),         &
                                 Bxyz(:,:),         &

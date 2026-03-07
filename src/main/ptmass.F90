@@ -1003,13 +1003,13 @@ end subroutine ptmass_check_acc
 ! use part,       only: ihacc,itbirth,ndptmass
 ! use kernel,     only: radkern2
 ! use io,         only: iprint,iverbose,fatal
-! use io_summary, only: iosum_ptmass,maxisink,print_acc
+! use io_summary, only:iosum_ptmass,maxisink,print_acc
 !=======
 subroutine ptmass_accrete(is,nptmass,xi,yi,zi,hi,pxi,pyi,pzi,fxi,fyi,fzi, &
                           itypei,pmassi,xyzmh_ptmass,pxyz_ptmass,accreted, &
                           dptmass,time,facc,nbinmax,ibin_wakei,nfaili,listneigh,&
                           nneigh,iaccreted_onto)
-                          !nneigh)
+ !nneigh)
  use part,       only:nvel_ptmass,ndptmass
  use io_summary, only:iosum_ptmass,maxisink,print_acc
 !>>>>>>> upstream/master
@@ -2694,9 +2694,10 @@ subroutine ptmass_calc_enclosed_mass(nptmass,npart,xyzh)
  integer             :: i,j
  real                :: wi,q2,x0,y0,z0,hsoft21
 
+ if (cwb) return
+
  do i = 1,nptmass
     if (.not. sink_has_heating(xyzmh_ptmass(:,i))) cycle
-IF (cwb) CYCLE
     wi = 0.
     x0 = xyzmh_ptmass(1,i)
     y0 = xyzmh_ptmass(2,i)

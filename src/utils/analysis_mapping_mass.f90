@@ -27,7 +27,7 @@ contains
 !--------------------------------------------------------------------------
 subroutine do_analysis(dumpfile,num,xyzh,vxyzu,particlemass,npart,time,iunit)
  use dim,          only: maxp,maxvxyzu
- use centreofmass, only: reset_centreofmass
+ use centreofmass, only:reset_centreofmass
  use physcon,      only: pi,gg,years
  use units,        only: umass,udist,utime
  use part,         only: rhoh
@@ -89,7 +89,7 @@ subroutine do_analysis(dumpfile,num,xyzh,vxyzu,particlemass,npart,time,iunit)
  call indexxfunc(npart,r2func_origin,xyzh,iorder)
  !
  !--Mass of each shell
- dm   = mmax/float(nbins)
+ dm   = mmax/real(nbins)
  !
  !--Binning data
  ii = 1

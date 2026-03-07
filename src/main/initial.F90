@@ -200,7 +200,6 @@ subroutine startrun(infile,logfile,evfile,dumpfile,noread)
 ! dtinject = dtinject_cwb
 !#endif
     if (cwb) dtinject = dtinject_cwb
-    if (cwb) WRITE(*,*) 'dtinject, dtinject_cwb =',dtinject,dtinject_cwb
     if (ierr /= 0) call fatal('initial','error initialising particle injection')
     if (write_files) then
        !rename wind profile filename

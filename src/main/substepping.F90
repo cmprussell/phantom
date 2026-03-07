@@ -21,7 +21,7 @@ module substepping
 !     Tuckerman, Berne & Martyna (1992), J. Chem. Phys. 97, 1990-2001
 !     Rantala + (2020) (2023),Chin (2007a)
 !
-! :Owner: Alison Young
+! :Owner: Yann Bernard
 !
 ! :Runtime parameters: None
 !
@@ -624,10 +624,10 @@ subroutine accretion(npart,nptmass,ntypes,xyzh,pxyzu,xyzmh_ptmass,pxyz_ptmass,&
  !$omp shared(xyzmh_ptmass,pxyz_ptmass,fxyz_ptmass,f_acc,apr_level,aprmassoftype) &
  !$omp shared(iexternalforce,ptmasskdtree) &
  !$omp shared(nbinmax,ibin_wake,fast_acc) &
-    !$omp shared(iwindorig) &
-    !$omp shared(eos_vars) &
+ !$omp shared(iwindorig) &
+ !$omp shared(eos_vars) &
  !$omp private(i,was_accreted,nfaili,xi,yi,zi,fxi,fyi,fzi,nneigh) &
-    !$omp private(iaccreted_onto) &
+ !$omp private(iaccreted_onto) &
  !$omp firstprivate(itype,pmassi,ibin_wakei,rsearch) &
  !$omp reduction(+:accretedmass) &
  !$omp reduction(+:nfail) &
@@ -637,7 +637,7 @@ subroutine accretion(npart,nptmass,ntypes,xyzh,pxyzu,xyzmh_ptmass,pxyz_ptmass,&
  accreteloop: do i=1,npart
     if (.not.isdead_or_accreted(xyzh(4,i))) then
        if (ntypes > 1 .and. maxphase==maxp) then
-             write(*,*) 'THIS IS RUNNING A' !should not be executed for galcen sims since ntypes=1
+          write(*,*) 'THIS IS RUNNING A' !should not be executed for galcen sims since ntypes=1
           itype = iamtype(iphase(i))
           if (iamboundary(itype)) cycle accreteloop
           if (use_apr) then
@@ -651,9 +651,9 @@ subroutine accretion(npart,nptmass,ntypes,xyzh,pxyzu,xyzmh_ptmass,pxyz_ptmass,&
 
        was_accreted = .false.
        if (iexternalforce > 0) then
-             !write(*,*) 'THIS IS RUNNING B' !should not be executed for galcen sims since iexternalforce=0
-             !this is executed for CWB sims when iexternalforce=iext_windaccel,
-             !   but nothing happens in the subroutine accrete_particles(iext_windaccel,...)
+          !write(*,*) 'THIS IS RUNNING B' !should not be executed for galcen sims since iexternalforce=0
+          !this is executed for CWB sims when iexternalforce=iext_windaccel,
+          !   but nothing happens in the subroutine accrete_particles(iext_windaccel,...)
           call accrete_particles(iexternalforce,xyzh(1,i),xyzh(2,i), &
                                     xyzh(3,i),xyzh(4,i),pmassi,timei,was_accreted)
           if (was_accreted) then
@@ -669,9 +669,9 @@ subroutine accretion(npart,nptmass,ntypes,xyzh,pxyzu,xyzmh_ptmass,pxyz_ptmass,&
        ! need position, velocities and accelerations of both gas and sinks to be synchronised,
        ! otherwise will not conserve momentum
        !
-          ! Note: requiring sts_it_n since this is supertimestep with the most active particles
-          !
-          !if (nptmass > 0 .and. sts_it_n) then !not sure why sts_it_n is not required anymore; should investigate
+       ! Note: requiring sts_it_n since this is supertimestep with the most active particles
+       !
+       !if (nptmass > 0 .and. sts_it_n) then !not sure why sts_it_n is not required anymore; should investigate
        if (nptmass > 0) then
           fxi     = fext(1,i)
           fyi     = fext(2,i)
@@ -682,12 +682,12 @@ subroutine accretion(npart,nptmass,ntypes,xyzh,pxyzu,xyzmh_ptmass,pxyz_ptmass,&
           rsearch = max(xyzh(4,i),rsearch)
 
           if (ind_timesteps) ibin_wakei = ibin_wake(i)
-             !if (i==30001) then
-             !   write(*,*) 'PreAccrete:  ',i,is_accretable(itype),itype,iphase(i),pmassi,xyzh(4,i),xyzmh_ptmass(5,1),f_acc,sqrt(xyzh(1,i)**2+xyzh(2,i)**2+xyzh(3,i)**2)
-             !endif
-             !if (sqrt(xyzh(1,i)**2+xyzh(2,i)**2+xyzh(3,i)**2) < xyzmh_ptmass(5,1)) then
-             !   write(*,*) 'BefoAccrete: ',i,is_accretable(itype),itype,iphase(i),pmassi,xyzh(4,i),sqrt(xyzh(1,i)**2+xyzh(2,i)**2+xyzh(3,i)**2),accreted,nfaili,iexternalforce,ntypes,maxphase==maxp,maxphase,maxp
-             !endif
+          !if (i==30001) then
+          !   write(*,*) 'PreAccrete:  ',i,is_accretable(itype),itype,iphase(i),pmassi,xyzh(4,i),xyzmh_ptmass(5,1),f_acc,sqrt(xyzh(1,i)**2+xyzh(2,i)**2+xyzh(3,i)**2)
+          !endif
+          !if (sqrt(xyzh(1,i)**2+xyzh(2,i)**2+xyzh(3,i)**2) < xyzmh_ptmass(5,1)) then
+          !   write(*,*) 'BefoAccrete: ',i,is_accretable(itype),itype,iphase(i),pmassi,xyzh(4,i),sqrt(xyzh(1,i)**2+xyzh(2,i)**2+xyzh(3,i)**2),accreted,nfaili,iexternalforce,ntypes,maxphase==maxp,maxphase,maxp
+          !endif
           if (fast_acc) then
              call get_ptmass_neigh(ptmasskdtree,(/xi,yi,zi/),rsearch,listneigh,nneigh)
 
@@ -698,7 +698,7 @@ subroutine accretion(npart,nptmass,ntypes,xyzh,pxyzu,xyzmh_ptmass,pxyz_ptmass,&
 #endif
                                  fxi,fyi,fzi,itype,pmassi,xyzmh_ptmass,pxyz_ptmass,was_accreted,&
                                  dptmass,timei,f_acc,nbinmax,ibin_wakei,nfaili,listneigh,nneigh,iaccreted_onto)
-                                 !dptmass,timei,f_acc,nbinmax,ibin_wakei,nfaili,listneigh,nneigh)
+             !dptmass,timei,f_acc,nbinmax,ibin_wakei,nfaili,listneigh,nneigh)
           else
 #ifdef CWB
              call ptmass_accrete(1,nptmass,xi,yi,zi,xyzh(4,i),pxyzu(1,i),pxyzu(2,i),pxyzu(3,i),&
@@ -707,33 +707,33 @@ subroutine accretion(npart,nptmass,ntypes,xyzh,pxyzu,xyzmh_ptmass,pxyz_ptmass,&
 #endif
                                  fxi,fyi,fzi,itype,pmassi,xyzmh_ptmass,pxyz_ptmass,was_accreted,&
                                  dptmass,timei,f_acc,nbinmax,ibin_wakei,nfaili,iaccreted_onto=iaccreted_onto)
-                                 !dptmass,timei,f_acc,nbinmax,ibin_wakei,nfaili)
+             !dptmass,timei,f_acc,nbinmax,ibin_wakei,nfaili)
           endif
-             !if (i==30001) then
-             !   write(*,*) 'PostAccrete: ',i,is_accretable(itype),itype,iphase(i),pmassi,xyzh(4,i),xyzmh_ptmass(5,1),f_acc,sqrt(xyzh(1,i)**2+xyzh(2,i)**2+xyzh(3,i)**2),accreted,nfaili
-             !endif
-             !if (sqrt(xyzh(1,i)**2+xyzh(2,i)**2+xyzh(3,i)**2) < xyzmh_ptmass(5,1)) then !these particles might not yet accrete is f_acc<1.0
-             !   write(*,*) 'DoneAccrete: ',i,is_accretable(itype),itype,iphase(i),pmassi,xyzh(4,i),sqrt(xyzh(1,i)**2+xyzh(2,i)**2+xyzh(3,i)**2),accreted,nfaili,iwindorig(i)
-             !endif
+          !if (i==30001) then
+          !   write(*,*) 'PostAccrete: ',i,is_accretable(itype),itype,iphase(i),pmassi,xyzh(4,i),xyzmh_ptmass(5,1),f_acc,sqrt(xyzh(1,i)**2+xyzh(2,i)**2+xyzh(3,i)**2),accreted,nfaili
+          !endif
+          !if (sqrt(xyzh(1,i)**2+xyzh(2,i)**2+xyzh(3,i)**2) < xyzmh_ptmass(5,1)) then !these particles might not yet accrete is f_acc<1.0
+          !   write(*,*) 'DoneAccrete: ',i,is_accretable(itype),itype,iphase(i),pmassi,xyzh(4,i),sqrt(xyzh(1,i)**2+xyzh(2,i)**2+xyzh(3,i)**2),accreted,nfaili,iwindorig(i)
+          !endif
 #ifndef CWB
-             if (sqrt(xyzh(1,i)**2+xyzh(2,i)**2+xyzh(3,i)**2) < xyzmh_ptmass(5,1) .AND. (.NOT.was_accreted)) then !these particles might not yet accrete is f_acc<1.0
-                write(*,*) 'SoonWillAccrete: ',i,timei,&
-                   xyzh(1,i),xyzh(2,i),xyzh(3,i),&
-                   pxyzu(1,i),pxyzu(2,i),pxyzu(3,i),&
-                   abs(xyzh(4,i)),eos_vars(itemp,i),& !vxyzu(4,i)*TempConversionFactor,&
-                   pmassi,rhoh(abs(xyzh(4,i)),pmassi),pxyzu(4,i),&
-                   nfaili,iwindorig(i)
-             endif
+          if (sqrt(xyzh(1,i)**2+xyzh(2,i)**2+xyzh(3,i)**2) < xyzmh_ptmass(5,1) .AND. (.NOT.was_accreted)) then !these particles might not yet accrete is f_acc<1.0
+             write(*,*) 'SoonWillAccrete: ',i,timei,&
+                xyzh(1,i),xyzh(2,i),xyzh(3,i),&
+                pxyzu(1,i),pxyzu(2,i),pxyzu(3,i),&
+                abs(xyzh(4,i)),eos_vars(itemp,i),& !vxyzu(4,i)*TempConversionFactor,&
+                pmassi,rhoh(abs(xyzh(4,i)),pmassi),pxyzu(4,i),&
+                nfaili,iwindorig(i)
+          endif
 #endif
           if (was_accreted) then
-                !write(*,*) 'Yes Accrete: ',i,is_accretable(itype),itype,iphase(i),pmassi,xyzh(4,i),sqrt(xyzh(1,i)**2+xyzh(2,i)**2+xyzh(3,i)**2),accreted,nfaili,iwindorig(i)
-                !write out the particle index, time, position, velocity, h, T, pmass, rho, u, accretion flag, and particle's wind origin
-                write(*,*) 'HereIsAnAccrete: ',i,timei,&
-                   xyzh(1,i),xyzh(2,i),xyzh(3,i),&
-                   pxyzu(1,i),pxyzu(2,i),pxyzu(3,i),&
-                   -xyzh(4,i),eos_vars(itemp,i),& !vxyzu(4,i)*TempConversionFactor,&
-                   pmassi,rhoh(-xyzh(4,i),pmassi),pxyzu(4,i),&
-                   nfaili,iwindorig(i),iaccreted_onto
+             !write(*,*) 'Yes Accrete: ',i,is_accretable(itype),itype,iphase(i),pmassi,xyzh(4,i),sqrt(xyzh(1,i)**2+xyzh(2,i)**2+xyzh(3,i)**2),accreted,nfaili,iwindorig(i)
+             !write out the particle index, time, position, velocity, h, T, pmass, rho, u, accretion flag, and particle's wind origin
+             write(*,*) 'HereIsAnAccrete: ',i,timei,&
+                xyzh(1,i),xyzh(2,i),xyzh(3,i),&
+                pxyzu(1,i),pxyzu(2,i),pxyzu(3,i),&
+                -xyzh(4,i),eos_vars(itemp,i),& !vxyzu(4,i)*TempConversionFactor,&
+                pmassi,rhoh(-xyzh(4,i),pmassi),pxyzu(4,i),&
+                nfaili,iwindorig(i),iaccreted_onto
              naccreted = naccreted + 1
              cycle accreteloop
           else
